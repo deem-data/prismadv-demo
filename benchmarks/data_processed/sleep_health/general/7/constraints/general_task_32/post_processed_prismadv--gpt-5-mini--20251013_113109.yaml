@@ -1,0 +1,2168 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-mini
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  Physical Activity Level:
+    code:
+    - suggestion: '.hasDataType(''Physical Activity Level'', ''Numeric'', lambda x:
+        x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Physical Activity
+        Level'', ''Numeric'', lambda x: x == 1.0)'
+      level: error
+      uid: 97fcd48d-7002-4ce5-8fa8-3460bf722ccb
+      source_assumptions:
+      - 5b99bca7-fd77-4177-9867-b7c2c1d17aba
+    - suggestion: '.satisfies("CASE WHEN `Physical Activity Level` IS NULL THEN 0
+        ELSE CASE WHEN `Physical Activity Level` >= 0 AND `Physical Activity Level`
+        <= 120 THEN 1 ELSE 0 END END", "Physical Activity Level in [0,120]", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 37359d9e-9234-4369-9adc-7df191bc4016
+      source_assumptions:
+      - cd4b11af-3066-48a7-9d52-4fc878bd8931
+    - suggestion: '.satisfies("CASE WHEN `Physical Activity Level` IS NULL THEN 1
+        ELSE CASE WHEN round(`Physical Activity Level`, 0) = `Physical Activity Level`
+        THEN 1 ELSE 0 END END", "Physical Activity Level integer-like", lambda x:
+        x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7ddc0437-4203-4f51-a70f-8ea12e22a5f3
+      source_assumptions:
+      - 7a0252b4-cac5-4622-b24d-d2371c6fdf20
+    assumptions:
+    - text: The 'Physical Activity Level' column must be numeric (or convertible to
+        float). The code calls .astype(float) on this column and will raise an error
+        or produce NaNs if values are non-numeric (e.g., text labels like 'Low'/'Medium').
+        This can be validated with a rule that checks convertibility to numeric or
+        that the column dtype is numeric.
+      sources:
+      - start_line: 23
+        end_line: 26
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: 5b99bca7-fd77-4177-9867-b7c2c1d17aba
+    - text: The 'Physical Activity Level' column is expected to have no nulls (complete).
+        The code reads the CSV and immediately casts the column to float and uses
+        it in arithmetic; missing values would produce NaNs that propagate into risk
+        calculation. Validate that the fraction of non-null values is ~100%.
+      sources:
+      - start_line: 83
+        end_line: 86
+        file: ''
+      uid: 33e8a6f7-d942-4703-9917-44310e73426f
+    - text: "Values of 'Physical Activity Level' are expected to lie in the range\
+        \ [0, 120]. The function clips pal with pal.clip(lower=0, upper=120) and normalizes\
+        \ by 120, which implies 0\u2013120 is the intended valid range. Rows outside\
+        \ this range should be considered data errors (the code silently clips them)."
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: cd4b11af-3066-48a7-9d52-4fc878bd8931
+    - text: The 'Physical Activity Level' values should be integer-like (integral
+        counts/levels) rather than categorical text. Dataset metadata indicates an
+        integral type and the code treats the column as numeric; ensure there are
+        no unexpected category values or malformed tokens.
+      sources:
+      - start_line: 23
+        end_line: 26
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: 7a0252b4-cac5-4622-b24d-d2371c6fdf20
+  Quality of Sleep:
+    code:
+    - suggestion: .isComplete("Quality of Sleep")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3be3a59e-37a5-4019-9820-86cabc81c6c3
+      source_assumptions:
+      - 8669a19a-b219-4508-804d-d7560bbc3a72
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`Quality of Sleep` AS DOUBLE) IS
+        NOT NULL THEN 1 ELSE 0 END", "Quality of Sleep numeric", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8be68592-6fc5-4c5e-8473-1ec3e18971ff
+      source_assumptions:
+      - b78a447a-4f47-4fa1-a71d-317679006664
+    - suggestion: '.satisfies("CASE WHEN `Quality of Sleep` BETWEEN 1 AND 10 THEN
+        1 ELSE 0 END", "Quality of Sleep in 1..10", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 98e94797-82ea-4909-94b7-89da142d048b
+      source_assumptions:
+      - 0320d6cf-6662-4b27-8c2f-9afc5c4c9a91
+    - suggestion: '.satisfies("CASE WHEN `Quality of Sleep` = FLOOR(`Quality of Sleep`)
+        THEN 1 ELSE 0 END", "Quality of Sleep integer-valued", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3ec649ae-405d-4d1d-a7b4-37813279d37e
+      source_assumptions:
+      - d911bfde-f88a-4266-96bb-8fd649639a3b
+    assumptions:
+    - text: 'The ''Quality of Sleep'' column must be non-null (complete) in the input
+        data. The code treats values from this column as required for recovery risk
+        calculation and for trigger logic (if row[''Quality of Sleep''] <= 6). A corresponding
+        validation rule could be e.g. a deequ constraint: .satisfies("CASE WHEN `Quality
+        of Sleep` IS NOT NULL THEN 1 ELSE 0 END", "Quality of Sleep not null", lambda
+        x: x == 1.0).'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 126
+        end_line: 126
+        file: ''
+      uid: 8669a19a-b219-4508-804d-d7560bbc3a72
+    - text: "Values in 'Quality of Sleep' must be numeric / convertible to float.\
+        \ compute_recovery_risk calls qos.astype(float) and arithmetic is performed\
+        \ (subtract 5.0, divide by 5.0), so inputs that are non\u2011numeric strings\
+        \ would break or produce incorrect results. A validation rule example: .isComplete(\"\
+        Quality of Sleep\") (for completeness) and .satisfies(\"CASE WHEN TRY_CAST(`Quality\
+        \ of Sleep` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END\", \"Quality of Sleep\
+        \ numeric\", lambda x: x == 1.0)."
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: b78a447a-4f47-4fa1-a71d-317679006664
+    - text: "The column is expected to use a bounded ordinal scale centered around\
+        \ 5 (e.g., a 1\u201310 sleep quality scale). The code normalizes by (qos -\
+        \ 5.0)/5.0, and the trigger uses the threshold <= 6 for 'low_sleep_quality',\
+        \ so values should lie in a reasonable range such as 1..10 (or 0..10). A validation\
+        \ rule example: .satisfies(\"CASE WHEN `Quality of Sleep` BETWEEN 1 AND 10\
+        \ THEN 1 ELSE 0 END\", \"Quality of Sleep in 1..10\", lambda x: x == 1.0)."
+      sources:
+      - start_line: 15
+        end_line: 18
+        file: ''
+      - start_line: 126
+        end_line: 126
+        file: ''
+      uid: 0320d6cf-6662-4b27-8c2f-9afc5c4c9a91
+    - text: 'The ''Quality of Sleep'' values are expected to be ordinal/discrete (integers)
+        representing quality levels (higher = better). The histogram of the dataset
+        shows a small set of integer levels; the code''s comparison to integer threshold
+        (<= 6) implies integer-like values. A validation rule example: .satisfies("CASE
+        WHEN `Quality of Sleep` = FLOOR(`Quality of Sleep`) THEN 1 ELSE 0 END", "Quality
+        of Sleep integer-valued", lambda x: x == 1.0) or assert membership in the
+        expected set, e.g. .satisfies("CASE WHEN `Quality of Sleep` IN (1,2,3,4,5,6,7,8,9,10)
+        THEN 1 ELSE 0 END", "Quality of Sleep categories", lambda x: x >= 0.95).'
+      sources:
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 126
+        end_line: 126
+        file: ''
+      uid: d911bfde-f88a-4266-96bb-8fd649639a3b
+  BMI Category:
+    code:
+    - suggestion: '.isContainedIn(''BMI Category'', [''Normal'',''Normal Weight'',''Overweight'',''Obese''],
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e1d2f045-45e0-4983-b794-aec149f2a636
+      source_assumptions:
+      - e8641cf3-d663-4844-99df-26763dd4ec31
+      - caddd295-1184-450b-9348-037d7e330d42
+    assumptions:
+    - text: 'The ''BMI Category'' column must contain no null / missing values in
+        the input. The code reads the CSV and directly maps and compares BMI Category
+        values without filling or handling nulls, so missing values would produce
+        NaNs downstream (and may break risk calculations or triggers). Represent as
+        a validation like: DEEQU: .satisfies("CASE WHEN `BMI Category` IS NOT NULL
+        THEN 1 ELSE 0 END", "BMI not null", lambda x: x == 1) or Great Expectations:
+        expect_column_values_to_not_be_null(''BMI Category'').'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 58
+        end_line: 65
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      - start_line: 132
+        end_line: 132
+        file: ''
+      uid: e5151da3-8833-423e-a849-6185b044ac96
+    - text: 'The ''BMI Category'' values must be exactly one of the following strings
+        (case-sensitive, no extra whitespace): ''Normal'', ''Normal Weight'', ''Overweight'',
+        ''Obese''. The bmi_risk_map uses exact keys and the code checks equality against
+        ''Obese'' for triggers; any other value (including different casing or extra
+        spaces) will map to NaN or fail the trigger check. Represent as a validation
+        like: DEEQU: .satisfies("CASE WHEN `BMI Category` IN (''Normal'',''Normal
+        Weight'',''Overweight'',''Obese'') THEN 1 ELSE 0 END", "Valid BMI Categories",
+        lambda x: x == 1) or Great Expectations: expect_column_values_to_be_in_set(''BMI
+        Category'', [''Normal'',''Normal Weight'',''Overweight'',''Obese'']).'
+      sources:
+      - start_line: 58
+        end_line: 65
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      - start_line: 132
+        end_line: 132
+        file: ''
+      uid: e8641cf3-d663-4844-99df-26763dd4ec31
+    - text: 'There must be zero percent of BMI Category values outside the allowed
+        set (i.e., proportion of unmapped/unknown BMI Category values should be 0).
+        If any values are unmapped, bmi_risk will contain NaNs which can propagate
+        into risk_score, risk tier assignment, and the run summary. Represent as a
+        validation like: DEEQU: .satisfies("CASE WHEN `BMI Category` IN (''Normal'',''Normal
+        Weight'',''Overweight'',''Obese'') THEN 1 ELSE 0 END", "Allowed BMI Coverage",
+        lambda x: x == 1.0) or Great Expectations: expect_column_proportion_of_unique_values_to_be_in_set(...)
+        ensuring 100% coverage.'
+      sources:
+      - start_line: 58
+        end_line: 65
+        file: ''
+      - start_line: 99
+        end_line: 109
+        file: ''
+      - start_line: 111
+        end_line: 115
+        file: ''
+      - start_line: 153
+        end_line: 156
+        file: ''
+      uid: caddd295-1184-450b-9348-037d7e330d42
+  Blood Pressure:
+    code:
+    - suggestion: '.satisfies("CASE WHEN CAST(trim(split(`Blood Pressure`, ''/'')[0])
+        AS INT) BETWEEN 50 AND 300 AND CAST(trim(split(`Blood Pressure`, ''/'')[1])
+        AS INT) BETWEEN 30 AND 200 THEN 1 ELSE 0 END", "BP reasonable ranges", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9e273134-030a-4536-b5b6-8da55c75a0c7
+      source_assumptions:
+      - d521fb12-9b24-44e5-a0f1-16f6869c5550
+    assumptions:
+    - text: 'The input must contain a ''Blood Pressure'' column and it must not be
+        null/missing for any row. The code treats the column as present and later
+        converts/splits each value without handling missing values. Example validation
+        (Great Expectations / Deequ style): expect_column_values_to_not_be_null(''Blood
+        Pressure'') or .satisfies("CASE WHEN `Blood Pressure` IS NOT NULL THEN 1 ELSE
+        0 END", "No null BP", lambda x: x == 1).'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      - start_line: 30
+        end_line: 34
+        file: ''
+      uid: bfdddc51-e9ca-4e15-9e95-5e2286cdf67d
+    - text: 'Each ''Blood Pressure'' value must follow the pattern ''systolic/diastolic''
+        (exactly one ''/'' separator) where both systolic and diastolic are integer
+        strings (optionally with surrounding whitespace) and there are exactly two
+        components. A suitable regex-based check: expect_column_values_to_match_regex(''Blood
+        Pressure'', r''^\s*\d+\s*/\s*\d+\s*$'') or .satisfies("CASE WHEN `Blood Pressure`
+        RLIKE ''^\\s*\\d+\\s*/\\s*\\d+\\s*$'' THEN 1 ELSE 0 END", "BP format", lambda
+        x: x >= 0.99).'
+      sources:
+      - start_line: 30
+        end_line: 33
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      uid: aeb6e380-d5df-441a-99a1-cbd38fc1f79c
+    - text: 'Both parts (systolic and diastolic) must be parseable as integers (no
+        trailing units like ''mmHg'', no non-numeric tokens). The code calls .astype(int)
+        on the split components, which will fail if values cannot be cast to int.
+        Suggested validation after parsing or via regex and cast-check: .satisfies("CASE
+        WHEN `Blood Pressure` RLIKE ''^\\s*\\d+\\s*/\\s*\\d+\\s*$'' THEN 1 ELSE 0
+        END", "BP integer-parsable", lambda x: x == 1).'
+      sources:
+      - start_line: 32
+        end_line: 33
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      uid: a4a0906e-822a-4abc-8e14-000f48e7eac7
+    - text: 'Systolic and diastolic values should be within reasonable physiological
+        ranges to match the later threshold logic. For example, require systolic in
+        [50, 300] and diastolic in [30, 200]. These ranges prevent nonsensical values
+        that would break risk calculations and trigger logic. Example checks after
+        extracting ints: expect_column_values_to_be_between(''systolic'', min_value=50,
+        max_value=300) and expect_column_values_to_be_between(''diastolic'', min_value=30,
+        max_value=200). (These ranges can be adjusted to your domain requirements.)'
+      sources:
+      - start_line: 37
+        end_line: 47
+        file: ''
+      - start_line: 120
+        end_line: 121
+        file: ''
+      - start_line: 99
+        end_line: 104
+        file: ''
+      uid: d521fb12-9b24-44e5-a0f1-16f6869c5550
+  Person ID:
+    code:
+    - suggestion: .hasColumn("Person ID")
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasColumn("Person ID")'':
+        ''Check'' object has no attribute ''hasColumn'''
+      level: error
+      uid: ba6a831e-9c9f-4459-880e-999ee1863809
+      source_assumptions:
+      - f035521c-a526-43f5-9c47-2bd3996fc2c3
+    - suggestion: '.satisfies("CASE WHEN cast(`Person ID` as string) RLIKE ''^[0-9]+$''
+        THEN 1 ELSE 0 END", "Person ID integer format", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 18927ecd-3a2b-49fa-b4d4-3f39dd2f7cdc
+      source_assumptions:
+      - 34214131-580b-41d8-86b4-b83152b69746
+    - suggestion: .isUnique("Person ID")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 36a838ce-4043-4631-957c-57d882a11f9c
+      source_assumptions:
+      - 286e3c0c-49f7-4f76-b2a0-9c94147c42ad
+    assumptions:
+    - text: 'The input CSV must contain a column named ''Person ID'' because the script
+        copies df[''Person ID''] into the output. You can validate this with a table-level
+        check (e.g. Great Expectations: expect_table_column_to_exist or Deequ: assert
+        the column exists). Example Deequ-like predicate: .hasColumn("Person ID")
+        or Great Expectations: expect_table_column_to_exist(column=''Person ID'').'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 138
+        end_line: 143
+        file: ''
+      uid: f035521c-a526-43f5-9c47-2bd3996fc2c3
+    - text: 'The ''Person ID'' column must be non-null for all input rows. The code
+        assumes values are present when building the output (no defensive null-handling
+        is used). Deequ-style check (SQL predicate): .satisfies("CASE WHEN `Person
+        ID` IS NOT NULL THEN 1 ELSE 0 END", "Person ID non-null", lambda x: x == 1).
+        Great Expectations: expect_column_values_to_not_be_null(''Person ID'').'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 138
+        end_line: 143
+        file: ''
+      uid: 030588f7-7a90-4f6c-a081-1e313796cdb9
+    - text: 'Values in ''Person ID'' should be integral (integers) or string representations
+        of integers (no fractional parts). The code does not cast or validate formats
+        before writing the ID out, so values should be integer-typed or safely convertible
+        to integer. Deequ-style predicate: .satisfies("CASE WHEN `Person ID` RLIKE
+        ''^[0-9]+$'' THEN 1 ELSE 0 END", "Person ID integer format", lambda x: x ==
+        1). Great Expectations: expect_column_values_to_match_regex(''Person ID'',
+        r''^[0-9]+$'').'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 138
+        end_line: 143
+        file: ''
+      uid: 34214131-580b-41d8-86b4-b83152b69746
+    - text: 'Person IDs should be unique per row (one ID identifies one record). The
+        script uses Person ID as the identifier in outputs/alerts; duplicate IDs could
+        cause confusion in downstream use. Validate uniqueness with Deequ: .satisfies("CASE
+        WHEN COUNT(DISTINCT `Person ID`) = COUNT(`Person ID`) THEN 1 ELSE 0 END",
+        "Person ID unique", lambda x: x == 1) or Great Expectations: expect_column_values_to_be_unique(''Person
+        ID'').'
+      sources:
+      - start_line: 138
+        end_line: 143
+        file: ''
+      - start_line: 148
+        end_line: 150
+        file: ''
+      uid: 286e3c0c-49f7-4f76-b2a0-9c94147c42ad
+  Sleep Duration:
+    code:
+    - suggestion: '.hasDataType("Sleep Duration", "Fractional", lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Sleep Duration",
+        "Fractional", lambda x: x >= 0.99)'
+      level: error
+      uid: 4d099f53-c6e9-4b88-bca8-a880906bc173
+      source_assumptions:
+      - 898a4fa8-13e6-4deb-a361-f30353a6c42f
+      - 4354834a-fd2f-42fc-a2c4-faaab29d7ab0
+    - suggestion: .isComplete("Sleep Duration")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2e83535b-494b-40f6-aba5-cc7b4ec3abf7
+      source_assumptions:
+      - 226392b8-f3f1-47c4-8f91-f398c06453e6
+    - suggestion: '.satisfies("`Sleep Duration` >= 3 AND `Sleep Duration` <= 12",
+        "Sleep Duration mostly within normalization clip", lambda x: x >= 0.98)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 70a34e7f-fa0a-4f65-b220-46e518268d02
+      source_assumptions:
+      - 10a75c6d-2b25-4c64-a2d9-61eedb551967
+    assumptions:
+    - text: 'The ''Sleep Duration'' column must be numeric / convertible to float
+        because it is cast to float and used in arithmetic (subtraction, clipping,
+        multiplication) to compute risk. Example validation: assert values are parseable
+        as floats or dtype is numeric.'
+      sources:
+      - start_line: 9
+        end_line: 12
+        file: ''
+      - start_line: 15
+        end_line: 19
+        file: ''
+      - start_line: 84
+        end_line: 85
+        file: ''
+      uid: 898a4fa8-13e6-4deb-a361-f30353a6c42f
+    - text: 'The ''Sleep Duration'' column should not contain missing values (or only
+        a negligible amount). The code calls astype(float) and performs arithmetic
+        and comparisons; missing values would propagate NaNs and break risk calculations/aggregations.
+        Example validation: expect null fraction == 0 or <= small tolerance.'
+      sources:
+      - start_line: 83
+        end_line: 85
+        file: ''
+      - start_line: 122
+        end_line: 125
+        file: ''
+      uid: 226392b8-f3f1-47c4-8f91-f398c06453e6
+    - text: 'Values in ''Sleep Duration'' represent hours and can be fractional (e.g.,
+        7.5). The code uses thresholds like 7.0, 9.0 and clips to bounds expressed
+        in hours (3.0 to 12.0), so units must be hours. Example validation: ensure
+        typical range and decimal values consistent with hours.'
+      sources:
+      - start_line: 10
+        end_line: 11
+        file: ''
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 122
+        end_line: 125
+        file: ''
+      uid: 4354834a-fd2f-42fc-a2c4-faaab29d7ab0
+    - text: 'Sleep Duration should fall within a plausible physical range (e.g., 0
+        <= Sleep Duration <= 24). The code clips values to [3.0, 12.0] for normalization
+        and uses thresholds (6.0, 9.0), so extremely negative or excessively large
+        values are invalid and should be flagged. Example validation: assert 0 <=
+        value <= 24.'
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 10
+        end_line: 11
+        file: ''
+      - start_line: 122
+        end_line: 125
+        file: ''
+      uid: a68df3c7-fea3-4b09-af82-730c9fa87d2b
+    - text: 'The distribution of ''Sleep Duration'' may include values outside the
+        normalization clip ([3.0, 12.0]) but these are expected to be rare; the code
+        relies on clipping rather than imputing, so extremely frequent out-of-range
+        values could indicate bad input. Example validation: fraction of rows with
+        Sleep Duration < 3 or > 12 should be small (configurable tolerance).'
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 84
+        end_line: 85
+        file: ''
+      uid: 10a75c6d-2b25-4c64-a2d9-61eedb551967
+  Daily Steps:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`Daily Steps` AS DOUBLE) IS NOT
+        NULL THEN 1 ELSE 0 END", "Numeric Daily Steps", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8049e543-f9c8-4639-a036-5916ab4b84bc
+      source_assumptions:
+      - 1d8363a6-af53-4061-a974-bb4c7abb55b7
+    - suggestion: '.satisfies("CASE WHEN `Daily Steps` >= 0 THEN 1 ELSE 0 END", "Non-negative
+        Daily Steps", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dde0d237-a356-42b8-9301-943121441b57
+      source_assumptions:
+      - 0c2535a2-696d-4b0a-8de5-fe3f932d1ac0
+    - suggestion: '.satisfies("CASE WHEN `Daily Steps` <= 15000 THEN 1 ELSE 0 END",
+        "Steps <= 15000 (>=95% rows)", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 317b949c-3089-4e62-8824-ffd1325e61d1
+      source_assumptions:
+      - 4e193416-5db3-4822-9b19-0fe11124c898
+    - suggestion: '.satisfies("CASE WHEN `Daily Steps` = CAST(`Daily Steps` AS BIGINT)
+        THEN 1 ELSE 0 END", "Integer Daily Steps (>=99% rows)", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fe1f8423-8e54-425e-bd26-479bcea18039
+      source_assumptions:
+      - 4028d631-4fd8-466a-b7e5-13c1c7d77a02
+    assumptions:
+    - text: 'The ''Daily Steps'' column contains no missing values (non-null). The
+        code directly casts df[''Daily Steps''] to float and later compares row[''Daily
+        Steps''] to numeric thresholds; nulls would cause unexpected behavior or errors.
+        We could represent this as a validation rule, for example: .satisfies("CASE
+        WHEN `Daily Steps` IS NOT NULL THEN 1 ELSE 0 END", "Non-null Daily Steps",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 86
+        end_line: 86
+        file: ''
+      - start_line: 128
+        end_line: 128
+        file: ''
+      uid: e4c5037c-394b-451b-837d-d2abfae8c034
+    - text: 'The ''Daily Steps'' values must be numeric / convertible to float (they
+        are treated with numeric operations: cast to float, clip, division, comparisons).
+        Validate that values parse as numbers. Example Deequ-style check: .satisfies("CASE
+        WHEN TRY_CAST(`Daily Steps` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Numeric
+        Daily Steps", lambda x: x == 1).'
+      sources:
+      - start_line: 86
+        end_line: 86
+        file: ''
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 128
+        end_line: 128
+        file: ''
+      uid: 1d8363a6-af53-4061-a974-bb4c7abb55b7
+    - text: 'Daily Steps should be non-negative (>= 0). The activity risk computation
+        clips steps at a lower bound of 0, implying negative step counts are invalid
+        or should be treated as zero. Represent as: .satisfies("CASE WHEN `Daily Steps`
+        >= 0 THEN 1 ELSE 0 END", "Non-negative Daily Steps", lambda x: x == 1).'
+      sources:
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 128
+        end_line: 128
+        file: ''
+      uid: 0c2535a2-696d-4b0a-8de5-fe3f932d1ac0
+    - text: 'Values above 15000 will be clipped to 15000 when normalizing steps. The
+        input should therefore mostly fall within [0, 15000]; if many rows exceed
+        15000, the normalization loses information. A practical validation: require
+        a high fraction (e.g. >= 95%) of values <= 15000: .satisfies("CASE WHEN `Daily
+        Steps` <= 15000 THEN 1 ELSE 0 END", "Steps <= 15000", lambda x: x >= 0.95).'
+      sources:
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: 4e193416-5db3-4822-9b19-0fe11124c898
+    - text: 'Daily Steps are expected to be integer counts (whole numbers). The dataset
+        and downstream logic treat steps as discrete counts (the code casts to float
+        only for numeric ops). If you want to enforce integers: .satisfies("CASE WHEN
+        `Daily Steps` = CAST(`Daily Steps` AS BIGINT) THEN 1 ELSE 0 END", "Integer
+        Daily Steps", lambda x: x == 1) or allow a high fraction to be integer if
+        small rounding exists.'
+      sources:
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: 4028d631-4fd8-466a-b7e5-13c1c7d77a02
+  Sleep Disorder:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Sleep Disorder` IS NULL OR `Sleep Disorder`
+        IN (''Insomnia'',''Sleep Apnea'') THEN 1 ELSE 0 END", "Sleep Disorder values
+        are NULL or known", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 976f6198-fe00-45a4-87d5-3f2fa1e21fe9
+      source_assumptions:
+      - 908b34bb-b0d6-400a-858e-ffa791828e03
+      - 748ec8d8-1ae1-4e7e-b301-20013c7d8acd
+      - 912b7d34-96e4-4491-a59d-a818b857166c
+      - 30f2d4c2-4b15-4584-8026-523e59e1f98d
+    - suggestion: '.satisfies("CASE WHEN `Sleep Disorder` IS NULL OR `Sleep Disorder`
+        = trim(`Sleep Disorder`) THEN 1 ELSE 0 END", "Sleep Disorder has no leading/trailing
+        whitespace (exact-match sensitive)", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: cf694161-0bcb-4f32-9040-bf1bb847d55b
+      source_assumptions:
+      - 912b7d34-96e4-4491-a59d-a818b857166c
+    assumptions:
+    - text: 'The ''Sleep Disorder'' column may contain missing values (NULL). The
+        code reads ''NullValue'' as NA when loading the CSV and the sleep_disorder_penalty
+        function maps known categories and then .fillna(0.0), while the trigger logic
+        explicitly checks pd.notna(...) before inspecting the value. Validation rule
+        example (allowing NULLs): .satisfies("CASE WHEN `Sleep Disorder` IS NULL OR
+        `Sleep Disorder` IN (''Insomnia'',''Sleep Apnea'') THEN 1 ELSE 0 END", "Sleep
+        Disorder values are NULL or known", lambda x: x >= 0.95).'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 68
+        end_line: 73
+        file: ''
+      - start_line: 134
+        end_line: 135
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: 908b34bb-b0d6-400a-858e-ffa791828e03
+    - text: 'Non-null values of ''Sleep Disorder'' are expected to be one of the canonical
+        categories: ''Insomnia'' or ''Sleep Apnea''. The mapping in sleep_disorder_penalty
+        only recognizes these two categories and assigns penalties accordingly; other
+        values will be treated as unknown (no penalty). Validation rule example (require
+        most non-null entries to be in the allowed set): .satisfies("CASE WHEN `Sleep
+        Disorder` IS NULL THEN 1 WHEN `Sleep Disorder` IN (''Insomnia'',''Sleep Apnea'')
+        THEN 1 ELSE 0 END", "Allowed or NULL", lambda x: x >= 0.95).'
+      sources:
+      - start_line: 69
+        end_line: 72
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      - start_line: 134
+        end_line: 135
+        file: ''
+      uid: 748ec8d8-1ae1-4e7e-b301-20013c7d8acd
+    - text: 'Values in ''Sleep Disorder'' should match the category strings exactly
+        (case-sensitive, no extra whitespace) because the mapping uses exact string
+        keys. If input may contain different casing or surrounding whitespace, it
+        should be normalized before mapping. Validation example to catch mismatches:
+        .satisfies("CASE WHEN `Sleep Disorder` IS NULL OR `Sleep Disorder` IN (''Insomnia'',''Sleep
+        Apnea'') THEN 1 ELSE 0 END", "Exact-match Sleep Disorder", lambda x: x >=
+        0.95).'
+      sources:
+      - start_line: 69
+        end_line: 72
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: 912b7d34-96e4-4491-a59d-a818b857166c
+    - text: 'Unexpected or free-text values are implicitly treated as ''no penalty''
+        by the code (series.map(mapping) will produce NaN for unknown keys and .fillna(0.0)
+        converts them to 0.0). If unexpected values are not acceptable, require the
+        fraction of unknowns to be small. Validation example (limit unknowns): .satisfies("CASE
+        WHEN `Sleep Disorder` IS NULL OR `Sleep Disorder` IN (''Insomnia'',''Sleep
+        Apnea'') THEN 1 ELSE 0 END", "No/low unknown Sleep Disorder values", lambda
+        x: x >= 0.95).'
+      sources:
+      - start_line: 68
+        end_line: 73
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      - start_line: 83
+        end_line: 83
+        file: ''
+      uid: 30f2d4c2-4b15-4584-8026-523e59e1f98d
+  Heart Rate:
+    code:
+    - suggestion: '.satisfies("cast(`Heart Rate` as double) IS NOT NULL", "HeartRate_numeric",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9a0103bc-f6e7-4bcd-9eef-e9f791b552d4
+      source_assumptions:
+      - e3951625-a19f-4aa9-bb98-bb68bb4b327a
+    - suggestion: '.satisfies("cast(`Heart Rate` as double) >= 30 AND cast(`Heart
+        Rate` as double) <= 220", "HeartRate_plausible_range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5a550305-c610-4ef9-89e3-5ddd6ed861f6
+      source_assumptions:
+      - 0fe7424b-069d-42da-be76-c7c62744f5ec
+    - suggestion: '.satisfies("cast(`Heart Rate` as double) IS NOT NULL AND floor(cast(`Heart
+        Rate` as double)) = cast(`Heart Rate` as double)", "HeartRate_integer", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2415e84b-193d-48cb-9000-eea711f884fd
+      source_assumptions:
+      - a33abf81-17c0-49b0-a751-b9d487724e5b
+    assumptions:
+    - text: 'The ''Heart Rate'' column must be numeric (convertible to float). The
+        code calls df[''Heart Rate''].astype(float) and then performs numeric comparisons
+        (e.g., < 50, > 110). Validation rule example: use a rule that all non-null
+        values are parseable as numeric, e.g. a Great Expectations expectation like
+        expect_column_values_to_be_of_type or a Deequ check that CAST(`Heart Rate`
+        AS DOUBLE) is not null for rows where `Heart Rate` is not empty.'
+      sources:
+      - start_line: 90
+        end_line: 90
+        file: ''
+      - start_line: 51
+        end_line: 55
+        file: ''
+      uid: e3951625-a19f-4aa9-bb98-bb68bb4b327a
+    - text: 'The ''Heart Rate'' column should not contain null/missing values (completeness
+        = 100%). The code does not fill or impute missing Heart Rate values before
+        using them and earlier CSV reading defines NA tokens; therefore input should
+        provide Heart Rate for every row. Validation rule example: expect_column_values_to_not_be_null(''Heart
+        Rate'') or Deequ: .satisfies("CASE WHEN `Heart Rate` IS NOT NULL THEN 1 ELSE
+        0 END", "HeartRate_not_null", lambda x: x == 1.0).'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 90
+        end_line: 90
+        file: ''
+      uid: 69d42948-2c3d-42b5-aeee-c5340f67b43d
+    - text: 'Heart Rate values should be within a plausible physiological range (no
+        negatives and not extreme outliers). The scoring logic treats values <50 and
+        >110 as elevated risk but does not guard against nonsensical values (e.g.,
+        negative or extremely large numbers). A recommended input constraint is that
+        30 <= Heart Rate <= 220 (adjust bounds to your cohort). Validation rule example:
+        expect_column_values_to_be_between(''Heart Rate'', min_value=30, max_value=220)
+        or Deequ: .satisfies("CASE WHEN `Heart Rate` >= 30 AND `Heart Rate` <= 220
+        THEN 1 ELSE 0 END", "HeartRate_plausible_range", lambda x: x == 1.0).'
+      sources:
+      - start_line: 51
+        end_line: 55
+        file: ''
+      - start_line: 90
+        end_line: 90
+        file: ''
+      uid: 0fe7424b-069d-42da-be76-c7c62744f5ec
+    - text: 'Heart Rate is expected to be an integral value (whole beats per minute).
+        The dataset metadata indicates integral type and the code casts to float only
+        for numeric comparison; if fractional values exist they likely indicate data
+        quality issues. Validation rule example: expect_column_values_to_be_in_set
+        or to match integer pattern, or Deequ: .satisfies("CASE WHEN `Heart Rate`
+        IS NOT NULL AND floor(`Heart Rate`) = `Heart Rate` THEN 1 ELSE 0 END", "HeartRate_integer",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 90
+        end_line: 90
+        file: ''
+      - start_line: 51
+        end_line: 55
+        file: ''
+      uid: a33abf81-17c0-49b0-a751-b9d487724e5b
+  Stress Level:
+    code:
+    - suggestion: .isComplete('Stress Level')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c5ff59a6-78ec-48a1-ae48-b481ba7e9a9b
+      source_assumptions:
+      - bb4743c3-40c8-4ff6-9536-45041ad5cb9d
+    - suggestion: '.hasDataType(''Stress Level'', ''Numeric'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Stress Level'',
+        ''Numeric'', lambda x: x == 1)'
+      level: error
+      uid: d8f9861f-b0bb-4e5e-893c-ad3b6425a982
+      source_assumptions:
+      - 3b281dea-2e44-4432-80ba-427245651215
+    - suggestion: '.satisfies(''CASE WHEN `Stress Level` >= 0 AND `Stress Level` <=
+        10 THEN 1 ELSE 0 END'', ''Stress Level in [0,10]'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: f281f4e7-168d-4819-a392-15375e2b7428
+      source_assumptions:
+      - ae7e60e2-3a52-44ec-9af6-24520c27c230
+    - suggestion: '.satisfies(''CASE WHEN floor(`Stress Level`) = `Stress Level` THEN
+        1 ELSE 0 END'', ''Stress Level integer'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b6805bd3-fe14-4578-bf47-5e4397840c77
+      source_assumptions:
+      - c282ac54-2365-4d76-be2b-cd309ccba868
+    assumptions:
+    - text: 'The ''Stress Level'' column must not contain nulls because the code casts
+        it to float and uses it in arithmetic and threshold checks (no fillna is applied).
+        You can express this as a non-null constraint, e.g. (Great Expectations) expect_column_values_to_not_be_null
+        or (Deequ) .satisfies("CASE WHEN `Stress Level` IS NOT NULL THEN 1 ELSE 0
+        END", "Stress Level not null", lambda x: x == 1).'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      - start_line: 15
+        end_line: 19
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 97
+        end_line: 97
+        file: ''
+      - start_line: 130
+        end_line: 130
+        file: ''
+      uid: bb4743c3-40c8-4ff6-9536-45041ad5cb9d
+    - text: 'The ''Stress Level'' column must be numeric (or convertible to float).
+        The code uses .astype(float) and performs arithmetic and comparisons, so string
+        or otherwise non-convertible values will cause errors. Express this as: values
+        match a numeric pattern or cast succeeds for all rows (Great Expectations:
+        expect_column_values_to_be_in_type_list or a regex/SQL check; Deequ: .satisfies("CASE
+        WHEN TRY_CAST(`Stress Level` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Stress
+        Level numeric", lambda x: x == 1)).'
+      sources:
+      - start_line: 15
+        end_line: 19
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 97
+        end_line: 97
+        file: ''
+      - start_line: 130
+        end_line: 130
+        file: ''
+      uid: 3b281dea-2e44-4432-80ba-427245651215
+    - text: 'The ''Stress Level'' values are expected to lie within a reasonable questionnaire-like
+        range (suggested: 0 to 10 or 1 to 10). The code expects mid-scale around 5
+        and applies thresholds at 6 and 7; very large or negative values are likely
+        invalid and could distort risk calculations. Example Deequ constraint: .satisfies("CASE
+        WHEN `Stress Level` >= 0 AND `Stress Level` <= 10 THEN 1 ELSE 0 END", "Stress
+        Level in [0,10]", lambda x: x == 1).'
+      sources:
+      - start_line: 15
+        end_line: 19
+        file: ''
+      - start_line: 97
+        end_line: 97
+        file: ''
+      - start_line: 130
+        end_line: 130
+        file: ''
+      uid: ae7e60e2-3a52-44ec-9af6-24520c27c230
+    - text: 'The ''Stress Level'' column is expected to be on a small discrete scale
+        (integers or few distinct values) representing ordinal stress categories (code
+        treats it like a survey score and uses thresholds). You can validate cardinality
+        or integer-ness, e.g. Great Expectations expect_column_values_to_be_in_type_list
+        or expect_column_values_to_be_between + an integer check; Deequ: .hasSize
+        and .satisfies("CASE WHEN floor(`Stress Level`) = `Stress Level` THEN 1 ELSE
+        0 END", "Stress Level integer", lambda x: x == 1) or check that distinct count
+        is small (<= 20).'
+      sources:
+      - start_line: 15
+        end_line: 19
+        file: ''
+      - start_line: 97
+        end_line: 97
+        file: ''
+      - start_line: 130
+        end_line: 130
+        file: ''
+      uid: c282ac54-2365-4d76-be2b-cd309ccba868
+  Age:
+    code:
+    - suggestion: .isComplete("Age")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9f41d6b0-6f1a-4f65-8ee3-0ccdd7f73624
+      source_assumptions:
+      - ed933921-2b9a-4656-93e1-afcfdd23e4be
+    - suggestion: '.hasDataType("Age", "Numeric", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Age", "Numeric",
+        lambda x: x == 1.0)'
+      level: error
+      uid: b86a938a-92e1-42da-bae6-cf1fc76fafb4
+      source_assumptions:
+      - f3d3f603-d07b-4e7e-b3cb-be6f3c70225e
+    - suggestion: '.satisfies("CASE WHEN `Age` BETWEEN 0 AND 120 THEN 1 ELSE 0 END",
+        "Age in realistic range", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e0233351-8745-4f56-bdb4-991f16a09266
+      source_assumptions:
+      - e3597d73-ebeb-4546-bcbd-bcaa6806020d
+    - suggestion: '.satisfies("CASE WHEN `Age` = FLOOR(`Age`) THEN 1 ELSE 0 END",
+        "Age integer-valued", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7906e29c-9469-48c2-a965-38e96bae460f
+      source_assumptions:
+      - e3aa0167-e380-4fd5-bb4c-9e4e7a1e2745
+    assumptions:
+    - text: 'The ''Age'' column must not contain missing/null values. The code performs
+        df[''Age''].astype(float) followed by pd.cut and then adds age_risk into the
+        aggregated risk_score; nulls would produce NaN in age_risk and propagate to
+        risk_score. Example Deequ-like check: .satisfies("CASE WHEN `Age` IS NOT NULL
+        THEN 1 ELSE 0 END", "Age not null", lambda x: x == 1)'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      - start_line: 99
+        end_line: 109
+        file: ''
+      uid: ed933921-2b9a-4656-93e1-afcfdd23e4be
+    - text: 'The ''Age'' column must be numeric or convertible to float (no non-numeric
+        strings such as ''Unknown'' or ''N/A''). The code calls Age.astype(float)
+        which will fail or produce NaN for non-numeric values. Example Deequ-like
+        check: .satisfies("CASE WHEN TRY_CAST(`Age` AS DOUBLE) IS NOT NULL THEN 1
+        ELSE 0 END", "Age numeric/parsable", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      uid: f3d3f603-d07b-4e7e-b3cb-be6f3c70225e
+    - text: 'The ''Age'' column is expected to represent age in years and be within
+        a realistic human range (non-negative and bounded). The code uses thresholds
+        at 55, 60, 65 so values should be in years and not extreme (e.g., 0 <= Age
+        <= 120). Example Deequ-like check: .satisfies("CASE WHEN `Age` BETWEEN 0 AND
+        120 THEN 1 ELSE 0 END", "Age in realistic range", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      uid: e3597d73-ebeb-4546-bcbd-bcaa6806020d
+    - text: 'The ''Age'' column should be whole-year values (integers) or at least
+        not contain many fractional ages, since Age is described as integral in metadata
+        and the code bins on year thresholds. Example Deequ-like check: .satisfies("CASE
+        WHEN `Age` = FLOOR(`Age`) THEN 1 ELSE 0 END", "Age integer-valued", lambda
+        x: x >= 0.95)'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      uid: e3aa0167-e380-4fd5-bb4c-9e4e7a1e2745
+  '["Age","age_risk"]':
+    code: []
+    assumptions:
+    - text: 'The ''Blood Pressure'' column must contain a parsable ''systolic/diastolic''
+        pair for each row (no missing or malformed values). compute_bp_components
+        splits Blood Pressure on ''/'' and casts both parts to int, and downstream
+        code compares systolic and diastolic numerically (e.g. >= 140 or >= 90). Enforceable
+        checks: - Blood Pressure is non-null for all rows and matches regex ''^\d+/\d+$''
+        so both parts are integers. Example Deequ-style constraints: .isComplete([''Blood
+        Pressure'']) and .satisfies(''Blood Pressure RLIKE "^\\d+\\/\\d+$"'', ''blood_pressure_format'')'
+      sources:
+      - start_line: 30
+        end_line: 34
+        file: ''
+      - start_line: 87
+        end_line: 88
+        file: ''
+      - start_line: 120
+        end_line: 121
+        file: ''
+      uid: 9501893f-00e2-406e-9a31-98cb966aa9ee
+    - text: 'Age must be numeric, non-null, and lie in a reasonable human range so
+        that age_risk (pd.cut on Age) yields a finite numeric label for every row.
+        The code bins Age into [-inf,55,60,65,inf] and converts labels to float to
+        add into risk_score; missing or non-numeric Age will produce NaN age_risk
+        and propagate to risk_score. Enforceable checks: .isComplete([''Age'']), .isNumeric([''Age''])
+        and a range check such as all(Age >= 0 and Age <= 120). Example Deequ constraints:
+        .hasCompleteness(''Age'', 1.0) and .satisfies(''Age >= 0 AND Age <= 120'',
+        ''age_reasonable_range'')'
+      sources:
+      - start_line: 94
+        end_line: 95
+        file: ''
+      - start_line: 99
+        end_line: 109
+        file: ''
+      - start_line: 111
+        end_line: 115
+        file: ''
+      uid: e9c477e6-3091-4283-8e48-fc9a84996430
+    - text: "The trio of columns used to compute recovery_risk \u2014 'Quality of\
+        \ Sleep', 'Stress Level', and 'Sleep Duration' \u2014 must be numeric (or\
+        \ coercible to numeric) and non-null for rows where recovery_risk is expected.\
+        \ compute_recovery_risk normalizes these values and clips Sleep Duration to\
+        \ [3,12]; missing or non-numeric entries will produce NaNs and corrupt the\
+        \ summed risk_score. Enforceable checks: .isComplete(['Quality of Sleep','Stress\
+        \ Level','Sleep Duration']), .isNumeric(...) and optional bounds check for\
+        \ Sleep Duration (e.g. between 0 and 24). Example Deequ constraints: .hasCompleteness(['Quality\
+        \ of Sleep','Stress Level','Sleep Duration'], 1.0) and .satisfies('`Sleep\
+        \ Duration` >= 0 AND `Sleep Duration` <= 24', 'sleep_duration_bounds')"
+      sources:
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 84
+        end_line: 85
+        file: ''
+      - start_line: 122
+        end_line: 126
+        file: ''
+      uid: e60ac2f2-cd89-4049-9218-1a7500701749
+    - text: 'Columns that contribute numeric components to risk_score should not produce
+        NaN when combined. Specifically, the following inputs must be present and
+        valid so the sum of components (sleep_dur_risk, recovery_risk, activity_risk,
+        bp_risk, hr_risk, bmi_risk, sd_penalty, age_risk, stress_direct_risk) yields
+        a finite risk_score for each row: ''Sleep Duration'', ''Quality of Sleep'',
+        ''Stress Level'', ''Daily Steps'', ''Physical Activity Level'', ''Blood Pressure''
+        (parsable), ''Heart Rate'', ''BMI Category'' (mapped to known categories)
+        and ''Age''. Enforceable check: for every row, all of the derived component
+        values are finite (not NaN/Inf) or equivalently require completeness and valid
+        formats for the listed input columns. Example Deequ approach: require completeness
+        of all listed columns and explicit validation rules that each mapping/conversion
+        will succeed (e.g. isIn for BMI Category, regex for Blood Pressure, numeric
+        ranges for others).'
+      sources:
+      - start_line: 99
+        end_line: 109
+        file: ''
+      - start_line: 111
+        end_line: 115
+        file: ''
+      uid: e6bb8a0a-b337-4107-95db-0472b43333a6
+    - text: 'Values in ''BMI Category'' must belong to the mapping keys used by bmi_risk_map
+        ([''Normal'',''Normal Weight'',''Overweight'',''Obese'']). Any other category
+        yields NaN from .map(...) and will make bmi_risk NaN and potentially make
+        risk_score NaN. Enforceable checks: .isIn(''BMI Category'', [''Normal'',''Normal
+        Weight'',''Overweight'',''Obese'']) with completeness. Example Deequ constraint:
+        .hasCompleteness(''BMI Category'', 1.0) and .satisfies(''`BMI Category` IN
+        ("Normal","Normal Weight","Overweight","Obese")'', ''bmi_allowed_values'')'
+      sources:
+      - start_line: 58
+        end_line: 65
+        file: ''
+      - start_line: 90
+        end_line: 91
+        file: ''
+      - start_line: 99
+        end_line: 109
+        file: ''
+      uid: f387a7d3-3b36-4e69-8390-4453679b7627
+    - text: '''Daily Steps'' and ''Physical Activity Level'' must be numeric and non-null
+        because compute_activity_risk normalizes and clips them and the triggers logic
+        checks Daily Steps < 5000. Enforceable checks: .isComplete([''Daily Steps'',''Physical
+        Activity Level'']), .isNumeric(...) and optional range checks (e.g. Daily
+        Steps >= 0). Example Deequ constraints: .hasCompleteness([''Daily Steps'',''Physical
+        Activity Level''], 1.0) and .satisfies(''`Daily Steps` >= 0'', ''daily_steps_non_negative'')'
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: 8506db1a-24e4-415f-a6f0-0eb71f2157a4
+  '["BMI Category","bmi_risk"]':
+    code: []
+    assumptions:
+    - text: All values in the 'BMI Category' column must be one of the mapped categories
+        {'Normal', 'Normal Weight', 'Overweight', 'Obese'} so that bmi_risk_map(series)
+        returns a numeric value (no NaN) for every row and contributes a valid numeric
+        term to the combined risk_score.
+      sources:
+      - start_line: 58
+        end_line: 65
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      - start_line: 99
+        end_line: 109
+        file: ''
+      uid: 42afa286-9194-4dd5-82aa-bdc5b31a072c
+    - text: Every 'Blood Pressure' value must be of the form 'systolic/diastolic'
+        with two integer-parsable parts. Both systolic and diastolic must parse to
+        integers because compute_bp_components splits and casts to int, and later
+        code compares these numeric components (e.g., to determine high_bp triggers
+        and bp_risk).
+      sources:
+      - start_line: 30
+        end_line: 34
+        file: ''
+      - start_line: 87
+        end_line: 88
+        file: ''
+      - start_line: 120
+        end_line: 121
+        file: ''
+      uid: f6474a12-250d-4972-a9bd-58b7ca6271df
+    - text: 'Sleep Duration must be numeric and parseable to float. For each record:
+        if Sleep Duration < 6.0 then the generated ''Triggers'' entry must include
+        ''short_sleep''; if Sleep Duration > 9.0 it must include ''long_sleep''. Sleep
+        Duration is also used in compute_sleep_duration_risk and compute_recovery_risk
+        (which clips to [3.0, 12.0]), so values should be present and sensible to
+        avoid NaNs or meaningless clamping.'
+      sources:
+      - start_line: 9
+        end_line: 12
+        file: ''
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 84
+        end_line: 84
+        file: ''
+      - start_line: 122
+        end_line: 125
+        file: ''
+      uid: 895fd86c-3f3b-45c0-af23-b7ba92339041
+    - text: Quality of Sleep and Stress Level must be numeric and parseable. If Quality
+        of Sleep <= 6 then the 'Triggers' entry for that row must include 'low_sleep_quality'.
+        Both fields are normalized and used in recovery_risk and stress_direct_risk
+        calculations, so they must be within an expected scale (e.g., 0-10) or otherwise
+        handled to avoid invalid normalization results.
+      sources:
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 126
+        end_line: 127
+        file: ''
+      - start_line: 97
+        end_line: 97
+        file: ''
+      uid: 89fd8e64-aceb-459b-b586-979fcb0c5869
+    - text: '''Daily Steps'' and ''Physical Activity Level'' must be numeric and non-negative.
+        If Daily Steps < 5000 then the ''Triggers'' entry must include ''low_activity''.
+        compute_activity_risk clamps Daily Steps to [0, 15000] and PAL to [0, 120],
+        so source values should be present and parseable to ensure meaningful activity_risk
+        values.'
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: f8fecc8b-a8c0-4d55-82be-c52d92c91c6f
+    - text: When 'BMI Category' == 'Obese' the per-row 'Triggers' must include the
+        token 'obesity'. This is used to flag obesity-related alerts in output.
+      sources:
+      - start_line: 58
+        end_line: 65
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      - start_line: 132
+        end_line: 133
+        file: ''
+      uid: 594e2305-b574-4fab-8615-f227c47346c1
+    - text: If 'Sleep Disorder' is one of {'Insomnia', 'Sleep Apnea'} then (a) sleep_disorder_penalty(series)
+        must return a positive penalty for that row and (b) the row's 'Triggers' must
+        include 'sleep_disorder'. The Sleep Disorder values must therefore be one
+        of the expected categories or null.
+      sources:
+      - start_line: 68
+        end_line: 73
+        file: ''
+      - start_line: 106
+        end_line: 106
+        file: ''
+      - start_line: 134
+        end_line: 135
+        file: ''
+      uid: f7a7dd36-5e2d-47ad-bb48-194b362a7d80
+    - text: The final risk_score is the sum of many component series (sleep_dur_risk,
+        recovery_risk, activity_risk, bp_risk, hr_risk, bmi_risk, sd_penalty, age_risk,
+        stress_direct_risk). Therefore none of the inputs used to compute those components
+        should produce NaN for any row. Concretely, the source columns ['Sleep Duration',
+        'Quality of Sleep', 'Stress Level', 'Daily Steps', 'Physical Activity Level',
+        'Blood Pressure', 'Heart Rate', 'BMI Category', 'Sleep Disorder', 'Age'] must
+        be present and parseable to the expected types (numeric or mapped categories)
+        so that risk_score and subsequent pd.cut into Risk Tier produce valid values.
+      sources:
+      - start_line: 84
+        end_line: 91
+        file: ''
+      - start_line: 99
+        end_line: 115
+        file: ''
+      - start_line: 94
+        end_line: 95
+        file: ''
+      uid: 5d99a176-5333-4693-85c7-87470b9ec561
+  '["Blood Pressure","diastolic","systolic"]':
+    code: []
+    assumptions:
+    - text: The 'Blood Pressure' column is a string in the exact 'systolic/diastolic'
+        format (one slash separating two integer parts) for every row. Both parts
+        must be present and parseable as integers. This can be enforced with a pattern
+        check like .matchesPattern('Blood Pressure', '^\\d+/\\d+$') before splitting,
+        and/or by asserting completeness of the derived parts after split.
+      sources:
+      - start_line: 30
+        end_line: 34
+        file: ''
+      - start_line: 83
+        end_line: 87
+        file: ''
+      uid: 026089ea-97cd-4eda-b5d4-1ce41be848a8
+    - text: 'After splitting, both derived columns ''systolic'' and ''diastolic''
+        must be non-null and integer-convertible for all rows, and lie within plausible
+        physiological bounds (e.g. systolic in [0,300], diastolic in [0,200]). Actionable
+        constraints: .isComplete([''systolic'',''diastolic'']) and numeric-range checks
+        (e.g. .isBetween(''systolic'', 0, 300) and .isBetween(''diastolic'', 0, 200)).
+        These are required because the BP categorization logic (between/>= checks)
+        assumes numeric, non-missing values.'
+      sources:
+      - start_line: 31
+        end_line: 34
+        file: ''
+      - start_line: 37
+        end_line: 48
+        file: ''
+      - start_line: 120
+        end_line: 121
+        file: ''
+      uid: aa560a3e-64f2-4e37-98d9-3379250678ab
+    - text: "The three inputs to compute_recovery_risk \u2014 'Quality of Sleep',\
+        \ 'Stress Level', and 'Sleep Duration' \u2014 must be numeric (float-convertible)\
+        \ and on expected scales: 'Quality of Sleep' and 'Stress Level' should be\
+        \ within a 0\u201310-like range (so normalization (x-5)/5 is meaningful),\
+        \ and 'Sleep Duration' should be a plausible hours value (e.g. between 0 and\
+        \ 24). Constraints: .isNumeric(...) and .isBetween for each column (e.g. .isBetween('Quality\
+        \ of Sleep', 0, 10), .isBetween('Stress Level', 0, 10), .isBetween('Sleep\
+        \ Duration', 0, 24))."
+      sources:
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 84
+        end_line: 86
+        file: ''
+      uid: fab90adc-2612-4164-ba6a-525860920150
+    - text: "The inputs to compute_activity_risk \u2014 'Daily Steps' and 'Physical\
+        \ Activity Level' \u2014 must be numeric and within the ranges used by the\
+        \ code: 'Daily Steps' in [0,15000] and 'Physical Activity Level' in [0,120].\
+        \ Enforce with numeric and range checks (e.g. .isBetween('Daily Steps', 0,\
+        \ 15000) and .isBetween('Physical Activity Level', 0, 120))."
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: 6c980222-73e3-443d-9c33-4de68651cac8
+    - text: 'All per-component risk Series computed from different columns (sleep_dur_risk,
+        recovery_risk, activity_risk, bp_risk, hr_risk, bmi_risk, sd_penalty, age_risk,
+        stress_direct_risk) must be row-aligned with the original DataFrame (same
+        index and length) so that elementwise summation to form risk_score is valid.
+        Practically: derived Series should have the same number of rows as df and
+        identical indices; enforce by checking completeness of the source columns
+        and that no rows are dropped or reindexed during transformation.'
+      sources:
+      - start_line: 99
+        end_line: 109
+        file: ''
+      - start_line: 84
+        end_line: 96
+        file: ''
+      uid: afa9e2ec-6c81-4652-8915-e4efb2d649f1
+    - text: 'The per-row trigger logic assumes several columns are present, of the
+        expected types, and non-missing for comparisons: ''Sleep Duration'' (numeric,
+        used with < and >), ''Quality of Sleep'' (numeric, used with <=), ''Daily
+        Steps'' (numeric, used with <), ''Stress Level'' (numeric, used with >=),
+        ''BMI Category'' (categorical string containing values like ''Obese''), and
+        ''Sleep Disorder'' (string or null; if non-null it must be comparable to set
+        {''Insomnia'',''Sleep Apnea''}). Enforce with completeness and type checks
+        (e.g. .isNumeric for the numeric columns and .isContainedIn for categorical
+        values) so the per-row if-conditions do not error or behave unexpectedly.'
+      sources:
+      - start_line: 117
+        end_line: 136
+        file: ''
+      - start_line: 90
+        end_line: 96
+        file: ''
+      uid: 55b9ee5a-1438-4f6f-9542-caddc307a1a9
+  '["Daily Steps","Physical Activity Level"]':
+    code: []
+    assumptions:
+    - text: "The 'Daily Steps' and 'Physical Activity Level' columns are both present\
+        \ (non-null) and numeric, and their values fall into the ranges expected by\
+        \ compute_activity_risk: Daily Steps \u2208 [0, 15000] and Physical Activity\
+        \ Level \u2208 [0, 120]. This can be encoded as a multi-column Deequ-style\
+        \ constraint, for example: .isComplete([\"Daily Steps\",\"Physical Activity\
+        \ Level\"]) and .satisfies(\"`Daily Steps` >= 0 AND `Daily Steps` <= 15000\
+        \ AND `Physical Activity Level` >= 0 AND `Physical Activity Level` <= 120\"\
+        , \"activity_ranges\")"
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: 5fd72e97-67eb-4626-8c52-4b58e3ce2108
+    - text: 'The code assumes both ''Daily Steps'' and ''Physical Activity Level''
+        are convertible to float for arithmetic without per-row null handling. Concretely:
+        every row must have a numeric-castable value for both columns (no strings
+        like ''N/A'' or missing). Deequ examples: .isComplete(["Daily Steps","Physical
+        Activity Level"]) and .satisfies("is_numeric(`Daily Steps`) AND is_numeric(`Physical
+        Activity Level`)", "activity_numeric") (or ensure castable to float).'
+      sources:
+      - start_line: 23
+        end_line: 26
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: 04ca3e60-36bf-46cd-b4d3-730ae4b6f37d
+    - text: "The 'Blood Pressure' string splits into two parseable integer components\
+        \ (systolic and diastolic), and both derived columns should be present and\
+        \ within realistic ranges used by downstream logic. Specifically: the input\
+        \ must match pattern '\\\\d+/\\\\d+' so compute_bp_components yields integer\
+        \ 'systolic' and 'diastolic'; then systolic \u2208 [0, 300] and diastolic\
+        \ \u2208 [0, 200] (these bounds cover thresholds used later). Deequ-style\
+        \ checks: .satisfies(\"`Blood Pressure`.matches('^\\\\\\d+/\\\\\\d+$')\",\
+        \ \"bp_format\") and after splitting .satisfies(\"systolic >= 0 AND systolic\
+        \ <= 300 AND diastolic >= 0 AND diastolic <= 200\", \"bp_ranges\")."
+      sources:
+      - start_line: 30
+        end_line: 34
+        file: ''
+      - start_line: 87
+        end_line: 88
+        file: ''
+      - start_line: 120
+        end_line: 121
+        file: ''
+      uid: 49b3466f-c8aa-4598-a6d7-f70edf1b2602
+    - text: "The trio used by recovery_risk \u2014 'Quality of Sleep', 'Stress Level',\
+        \ and 'Sleep Duration' \u2014 must be numeric and present for rows where recovery\
+        \ is computed, and their values should lie in the expected scales: Quality\
+        \ of Sleep and Stress Level approximately on a 0\u201310 scale (so values\
+        \ \u2208 [0,10]) and Sleep Duration within a sensible range (e.g. \u2208 [0,24],\
+        \ with the function clipping to [3,12]). Deequ representation: .isComplete([\"\
+        Quality of Sleep\",\"Stress Level\",\"Sleep Duration\"]) and .satisfies(\"\
+        `Quality of Sleep` >= 0 AND `Quality of Sleep` <= 10 AND `Stress Level` >=\
+        \ 0 AND `Stress Level` <= 10 AND `Sleep Duration` >= 0 AND `Sleep Duration`\
+        \ <= 24\", \"recovery_input_ranges\")."
+      sources:
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 84
+        end_line: 85
+        file: ''
+      - start_line: 119
+        end_line: 127
+        file: ''
+      uid: 6e12010a-9c05-4059-ba0b-ff4f59da9661
+  '["Quality of Sleep","Sleep Disorder","Sleep Duration"]':
+    code: []
+    assumptions:
+    - text: "Quality of Sleep and Stress Level are numeric on a 0\u201310 (inclusive)\
+        \ scale and non-null for all rows. The code normalizes both via (value - 5)\
+        \ / 5 for recovery computation, so values outside [0,10] are unexpected and\
+        \ will distort the normalization. Actionable constraints: enforce non-null\
+        \ and 0 <= Quality of Sleep <= 10 and 0 <= Stress Level <= 10 (e.g. Deequ:\
+        \ .isNonNull('Quality of Sleep'), .isNonNull('Stress Level'), .isGreaterThanOrEqualTo('Quality\
+        \ of Sleep', 0), .isLessThanOrEqualTo('Quality of Sleep', 10), similarly for\
+        \ 'Stress Level')."
+      sources:
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 130
+        end_line: 131
+        file: ''
+      uid: 4ca2a60e-1b46-439d-be9c-e95b425b3201
+    - text: 'Sleep Duration must be numeric, non-null, and within a realistic hourly
+        range (recommend enforcing 0 <= Sleep Duration <= 24). The code clips sleep
+        duration to [3.0,12.0] when normalizing for recovery and also checks short/long
+        sleep with comparisons (<6.0, >9.0), so Sleep Duration must be present and
+        bounded to avoid nonsensical results. Actionable constraints: .isNonNull(''Sleep
+        Duration''), .isGreaterThanOrEqualTo(''Sleep Duration'', 0), .isLessThanOrEqualTo(''Sleep
+        Duration'', 24).'
+      sources:
+      - start_line: 9
+        end_line: 12
+        file: ''
+      - start_line: 15
+        end_line: 18
+        file: ''
+      - start_line: 122
+        end_line: 125
+        file: ''
+      - start_line: 84
+        end_line: 84
+        file: ''
+      uid: 88ea8b77-ac92-4d41-8a7e-c96890c4447a
+    - text: 'The ''Blood Pressure'' column must be parseable for every non-null row
+        as two integer components separated by a single ''/'' (format ''systolic/diastolic'').
+        After splitting, both systolic and diastolic should be integers. Actionable
+        constraints: every non-null ''Blood Pressure'' value matches regex ''^\d+\/\d+$''
+        and the derived ''systolic'' and ''diastolic'' columns are integer and non-null
+        (e.g. Deequ: .hasPattern(''Blood Pressure'', ''^\\d+\\/\\d+$'')).'
+      sources:
+      - start_line: 30
+        end_line: 34
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      uid: 0ed6bed1-3989-405f-b0a2-ce54e72e3098
+    - text: 'For all rows where blood pressure is present, the parsed systolic and
+        diastolic values must be physiologically plausible and ordered: systolic >
+        diastolic, systolic within [50,250], diastolic within [30,150]. The downstream
+        BP risk logic assumes meaningful numeric ranges and uses thresholds up to
+        systolic >=180 and diastolic >=120. Actionable constraints: .isNonNull(''systolic''),
+        .isNonNull(''diastolic''), .isGreaterThan(''systolic'',''diastolic''), .isGreaterThanOrEqualTo(''systolic'',50),
+        .isLessThanOrEqualTo(''systolic'',250), .isGreaterThanOrEqualTo(''diastolic'',30),
+        .isLessThanOrEqualTo(''diastolic'',150).'
+      sources:
+      - start_line: 30
+        end_line: 34
+        file: ''
+      - start_line: 37
+        end_line: 47
+        file: ''
+      - start_line: 120
+        end_line: 121
+        file: ''
+      uid: 216bf7f5-5d4c-4398-8330-b8a57a50ca92
+    - text: 'Daily Steps and Physical Activity Level must be numeric, non-null, and
+        fall within the clipping ranges used by activity risk: 0 <= Daily Steps <=
+        15000 and 0 <= Physical Activity Level <= 120. The activity risk computation
+        clips these ranges and comparisons elsewhere assume non-negative values (and
+        triggers check Daily Steps < 5000). Actionable constraints: .isNonNull(''Daily
+        Steps''), .isGreaterThanOrEqualTo(''Daily Steps'',0), .isLessThanOrEqualTo(''Daily
+        Steps'',15000), .isNonNull(''Physical Activity Level''), .isGreaterThanOrEqualTo(''Physical
+        Activity Level'',0), .isLessThanOrEqualTo(''Physical Activity Level'',120).'
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: 5c802a89-db87-4c14-acd2-8464eaedfc84
+  '["Quality of Sleep","Sleep Duration","Stress Level"]':
+    code:
+    - suggestion: '.haveCompleteness(columns=[''Quality of Sleep'', ''Stress Level'',
+        ''Sleep Duration''], assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(columns=['Quality of Sleep',\
+        \ 'Stress Level', 'Sleep Duration'], assertion=lambda x: x == 1.0)' failed\
+        \ on data sample: org.apache.spark.sql.catalyst.parser.ParseException: \n\
+        [PARSE_SYNTAX_ERROR] Syntax error at or near 'Sleep'.(line 1, pos 14)\n\n\
+        == SQL ==\n(((Quality of Sleep IS NOT NULL) AND (Stress Level IS NOT NULL))\
+        \ AND (Sleep Duration IS NOT NULL))\n--------------^^^\n"
+      level: error
+      uid: 7fa55ea7-ed2a-422f-8f75-e8e7062f1700
+      source_assumptions:
+      - 71cdb391-84e6-45ad-9fdb-e4817221d259
+    - suggestion: '.satisfies("CASE WHEN CAST(`Quality of Sleep` AS DOUBLE) IS NOT
+        NULL AND CAST(`Stress Level` AS DOUBLE) IS NOT NULL AND CAST(`Sleep Duration`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Numeric-parsable Quality/Stress/SleepDuration",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ad6a212a-3503-4d94-a9d0-ec641d4ca708
+      source_assumptions:
+      - 71cdb391-84e6-45ad-9fdb-e4817221d259
+    - suggestion: '.satisfies("CASE WHEN CAST(`Quality of Sleep` AS DOUBLE) BETWEEN
+        1 AND 10 AND CAST(`Stress Level` AS DOUBLE) BETWEEN 1 AND 10 THEN 1 ELSE 0
+        END", "Quality of Sleep and Stress Level within [1,10]", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 48998df9-98b9-409f-bba5-31a10bb02eb7
+      source_assumptions:
+      - d9777ad4-59cc-41eb-8591-2bf0d3f6b1a5
+    - suggestion: '.satisfies("CASE WHEN CAST(`Sleep Duration` AS DOUBLE) BETWEEN
+        0.0 AND 24.0 THEN 1 ELSE 0 END", "Sleep Duration within realistic range [0,24]
+        hours", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fc47435a-a5bc-4d49-9258-7f9d60852116
+      source_assumptions:
+      - ab31dec1-09f7-464d-b6fe-794323a62f5d
+    - suggestion: '.satisfies("CASE WHEN CAST(`Sleep Duration` AS DOUBLE) BETWEEN
+        3.0 AND 12.0 THEN 1 ELSE 0 END", ">=95% of rows have Sleep Duration within
+        normalization range [3,12]", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e3a2e7d7-f09f-4ceb-a7c3-6f80e55bb1c6
+      source_assumptions:
+      - ab31dec1-09f7-464d-b6fe-794323a62f5d
+    assumptions:
+    - text: 'All rows must have non-null, numeric-convertible values for the three
+        columns used together: ''Quality of Sleep'', ''Stress Level'' and ''Sleep
+        Duration''. The code calls .astype(float) and performs arithmetic across these
+        columns (normalization, clipping, weighted sum and comparisons) without null
+        checks, so missing or non-numeric values will raise errors or produce NaNs.
+        Actionable constraints (Deequ-style): enforce completeness for each column
+        and that every value is parsable as a finite double. Example constraints:
+        .hasCompleteness(''Quality of Sleep'', 1.0), .hasCompleteness(''Stress Level'',
+        1.0), .hasCompleteness(''Sleep Duration'', 1.0) and a custom check that values
+        are numeric/finite (no NaN/Inf) for these columns.'
+      sources:
+      - start_line: 9
+        end_line: 12
+        file: ''
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 83
+        end_line: 86
+        file: ''
+      - start_line: 122
+        end_line: 131
+        file: ''
+      uid: 71cdb391-84e6-45ad-9fdb-e4817221d259
+    - text: "'Quality of Sleep' and 'Stress Level' share a common ordinal numeric\
+        \ scale (expected integer-like ratings around 1\u201310) and are used interchangeably\
+        \ in normalization and threshold logic. The code normalizes both by (value\
+        \ - 5)/5 and uses integer thresholds (e.g. Quality of Sleep <= 6 for low_quality,\
+        \ Stress Level >= 7 for high_stress). Actionable constraints: enforce that\
+        \ both columns contain values within an expected domain (e.g. integers in\
+        \ [1,10] or at least bounded numeric values), e.g. .isContainedIn('Quality\
+        \ of Sleep', [1..10]) and .isContainedIn('Stress Level', [1..10]) or numeric-range\
+        \ checks like .isGreaterThanOrEqualTo('Quality of Sleep', 1) & .isLessThanOrEqualTo('Quality\
+        \ of Sleep', 10) (same for Stress Level)."
+      sources:
+      - start_line: 16
+        end_line: 17
+        file: ''
+      - start_line: 126
+        end_line: 131
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: d9777ad4-59cc-41eb-8591-2bf0d3f6b1a5
+    - text: "'Sleep Duration' is measured in hours (float) and is used jointly with\
+        \ the other two columns for both normalization and threshold-based triggers.\
+        \ The code (a) computes under/over relative to 7.0 and 9.0, (b) clips values\
+        \ to [3.0, 12.0] for normalization, and (c) uses thresholds (<6.0, >9.0) to\
+        \ create triggers. Actionable constraints: enforce 'Sleep Duration' is numeric\
+        \ and within a realistic hourly range (e.g. 0.0\u201324.0) and \u2014 if business\
+        \ logic requires \u2014 that a high proportion of rows fall within the normalization\
+        \ range (e.g. >= 95% within [3.0,12.0]) so clipping is not excessively altering\
+        \ data. Example checks: .hasMin('Sleep Duration', 0.0), .hasMax('Sleep Duration',\
+        \ 24.0), and a custom fraction-check for values in [3.0,12.0]."
+      sources:
+      - start_line: 10
+        end_line: 11
+        file: ''
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 84
+        end_line: 84
+        file: ''
+      - start_line: 122
+        end_line: 125
+        file: ''
+      uid: ab31dec1-09f7-464d-b6fe-794323a62f5d
+  '["diastolic","systolic"]':
+    code: []
+    assumptions:
+    - text: 'The ''Blood Pressure'' field is formatted as two components separated
+        by a single ''/'' (systolic/diastolic) for every non-null record, and splitting
+        yields exactly two parts that can be cast to integers. Actionable check: ensure
+        bp_series.str.split(''/'', expand=True) always produces two columns and that
+        both parts match an integer regex before astype(int). Example constraint:
+        require that Blood Pressure matches regex ''^[0-9]+/[0-9]+$'' (or equivalently
+        that split_part_count == 2 and both parts are numeric).'
+      sources:
+      - start_line: 30
+        end_line: 34
+        file: ''
+      - start_line: 83
+        end_line: 87
+        file: ''
+      uid: 96cffd02-a1ec-40be-8b4a-6e3f12363592
+    - text: 'After parsing, both ''systolic'' and ''diastolic'' columns must be non-null
+        and convertible to integers for every row for which blood-pressure-based risk
+        is computed. Actionable checks: .isComplete([''systolic'',''diastolic''])
+        or a satisfies constraint ensuring not null for both columns before compute_bp_risk
+        is called.'
+      sources:
+      - start_line: 31
+        end_line: 34
+        file: ''
+      - start_line: 37
+        end_line: 48
+        file: ''
+      - start_line: 87
+        end_line: 88
+        file: ''
+      uid: b326b73f-3695-46f0-acdd-436431160cb5
+    - text: 'Systolic and diastolic must maintain the physiological ordering systolic
+        >= diastolic for each record (i.e., the first parsed value is the systolic
+        pressure and should not be less than the diastolic). Actionable check: a row-level
+        predicate ''systolic >= diastolic'' must hold for all rows. Example Deequ-like
+        constraint: .satisfies(''systolic >= diastolic'', ''systolic_ge_diastolic'')'
+      sources:
+      - start_line: 31
+        end_line: 34
+        file: ''
+      - start_line: 37
+        end_line: 47
+        file: ''
+      - start_line: 117
+        end_line: 121
+        file: ''
+      uid: 8cffd0da-8cc5-48d5-972f-49d29a94a39e
+    - text: 'Both ''systolic'' and ''diastolic'' values should lie within plausible
+        physiological ranges so the comparison thresholds in compute_bp_risk are meaningful.
+        For example enforce systolic in [50, 300] and diastolic in [30, 200] (or other
+        domain-appropriate bounds). Actionable checks: .isBetween(''systolic'', 50,
+        300) and .isBetween(''diastolic'', 30, 200) or equivalent satisfies predicates.'
+      sources:
+      - start_line: 37
+        end_line: 47
+        file: ''
+      - start_line: 117
+        end_line: 121
+        file: ''
+      uid: 6911ce4d-ea41-4b69-8cad-1a674772b0ec
+    - text: 'Rows must have both ''systolic'' and ''diastolic'' available whenever
+        downstream logic uses them jointly (risk scoring and triggers). In particular,
+        evaluation of categories like normal ((sys < 120) & (dia < 80)) and stage
+        criteria expect both columns present; missing either should be treated as
+        invalid for BP-based risk. Actionable check: require completeness of both
+        columns for rows included in risk calculation and trigger generation.'
+      sources:
+      - start_line: 37
+        end_line: 47
+        file: ''
+      - start_line: 117
+        end_line: 126
+        file: ''
+      - start_line: 88
+        end_line: 88
+        file: ''
+      uid: 297c1993-9a5f-4143-a507-79106d732e2a
+column_data_flow_locations:
+  '["Blood Pressure","diastolic","systolic"]':
+  - start_line: 30
+    end_line: 34
+    file: ''
+  - start_line: 37
+    end_line: 48
+    file: ''
+  - start_line: 83
+    end_line: 83
+    file: ''
+  - start_line: 87
+    end_line: 88
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 117
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  '["diastolic","systolic"]':
+  - start_line: 30
+    end_line: 34
+    file: ''
+  - start_line: 37
+    end_line: 48
+    file: ''
+  - start_line: 83
+    end_line: 88
+    file: ''
+  - start_line: 99
+    end_line: 115
+    file: ''
+  - start_line: 117
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  '["Quality of Sleep","Sleep Duration","Stress Level"]':
+  - start_line: 9
+    end_line: 12
+    file: ''
+  - start_line: 15
+    end_line: 20
+    file: ''
+  - start_line: 83
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 117
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 156
+    file: ''
+  - start_line: 157
+    end_line: 158
+    file: ''
+  '["Daily Steps","Physical Activity Level"]': []
+  '["Quality of Sleep","Sleep Disorder","Sleep Duration"]': []
+  '["BMI Category","bmi_risk"]':
+  - start_line: 58
+    end_line: 66
+    file: ''
+  - start_line: 83
+    end_line: 92
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 117
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  '["Age","age_risk"]':
+  - start_line: 5
+    end_line: 6
+    file: ''
+  - start_line: 76
+    end_line: 83
+    file: ''
+  - start_line: 84
+    end_line: 92
+    file: ''
+  - start_line: 94
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 117
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  Sleep Duration:
+  - start_line: 9
+    end_line: 12
+    file: ''
+  - start_line: 15
+    end_line: 20
+    file: ''
+  - start_line: 84
+    end_line: 85
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 120
+    end_line: 125
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  Quality of Sleep:
+  - start_line: 15
+    end_line: 20
+    file: ''
+  - start_line: 85
+    end_line: 158
+    file: ''
+  Stress Level:
+  - start_line: 15
+    end_line: 20
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 130
+    end_line: 130
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 156
+    file: ''
+  - start_line: 157
+    end_line: 158
+    file: ''
+  Daily Steps:
+  - start_line: 23
+    end_line: 27
+    file: ''
+  - start_line: 86
+    end_line: 86
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 128
+    end_line: 128
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  Physical Activity Level:
+  - start_line: 23
+    end_line: 27
+    file: ''
+  - start_line: 86
+    end_line: 86
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 138
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  Blood Pressure:
+  - start_line: 30
+    end_line: 34
+    file: ''
+  - start_line: 37
+    end_line: 48
+    file: ''
+  - start_line: 87
+    end_line: 88
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 117
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  Heart Rate:
+  - start_line: 51
+    end_line: 55
+    file: ''
+  - start_line: 90
+    end_line: 158
+    file: ''
+  BMI Category:
+  - start_line: 91
+    end_line: 91
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 132
+    end_line: 132
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  Sleep Disorder:
+  - start_line: 68
+    end_line: 73
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  - start_line: 99
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  - start_line: 117
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  Age:
+  - start_line: 94
+    end_line: 158
+    file: ''
+  Person ID:
+  - start_line: 83
+    end_line: 83
+    file: ''
+  - start_line: 138
+    end_line: 150
+    file: ''
+fixing_results:
+  Person ID:
+    18927ecd-3a2b-49fa-b4d4-3f39dd2f7cdc: '.satisfies("CASE WHEN cast(`Person ID`
+      as string) RLIKE ''^[0-9]+$'' THEN 1 ELSE 0 END", "Person ID integer format",
+      lambda x: x == 1)'
+  Daily Steps:
+    dde0d237-a356-42b8-9301-943121441b57: '.satisfies("CASE WHEN `Daily Steps` >=
+      0 THEN 1 ELSE 0 END", "Non-negative Daily Steps", lambda x: x == 1)'
+consolidation_results:
+  Physical Activity Level:
+  - idx_to_remove: e7b7c172-5a5b-40ca-9c7d-d3b7efa8ef37
+    redundant_with:
+    - 37359d9e-9234-4369-9adc-7df191bc4016
+  BMI Category:
+  - idx_to_remove: d532297a-abc0-4bff-9850-bdd9a394d438
+    redundant_with:
+    - e1d2f045-45e0-4983-b794-aec149f2a636
+  Blood Pressure:
+  - idx_to_remove: 084da565-7344-4892-a095-329bf43f04d0
+    redundant_with:
+    - b1742115-1a67-45b6-a1d5-cfb52abc4da3
+    - 9e273134-030a-4536-b5b6-8da55c75a0c7
+  - idx_to_remove: b1742115-1a67-45b6-a1d5-cfb52abc4da3
+    redundant_with:
+    - 9e273134-030a-4536-b5b6-8da55c75a0c7
+  Person ID:
+  - idx_to_remove: 1d714bda-fb13-431e-badd-a62fad79250c
+    redundant_with:
+    - 18927ecd-3a2b-49fa-b4d4-3f39dd2f7cdc
+  Sleep Duration:
+  - idx_to_remove: af26420a-35a8-44ca-b787-76ef4acb979b
+    redundant_with:
+    - 70a34e7f-fa0a-4f65-b220-46e518268d02
+  Daily Steps:
+  - idx_to_remove: d4e9e41b-21e2-4073-aeee-b9670004bc99
+    redundant_with:
+    - 8049e543-f9c8-4639-a036-5916ab4b84bc
+    - dde0d237-a356-42b8-9301-943121441b57
+  Heart Rate:
+  - idx_to_remove: 0f7a27a4-8b9c-4b16-91df-165c6cfd09c5
+    redundant_with:
+    - 9a0103bc-f6e7-4bcd-9eef-e9f791b552d4
+    - 2415e84b-193d-48cb-9000-eea711f884fd
+cost_summary:
+  column_access_detection:
+    cost: 0.0027785
+    total_tokens: 5444
+    prompt_tokens: 4634
+    completion_tokens: 810
+  data_flow_inspection:
+    cost: 0.06088289999999999
+    total_tokens: 57256
+    prompt_tokens: 29954
+    completion_tokens: 27302
+  column_correlation_discovery:
+    cost: 0.00657475
+    total_tokens: 6020
+    prompt_tokens: 3123
+    completion_tokens: 2897
+  multi_column_data_flow_inspection:
+    cost: 0.034107
+    total_tokens: 37294
+    prompt_tokens: 23132
+    completion_tokens: 14162
+  multi_column_assumption_generation:
+    cost: 0.05975300000000001
+    total_tokens: 52539
+    prompt_tokens: 25900
+    completion_tokens: 26639
+  multi_column_code_generation:
+    cost: 0.055976000000000005
+    total_tokens: 59347
+    prompt_tokens: 35592
+    completion_tokens: 23755
+  single_column_assumption_generation:
+    cost: 0.06014125
+    total_tokens: 66496
+    prompt_tokens: 41629
+    completion_tokens: 24867
+  single_column_code_generation:
+    cost: 0.05345224999999999
+    total_tokens: 92988
+    prompt_tokens: 73753
+    completion_tokens: 19235
+  code_fixing:
+    cost: 0.00664475
+    total_tokens: 5950
+    prompt_tokens: 3003
+    completion_tokens: 2947
+  consolidate_constraints:
+    cost: 0.02874475
+    total_tokens: 27514
+    prompt_tokens: 15019
+    completion_tokens: 12495

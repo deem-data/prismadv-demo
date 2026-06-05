@@ -1,0 +1,171 @@
+results:
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN `IMDB_Rating` IS NULL THEN 1 WHEN `IMDB_Rating`
+        >= 0 AND `IMDB_Rating` <= 10 THEN 1 ELSE 0 END'', ''IMDB_Rating_between_0_and_10_or_null'',
+        lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: (x
+        == x) and abs(x) < float(''inf''))'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Certificate:
+    code:
+    - suggestion: '.satisfies("CASE WHEN Certificate IS NOT NULL AND trim(Certificate)
+        <> '''' THEN 1 ELSE 0 END", "Certificate present fraction", lambda x: x >=
+        0.85)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN upper(trim(Certificate)) IN (''U'',''G'',''PG'',''PG-13'',''UA'')
+        THEN 1 ELSE 0 END", "Family-friendly fraction", lambda x: x >= 0.10)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN Certificate IS NULL OR (Certificate NOT LIKE
+        ''%,%'' AND Certificate NOT LIKE ''%(%'') THEN 1 ELSE 0 END", "Certificate
+        simple format (no commas/parentheses)", lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasMaxLength("Certificate", lambda x: x <= 50)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["Certificate","Genre","Gross","IMDB_Rating","No_of_Votes","Poster_Link","Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda v: v ==
+        v and abs(v) <= 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Genre:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Genre` IS NOT NULL AND TRIM(`Genre`) <>
+        '''' THEN 1 ELSE 0 END", "Genre not null/empty", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN TRIM(`Genre`) RLIKE ''[A-Za-z]'' THEN 1 ELSE
+        0 END", "Genre is textual (contains letters)", lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Genre` RLIKE ''^[^,|]+([,|][^,|]+)*$'' THEN
+        1 ELSE 0 END", "Genre separator consistency (comma or pipe)", lambda x: x
+        >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Gross:
+    code:
+    - suggestion: '.hasCompleteness(''Gross'', lambda x: x >= 0.80)'
+      status: false
+      reason_if_failed: 'Constraint ''.hasCompleteness(''Gross'', lambda x: x >= 0.80)''
+        failed on data sample: Input data does not include column Gross!'
+      level: warning
+  '["IMDB_Rating","No_of_Votes"]':
+    code:
+    - suggestion: '.satisfies("`IMDB_Rating` IS NOT NULL AND (`IMDB_Rating` < 0 OR
+        `IMDB_Rating` > 10)", "No IMDB_Rating values outside 0-10", lambda x: x ==
+        0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.haveCompleteness(columns=[''IMDB_Rating''], assertion=lambda x:
+        x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("`No_of_Votes` < 0", "No negative values in No_of_Votes",
+        lambda x: x == 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL AND CAST(`No_of_Votes`
+        AS DOUBLE) > 0", "At least one numeric No_of_Votes > 0", lambda x: x >= 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda corr:
+        (corr == corr) and (abs(corr) < float(''inf'')))'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Poster_Link:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Poster_Link` IS NOT NULL AND TRIM(`Poster_Link`)
+        <> '''' THEN 1 ELSE 0 END", "Poster_Link non-empty", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasPattern(''Poster_Link'', ''^https?://'', lambda x: x >= 0.95,
+        name=''Poster_Link looks like http(s) URL'')'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Runtime:
+    code:
+    - suggestion: '.satisfies("CASE WHEN upper(trim(Certificate)) IN (''U'',''G'',''PG'',''PG-13'',''UA'')
+        THEN regexp_extract(Runtime, ''(^[0-9]+)'', 1) <> '''' ELSE true END", "Family-friendly
+        rows have runtime starting with digits", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN upper(trim(Certificate)) IN (''U'',''G'',''PG'',''PG-13'',''UA'')
+        THEN (CAST(Released_Year AS DOUBLE) IS NOT NULL AND CAST(IMDB_Rating AS DOUBLE)
+        IS NOT NULL AND CAST(No_of_Votes AS DOUBLE) IS NOT NULL AND (regexp_replace(Gross,
+        '','', '''') <> '''' AND CAST(regexp_replace(Gross, '','', '''') AS DOUBLE)
+        IS NOT NULL)) ELSE true END", "Eligible rows have parseable Released_Year,
+        IMDB_Rating, No_of_Votes and Gross", lambda x: x >= 0.9)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("CASE WHEN upper(trim(Certificate))
+        IN (''U'',''G'',''PG'',''PG-13'',''UA'') THEN (CAST(Released_Year AS DOUBLE)
+        IS NOT NULL AND CAST(IMDB_Rating AS DOUBLE) IS NOT NULL AND CAST(No_of_Votes
+        AS DOUBLE) IS NOT NULL AND (regexp_replace(Gross, '','', '''') <> '''' AND
+        CAST(regexp_replace(Gross, '','', '''') AS DOUBLE) IS NOT NULL)) ELSE true
+        END", "Eligible rows have parseable Released_Year, IMDB_Rating, No_of_Votes
+        and Gross", lambda x: x >= 0.9)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Gross` cannot be resolved. Did you mean one of the following? [`id`, `Genre`,
+        `Star1`, `Star2`, `Star3`].; line 1 pos 222;
+
+        ''Aggregate [sum(cast(CASE WHEN upper(trim(Certificate#402328, None)) IN (U,G,PG,PG-13,UA)
+        THEN ((isnotnull(cast(Released_Year#402327L as double)) AND isnotnull(cast(IMDB_Rating#402331
+        as double))) AND (isnotnull(cast(No_of_Votes#402339L as double)) AND (NOT
+        (''regexp_replace(''Gross, ,, ) = ) AND isnotnull(cast(''regexp_replace(''Gross,
+        ,, ) as double))))) ELSE true END as int)) AS sum(CAST(CASE WHEN (upper(trim(Certificate))
+        IN (U, G, PG, PG-13, UA)) THEN (((CAST(Released_Year AS DOUBLE) IS NOT NULL)
+        AND (CAST(IMDB_Rating AS DOUBLE) IS NOT NULL)) AND ((CAST(No_of_Votes AS DOUBLE)
+        IS NOT NULL) AND ((NOT (regexp_replace(Gross, ,, ) = )) AND (CAST(regexp_replace(Gross,
+        ,, ) AS DOUBLE) IS NOT NULL)))) ELSE true END AS INT))#405616, count(1) AS
+        count(1)#405617L]
+
+        +- LogicalRDD [id#402324L, Poster_Link#402325, Series_Title#402326, Released_Year#402327L,
+        Certificate#402328, Runtime#402329, Genre#402330, IMDB_Rating#402331, Overview#402332,
+        Meta_score#402333, Director#402334, Star1#402335, Star2#402336, Star3#402337,
+        Star4#402338, No_of_Votes#402339L], false
+
+        '
+      level: warning
+  Series_Title:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Series_Title` IS NOT NULL AND TRIM(`Series_Title`)
+        <> '''' THEN 1 ELSE 0 END", "Series_Title non-null and non-empty", lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `Series_Title` IS NULL THEN 0 WHEN try_cast(`Series_Title`
+        AS DOUBLE) IS NULL THEN 1 ELSE 0 END", "Series_Title text-like fraction",
+        lambda x: x >= 0.98)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasDistinctness([''Series_Title''], lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning

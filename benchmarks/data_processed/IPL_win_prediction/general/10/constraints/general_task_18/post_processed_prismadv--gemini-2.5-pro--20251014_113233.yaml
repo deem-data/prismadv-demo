@@ -1,0 +1,1804 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-pro
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  team1:
+    code:
+    - suggestion: .satisfies("TRIM(team1) != ''", "team1_not_empty")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7937e608-f758-4039-b238-1671b120c9c0
+      source_assumptions:
+      - 23fce26a-0c0e-4bbf-8f50-7ad8695ae6dc
+    - suggestion: .satisfies("team1 <> team2 AND (toss_winner = team1 OR toss_winner
+        = team2) AND (winner IS NULL OR result = 'no result' OR winner = team1 OR
+        winner = team2)", "team_values_are_consistent_across_related_columns")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d30f6b8f-4930-4595-be0d-7fa8d4c8ee98
+      source_assumptions:
+      - 028daeb1-c4e5-47aa-80b2-c555ed13cdf5
+    assumptions:
+    - text: The 'team1' column is assumed to be 100% complete, containing no null
+        values. The code directly uses this column in multiple comparison operations
+        (e.g., `df['toss_winner'] == df['team1']`) without any null handling logic
+        like `fillna()`, which would lead to unexpected behavior or errors if nulls
+        were present.
+      sources:
+      - start_line: 22
+        end_line: 22
+        file: ''
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 37
+        end_line: 37
+        file: ''
+      uid: 0d33a355-fa12-4a64-af3e-f34341cc4e17
+    - text: The 'team1' column is expected to contain non-empty string values representing
+        team names. The values are used in string comparisons, and empty strings would
+        lead to nonsensical, human-readable summaries (e.g., a team with no name being
+        declared a loser). The provided data profile confirms the column's data type
+        is String.
+      sources:
+      - start_line: 22
+        end_line: 39
+        file: ''
+      - start_line: 68
+        end_line: 76
+        file: ''
+      uid: 23fce26a-0c0e-4bbf-8f50-7ad8695ae6dc
+    - text: The 'team1' column must contain values from a consistent and shared set
+        of team names that also populate the 'team2', 'toss_winner', and 'winner'
+        columns. The script's logic for determining the batting order and match loser
+        is predicated on the ability to find a value from 'team1' within these other
+        columns.
+      sources:
+      - start_line: 22
+        end_line: 22
+        file: ''
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 37
+        end_line: 37
+        file: ''
+      uid: 028daeb1-c4e5-47aa-80b2-c555ed13cdf5
+  team2:
+    code:
+    - suggestion: .isComplete("team2")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b22635af-0e85-449f-b89c-7b88dddb3300
+      source_assumptions:
+      - b595ec3f-30b8-4589-b325-ef21909f6871
+    - suggestion: '.hasDataType("team2", "String", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("team2", "String",
+        lambda x: x == 1.0)'
+      level: error
+      uid: 4e554a87-0dae-4df6-b5e7-c1aa19dfb373
+      source_assumptions:
+      - ef9525cb-71c1-4f8c-936b-d94cd0e6e896
+    - suggestion: '.satisfies("`team2` <> `team1`", "team1_and_team2_are_different",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ed61e156-fb57-4a89-8fa2-c02c68e060af
+      source_assumptions:
+      - 299d1c06-45be-4cc0-a16b-92e77e85d2f9
+    assumptions:
+    - text: 'The ''team2'' column must be 100% complete with no null or missing values.
+        The code directly uses its values in conditional logic to derive columns like
+        ''batting_first'', ''batting_second'', and ''loser'' without any checks for
+        missing data. Null values would disrupt this logic and result in incorrect
+        or missing data in derived columns.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("team2")'
+      sources:
+      - start_line: 23
+        end_line: 39
+        file: ''
+      uid: b595ec3f-30b8-4589-b325-ef21909f6871
+    - text: 'The ''team2'' column must contain non-empty string values. The logic
+        compares values from this column to other string columns like ''team1'', ''toss_winner'',
+        and ''winner''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("team2", ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 23
+        end_line: 39
+        file: ''
+      uid: ef9525cb-71c1-4f8c-936b-d94cd0e6e896
+    - text: 'The value in the ''team2'' column must be different from the value in
+        the ''team1'' column for the same row. The script''s logic for determining
+        the ''loser'' and ''batting_second'' teams assumes they are two distinct opponents.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("`team2` <> `team1`", "team1_and_team2_are_different")'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: 299d1c06-45be-4cc0-a16b-92e77e85d2f9
+  target_overs:
+    code:
+    - suggestion: '.satisfies("CASE WHEN method = ''D/L'' THEN target_overs IS NOT
+        NULL ELSE TRUE END", "target_overs must be present for D/L method", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4adf690a-d25b-4563-9ec7-e600daf35082
+      source_assumptions:
+      - ef421dfc-424b-4258-8806-03e00220bf0f
+    - suggestion: '.hasDataType(''target_overs'', ''Numeric'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''target_overs'',
+        ''Numeric'', lambda x: x == 1.0)'
+      level: error
+      uid: d2eef954-e57a-4782-abe2-22c9cc7a55ec
+      source_assumptions:
+      - 4c2db068-61af-4249-9fa3-13da3e61d8e2
+    assumptions:
+    - text: 'The ''target_overs'' column can contain null values. This is supported
+        by its completeness of ~99.8% and the code''s explicit check for nulls. However,
+        the column is expected to be non-null for rows where the ''method'' column
+        is ''D/L''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN method = ''D/L'' THEN target_overs IS NOT NULL ELSE
+        TRUE END", "target_overs must be present for D/L method", lambda x: x == 1.0)'
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: ef421dfc-424b-4258-8806-03e00220bf0f
+    - text: 'Values in the ''target_overs'' column, when present, must be numeric
+        and convertible to an integer. The code attempts this conversion using `int(float(row[''target_overs'']))`,
+        indicating that the values should represent whole numbers, even if stored
+        as floats or strings.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isNumeric("target_overs")'
+      sources:
+      - start_line: 59
+        end_line: 62
+        file: ''
+      uid: 4c2db068-61af-4249-9fa3-13da3e61d8e2
+  result_margin:
+    code:
+    - suggestion: '.satisfies("result NOT IN (''runs'', ''wickets'') OR result_margin
+        IS NOT NULL", "result_margin must be non-null for ''runs'' or ''wickets''
+        results", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ac1ad139-1130-45cc-8a7a-a37a1c71ec23
+      source_assumptions:
+      - e98d9306-b253-4814-9acc-4fc33b985416
+    - suggestion: '.hasDataType(''result_margin'', ''Fractional'', lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''result_margin'',
+        ''Fractional'', lambda x: x == 1)'
+      level: error
+      uid: 18c3be8a-17cb-4244-92d8-e3ff38f185cd
+      source_assumptions:
+      - c01febe3-38d9-4a17-9453-6eb131314c83
+    - suggestion: .isNonNegative('result_margin')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0ecd9ee4-8994-44a5-bd65-84048ab6a70d
+      source_assumptions:
+      - d7091c60-9e00-4315-b454-11df1bd15adf
+    assumptions:
+    - text: The 'result_margin' column must not be null when the 'result' column has
+        a value of 'runs' or 'wickets'. The code directly accesses and casts 'result_margin'
+        in these specific cases, which would fail if the value were null. For other
+        values in the 'result' column, 'result_margin' can be null, as this possibility
+        is handled later during JSON serialization.
+      sources:
+      - start_line: 68
+        end_line: 73
+        file: ''
+      - start_line: 109
+        end_line: 109
+        file: ''
+      uid: e98d9306-b253-4814-9acc-4fc33b985416
+    - text: All non-null values in the 'result_margin' column must be convertible
+        to a numeric (float) type. The code performs a cast to float before converting
+        to an integer or writing to the final JSON output, which would raise an error
+        for non-numeric string values.
+      sources:
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 72
+        end_line: 72
+        file: ''
+      - start_line: 109
+        end_line: 109
+        file: ''
+      uid: c01febe3-38d9-4a17-9453-6eb131314c83
+    - text: The 'result_margin' column should contain non-negative values. While not
+        enforced by an explicit check, the column represents a victory margin, and
+        a negative value would result in semantically incorrect summaries (e.g., '...beat...
+        by -10 runs').
+      sources:
+      - start_line: 70
+        end_line: 70
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      uid: d7091c60-9e00-4315-b454-11df1bd15adf
+  target_runs:
+    code:
+    - suggestion: '.satisfies("CASE WHEN method = ''D/L'' THEN target_runs IS NOT
+        NULL ELSE TRUE END", "target_runs must be populated for D/L method", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 48d64d69-7630-445e-ad6d-3df30846b069
+      source_assumptions:
+      - 29cd08c1-b330-4c2c-9fc0-bf16a034146b
+    - suggestion: '.hasDataType(''target_runs'', ''Fractional'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''target_runs'',
+        ''Fractional'', lambda x: x == 1.0)'
+      level: error
+      uid: e007f2d3-ecf1-418b-8619-f41cfb343069
+      source_assumptions:
+      - 5ab7cf8a-5cea-4d5f-9a21-3597beae8644
+    assumptions:
+    - text: 'The ''target_runs'' column can contain null values. However, it is expected
+        to be non-null when the ''method'' column has the value ''D/L'', as the code
+        explicitly checks for this condition before using the value.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN method = ''D/L'' THEN target_runs IS NOT NULL ELSE TRUE
+        END", "target_runs is not null for D/L method", lambda x: x == 1.0)'
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: 29cd08c1-b330-4c2c-9fc0-bf16a034146b
+    - text: 'The ''target_runs'' column is expected to be of a numeric type, or at
+        least contain values that can be converted to a float. The code attempts this
+        conversion using `float(row[''target_runs''])` before further processing.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .dataType("target_runs", "Fractional")'
+      sources:
+      - start_line: 56
+        end_line: 58
+        file: ''
+      uid: 5ab7cf8a-5cea-4d5f-9a21-3597beae8644
+  toss_decision:
+    code:
+    - suggestion: .isContainedIn("toss_decision", ["bat", "field"])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b8470f32-0e79-44a2-942c-df2b3469f659
+      source_assumptions:
+      - 17d772d3-3a06-4a54-9311-f4ce5650177d
+    assumptions:
+    - text: 'The ''toss_decision'' column must not contain any null values. The code
+        performs direct string comparisons and uses the column''s value to construct
+        a summary sentence without any prior null checks. Null values would result
+        in incorrect calculations and malformed summary text.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("toss_decision")'
+      sources:
+      - start_line: 23
+        end_line: 32
+        file: ''
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 08131f4f-1d8f-4f6e-b77b-dda475ff69b0
+    - text: 'The ''toss_decision'' column is expected to be categorical and contain
+        only the values ''bat'' or ''field''. The code explicitly checks for these
+        two values to determine which team is batting first. Any other value would
+        lead to incorrect logic in calculating the ''batting_first'' column.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isContainedIn("toss_decision", Array("bat", "field"))'
+      sources:
+      - start_line: 23
+        end_line: 32
+        file: ''
+      uid: 17d772d3-3a06-4a54-9311-f4ce5650177d
+  super_over:
+    code:
+    - suggestion: .isContainedIn('super_over', ['Y', 'N'])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: af6cbeb8-7a1e-4509-a761-4311ad2fbfc1
+      source_assumptions:
+      - 02d07ee1-c7b9-4019-850d-eecb870b6cae
+    assumptions:
+    - text: The 'super_over' column should not contain any null values. The code directly
+        uses this column's values when creating the output files without any null
+        handling logic.
+      sources:
+      - start_line: 92
+        end_line: 92
+        file: ''
+      - start_line: 110
+        end_line: 110
+        file: ''
+      uid: 9d6108af-4ca9-4f30-badf-48b8a9fdb53b
+    - text: The 'super_over' column is expected to be a categorical string that only
+        contains the values 'Y' and 'N'. The code does not perform any validation
+        or transformation, implying that it expects the input data to already adhere
+        to this binary format.
+      sources:
+      - start_line: 92
+        end_line: 92
+        file: ''
+      - start_line: 110
+        end_line: 110
+        file: ''
+      uid: 02d07ee1-c7b9-4019-850d-eecb870b6cae
+  toss_winner:
+    code:
+    - suggestion: .hasDataType("toss_winner", "String")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("toss_winner",
+        "String")'
+      level: error
+      uid: dc274d7f-4b87-4352-959c-33bb4a31b2e4
+      source_assumptions:
+      - b2767736-e8da-4c44-8cab-42cf9e8d10ef
+    - suggestion: '.satisfies("`toss_winner` = `team1` OR `toss_winner` = `team2`",
+        "toss_winner_is_one_of_the_teams", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c528308f-4ff7-4494-852a-844035229c88
+      source_assumptions:
+      - 6806bff8-68d9-4747-9d49-b4e17e9c2597
+    assumptions:
+    - text: "The 'toss_winner' column must not contain any null or missing values.\
+        \ The code uses this column in comparisons and string formatting without handling\
+        \ nulls, which is consistent with the input data's completeness of 1.0. We\
+        \ could represent this assumption as a deequ constraint like this: \n.isComplete(\"\
+        toss_winner\")"
+      sources:
+      - start_line: 22
+        end_line: 32
+        file: ''
+      - start_line: 45
+        end_line: 49
+        file: ''
+      uid: 20b1e616-73de-4a61-816a-1f2a1bbbf6ad
+    - text: "The 'toss_winner' column must be of string data type. The code performs\
+        \ string comparisons with the 'team1' and 'team2' columns and embeds the value\
+        \ directly into a summary string. We could represent this assumption as a\
+        \ deequ constraint like this: \n.hasDataType(\"toss_winner\", ConstrainableDataTypes.String)"
+      sources:
+      - start_line: 22
+        end_line: 32
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: b2767736-e8da-4c44-8cab-42cf9e8d10ef
+    - text: "For each row, the value in the 'toss_winner' column must be equal to\
+        \ the value in either the 'team1' or 'team2' column. The logic to derive 'toss_winner_side'\
+        \ and 'batting_first' implicitly assumes that the toss winner is always one\
+        \ of the two participating teams. We could represent this assumption as a\
+        \ deequ constraint like this: \n.satisfies(\"`toss_winner` = `team1` OR `toss_winner`\
+        \ = `team2`\", \"toss_winner_is_one_of_the_teams\", lambda x: x == 1.0)"
+      sources:
+      - start_line: 22
+        end_line: 32
+        file: ''
+      uid: 6806bff8-68d9-4747-9d49-b4e17e9c2597
+  date:
+    code:
+    - suggestion: '.satisfies("to_date(`date`) IS NOT NULL", "Date is parsable", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9268a577-12eb-4e52-9620-be29514090ef
+      source_assumptions: []
+    assumptions:
+    - text: The 'date' column is assumed to be 100% complete, containing no null or
+        missing values. This is supported by the initial data profile and reinforced
+        by the code in line 41, `pd.to_datetime(row['date'])`, which would raise an
+        error if it encountered a null value.
+      sources:
+      - start_line: 41
+        end_line: 41
+        file: ''
+      uid: 375f6faa-b5cb-42e5-a5e1-fcbafd149594
+    - text: All values in the 'date' column must be strings that can be successfully
+        parsed into a datetime format by `pandas.to_datetime`. The code in line 41
+        applies this conversion without any error handling (like `errors='coerce'`).
+        If any value in the column is not in a recognizable date format, the script
+        will raise an error and fail.
+      sources:
+      - start_line: 41
+        end_line: 41
+        file: ''
+      uid: 2f437a69-b721-41a9-bf53-befd45f532cb
+  season:
+    code:
+    - suggestion: .isComplete("season")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fa72f2fe-96c4-4c2b-8bdf-58e7f8a02a60
+      source_assumptions:
+      - bda5e61a-808c-490a-aa0a-d68457616e33
+    - suggestion: .hasDataType("season", "Integral")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("season", "Integral")'
+      level: warning
+      uid: 64a00beb-fcaf-4201-b373-495e2343cd23
+      source_assumptions:
+      - 6a73e82f-b2df-4ac5-922c-0256b4c349b9
+    assumptions:
+    - text: 'The ''season'' column must be complete and not contain any null values.
+        The code directly accesses values from this column to generate a summary string,
+        without any preceding null checks.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("season")'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      uid: bda5e61a-808c-490a-aa0a-d68457616e33
+    - text: 'The ''season'' column is expected to contain integer values. This is
+        supported by the data profile and the code''s use of the column''s values
+        in a context where a year or sequential number is implied (e.g., ''Season
+        {value}'').
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("season", ConstrainableDataTypes.Integral)'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      uid: 6a73e82f-b2df-4ac5-922c-0256b4c349b9
+  city:
+    code:
+    - suggestion: '.hasCompleteness("city", lambda c: c >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 8b19f65b-7afd-4825-9b76-1d32db9fdb12
+      source_assumptions:
+      - 48bbc628-4a1d-48fb-b838-ff193600764c
+    - suggestion: .hasDataType("city", "String")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("city", "String")'
+      level: warning
+      uid: a4defcd1-7cb3-4677-913a-d64a70f579d4
+      source_assumptions:
+      - 8ca6a2dd-5c01-4f1f-8f98-0694a628ca2d
+    assumptions:
+    - text: 'The ''city'' column can contain null values. The code includes this column
+        directly in the output DataFrame and subsequent CSV file without any null-filling
+        logic. This implies that nulls are acceptable for the downstream task that
+        consumes the CSV file. The observed completeness is ~98.7%, and the code implicitly
+        accepts this level of missingness.
+
+        We could represent this assumption as a deequ constraint to ensure nulls don''t
+        become excessive, like this:
+
+        .hasCompleteness("city", lambda c: c >= 0.95, "City completeness should be
+        at least 95%")'
+      sources:
+      - start_line: 80
+        end_line: 98
+        file: ''
+      uid: 48bbc628-4a1d-48fb-b838-ff193600764c
+    - text: 'The ''city'' column is assumed to be of string type. The code reads the
+        column and writes it to a CSV file without performing any type conversions
+        or operations that would require a different data type. The values are treated
+        as-is.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("city", ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 80
+        end_line: 98
+        file: ''
+      uid: 8ca6a2dd-5c01-4f1f-8f98-0694a628ca2d
+  '["city","venue"]':
+    code:
+    - suggestion: '.satisfies("COUNT(DISTINCT `city`) OVER (PARTITION BY `venue`)
+        <= 1", "VenueDeterminesCity", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("COUNT(DISTINCT `city`) OVER (PARTITION
+        BY `venue`) <= 1", "VenueDeterminesCity", lambda x: x == 1.0)'' failed on
+        data sample: org.apache.spark.sql.AnalysisException: It is not allowed to
+        use a window function inside an aggregate function. Please use the inner window
+        function in a sub-query.'
+      level: warning
+      uid: 66ea0c6e-0181-44d6-9947-775397ceca82
+      source_assumptions:
+      - 72305c44-2ed7-4b0a-8d18-5314cc86824f
+    assumptions:
+    - text: The 'venue' and 'city' columns are expected to have a functional dependency,
+        where each 'venue' is located in one specific 'city'. This means that for
+        any given value in the 'venue' column, the corresponding value in the 'city'
+        column should be the same across all rows where 'city' is not null. A way
+        to verify this is to check that the number of unique 'venue' values is equal
+        to the number of unique ('venue', 'city') pairs.
+      sources:
+      - start_line: 80
+        end_line: 95
+        file: ''
+      uid: 72305c44-2ed7-4b0a-8d18-5314cc86824f
+  method:
+    code:
+    - suggestion: .isContainedIn("method", ["D/L"])
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9fc76f45-f302-4146-af13-cd4f2a7270f1
+      source_assumptions: []
+    assumptions:
+    - text: The 'method' column is optional and can contain null or empty-like values
+        (e.g., empty strings, 'NAN'). The code is designed to handle these cases by
+        explicitly checking for them before processing. When a value is present, it
+        is treated as a string.
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 111
+        end_line: 111
+        file: ''
+      uid: b6e5eb92-28fb-4293-9841-acffc7b105ef
+    - text: The 'method' column is expected to contain the categorical value 'D/L'.
+        This specific value triggers a special formatting rule that includes target
+        runs and overs in the generated summary. While other string values are permitted,
+        they are handled by a generic, default case.
+      sources:
+      - start_line: 54
+        end_line: 65
+        file: ''
+      uid: aeb1bbe5-3d9e-4214-a9b8-d400fcac6cf7
+  id:
+    code:
+    - suggestion: .isComplete("id")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b67c9af9-b624-43b1-8aec-fecf575bc47e
+      source_assumptions: []
+    - suggestion: .hasDataType("id", "Integral")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("id", "Integral")'
+      level: error
+      uid: 59d5c5d7-5b8d-438d-b962-e9b02e67ca57
+      source_assumptions: []
+    - suggestion: .isUnique("id")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4037bb71-1bab-4285-bf6b-0b2994899669
+      source_assumptions: []
+    assumptions:
+    - text: 'The ''id'' column must contain non-null values that can be cast to integers.
+        The code explicitly casts this column to an integer on line 104, which would
+        fail if the data is null or not a valid integer representation.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("id")
+
+        .hasDataType("id", ConstrainableDataTypes.Integral)'
+      sources:
+      - start_line: 104
+        end_line: 104
+        file: ''
+      uid: 97855794-b6ad-4411-986f-eaa018e4ada3
+    - text: 'The ''id'' column is assumed to contain unique values, as it serves as
+        an identifier for each record (match). This is crucial for downstream systems
+        consuming the generated syndication feed to uniquely identify each entry.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isUnique("id")'
+      sources:
+      - start_line: 104
+        end_line: 104
+        file: ''
+      uid: f410c67e-b25f-4425-969c-6ce9a0500438
+  '["date","season"]':
+    code:
+    - suggestion: '.satisfies("year(to_date(`date`)) == `season`", "SeasonYearMatchesDateYear",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4b86d6b7-3b16-45e4-a9eb-0a4b30ee109d
+      source_assumptions:
+      - 7c4bc921-77e1-4b2f-88d1-448c445c6738
+    assumptions:
+    - text: The year component of the 'date' column is expected to be consistent with
+        the value in the 'season' column. The code, particularly in the `build_summary`
+        function, combines these two fields to create a narrative summary (e.g., 'Season
+        {season_val} ... on {date_str}'). This implies a logical relationship where
+        the date of an event must fall within the corresponding season year. A mismatch
+        would produce a logically inconsistent and misleading summary. A potential
+        Deequ constraint to enforce this would be `.where("year(to_date(date)) ==
+        season")`.
+      sources:
+      - start_line: 40
+        end_line: 78
+        file: ''
+      uid: 7c4bc921-77e1-4b2f-88d1-448c445c6738
+  venue:
+    code:
+    - suggestion: .satisfies("trim(venue) <> ''", "venue_is_not_empty")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 83f7f42e-15df-41e4-9cb8-921a687d4cc8
+      source_assumptions:
+      - a30d140a-1aca-4a52-9d3c-b8ca5c80591c
+    assumptions:
+    - text: 'The ''venue'' column must not contain any null values. The code directly
+        accesses the value from this column and uses it to construct a summary string
+        without any checks for missing data. We could represent this assumption as
+        a deequ constraint like this: .isComplete("venue")'
+      sources:
+      - start_line: 42
+        end_line: 42
+        file: ''
+      - start_line: 67
+        end_line: 76
+        file: ''
+      uid: a06350ed-09b6-4202-9e64-d730e3ed8fb6
+    - text: 'The ''venue'' column is expected to contain non-empty string values.
+        The code uses the values from this column directly in string formatting operations
+        for display, without any cleaning (like trimming whitespace) or checks for
+        empty strings. This implies the data should be in a clean, ready-to-use format.
+        We could represent this assumption as a deequ constraint like this: .satisfies("trim(`venue`)
+        != ''''", "Is a non-empty string")'
+      sources:
+      - start_line: 42
+        end_line: 42
+        file: ''
+      - start_line: 67
+        end_line: 76
+        file: ''
+      uid: a30d140a-1aca-4a52-9d3c-b8ca5c80591c
+  winner:
+    code:
+    - suggestion: '.satisfies("result = ''no result'' OR winner IS NOT NULL", "WinnerMustExistForConclusiveResult",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 81e2e126-1a97-4935-9333-6b02b7ffc6b2
+      source_assumptions:
+      - 888cbb78-25f4-4cc8-901d-483bb18d0a31
+    - suggestion: '.satisfies("winner IS NULL OR winner = team1 OR winner = team2",
+        "WinnerIsOneOfCompetingTeams", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 08bb6113-c9ef-4c98-997a-aa459589b425
+      source_assumptions:
+      - c35ba3bf-f47e-4996-9972-edab83ef8c11
+    - suggestion: .hasDataType("winner", "String")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("winner", "String")'
+      level: warning
+      uid: 2da66b3e-c28d-4105-a4a9-232efb77e8a7
+      source_assumptions:
+      - b3ee0e35-1c67-4a1c-99de-2f6ce3e03813
+    assumptions:
+    - text: 'The ''winner'' column can be null, but this is expected only when the
+        ''result'' column is ''no result''. For all other outcomes (''runs'', ''wickets'',
+        ''tie''), the ''winner'' column must have a non-null value to generate a meaningful
+        summary.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN result != ''no result'' THEN (CASE WHEN winner IS NOT
+        NULL THEN 1 ELSE 0 END) ELSE 1 END", "WinnerMustExistForConclusiveResult",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 66
+        end_line: 75
+        file: ''
+      uid: 888cbb78-25f4-4cc8-901d-483bb18d0a31
+    - text: 'The value in the ''winner'' column, when not null, must be one of the
+        values from either the ''team1'' or ''team2'' columns in the same row. The
+        code relies on this to correctly determine the ''loser'' of the match.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("winner IS NULL OR winner = team1 OR winner = team2", "WinnerIsOneOfCompetingTeams",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: c35ba3bf-f47e-4996-9972-edab83ef8c11
+    - text: 'The ''winner'' column is expected to contain string data. The code explicitly
+        converts the column''s values to string type for serialization.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("winner", ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 106
+        end_line: 106
+        file: ''
+      uid: b3ee0e35-1c67-4a1c-99de-2f6ce3e03813
+  result:
+    code:
+    - suggestion: .isContainedIn("result", ["runs", "wickets", "tie", "no result"])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 34fe1dec-09d5-4bfa-9da4-d5504dfbba9a
+      source_assumptions:
+      - 3329202c-b5b3-41a7-975b-07f7c8c8288f
+    assumptions:
+    - text: The 'result' column must not contain any null values. The code does not
+        have a handler for nulls and relies on the column's values for conditional
+        logic to create the 'loser' column, generate summaries, and calculate statistics.
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 66
+        end_line: 76
+        file: ''
+      - start_line: 118
+        end_line: 121
+        file: ''
+      uid: b629373d-f256-4119-8796-f6869c7e6737
+    - text: 'The ''result'' column is expected to contain only the following categorical
+        values: ''runs'', ''wickets'', ''tie'', and ''no result''. The code has specific
+        logic paths for generating summaries and calculates final statistics based
+        on counts of these exact string values. Any other value would be handled by
+        a generic fallback case in the summary, but the final statistical output would
+        be incorrect.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isIn("result", Array("runs", "wickets", "tie", "no result"))'
+      sources:
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 66
+        end_line: 75
+        file: ''
+      - start_line: 118
+        end_line: 121
+        file: ''
+      uid: 3329202c-b5b3-41a7-975b-07f7c8c8288f
+  '["method","target_overs","target_runs"]':
+    code:
+    - suggestion: .satisfies("(method IS NULL OR method <> 'D/L') OR (target_runs
+        IS NOT NULL AND target_overs IS NOT NULL)", "D/L method requires target runs
+        and overs")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 681bf37a-ad53-43e1-809b-9777fb871c16
+      source_assumptions:
+      - d4a0c420-7071-46eb-a309-2c6033dea3bf
+    assumptions:
+    - text: "When the 'method' column has the value 'D/L', the 'target_runs' and 'target_overs'\
+        \ columns are expected to have non-null values. The code explicitly checks\
+        \ for this co-occurrence to generate a specific summary string about the match\
+        \ target. \nThis can be expressed as a conditional constraint like Deequ's\
+        \ `ifThen`:\n.ifThen(Condition(\"method = 'D/L'\"), isComplete(\"target_runs\"\
+        ).and(isComplete(\"target_overs\")))"
+      sources:
+      - start_line: 52
+        end_line: 65
+        file: ''
+      uid: d4a0c420-7071-46eb-a309-2c6033dea3bf
+  '["result","result_margin"]':
+    code:
+    - suggestion: '.satisfies("`result` NOT IN (''runs'', ''wickets'') OR `result_margin`
+        IS NOT NULL", "result_margin must be non-null for run/wicket results", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d062cc9f-cb96-492b-9982-4c63790f6f37
+      source_assumptions:
+      - 6269c2e1-4d5f-4409-881d-d59fb6f08b10
+    assumptions:
+    - text: 'The ''result_margin'' column must not be null for records where the ''result''
+        is ''runs'' or ''wickets''. The code directly accesses and converts this column
+        to a number under these conditions, implying that a value is always expected.
+        A null value would cause a runtime error. We could represent this assumption
+        as a deequ constraint like this: .satisfies("result NOT IN (''runs'', ''wickets'')
+        OR result_margin IS NOT NULL", "result_margin must be non-null for run/wicket
+        results")'
+      sources:
+      - start_line: 68
+        end_line: 73
+        file: ''
+      uid: 6269c2e1-4d5f-4409-881d-d59fb6f08b10
+  '["result","super_over"]':
+    code:
+    - suggestion: '.satisfies("(result = ''tie'' AND super_over = ''Y'') OR (result
+        <> ''tie'' AND super_over = ''N'')", "SuperOverResultConsistency", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 816e0984-7dfe-4b58-a899-1ee2c73beb14
+      source_assumptions:
+      - fdf300ee-f5bd-4260-8e12-6ef3a6e8e39b
+    assumptions:
+    - text: 'The ''super_over'' column''s value is directly correlated with the ''result''
+        column''s value. Based on the summary generation logic and the data distribution,
+        a super over is played if and only if the match result is a ''tie''. Specifically,
+        when ''result'' is ''tie'', ''super_over'' must be ''Y'', and for all other
+        results (''runs'', ''wickets'', ''no result''), ''super_over'' must be ''N''.
+
+        We could represent this assumption as a Deequ constraint like this:
+
+        .where("result = ''tie''", "super_over = ''Y''")
+
+        .where("result <> ''tie''", "super_over = ''N''")'
+      sources:
+      - start_line: 66
+        end_line: 76
+        file: ''
+      uid: fdf300ee-f5bd-4260-8e12-6ef3a6e8e39b
+  '["result","winner"]':
+    code:
+    - suggestion: '.satisfies("(result = ''no result'' AND winner IS NULL) OR (result
+        IN (''runs'', ''wickets'', ''tie'') AND winner IS NOT NULL)", "winner_completeness_by_result",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4bc1e2f2-066a-4333-abc1-daa88a4c3b37
+      source_assumptions:
+      - c418f0f2-7e2b-437b-b0f8-b479f2a77b2d
+    assumptions:
+    - text: 'The completeness of the ''winner'' column is conditional on the value
+        of the ''result'' column. When the ''result'' is ''no result'', the ''winner''
+        must be null. Conversely, when the ''result'' is ''runs'', ''wickets'', or
+        ''tie'', the ''winner'' must not be null. This logic is explicitly implemented
+        in the calculation of the ''loser'' column and the generation of match summaries.
+        A Deequ constraint could check this relationship, for example: `.satisfies("(result
+        = ''no result'' AND winner IS NULL) OR (result IN (''runs'', ''wickets'',
+        ''tie'') AND winner IS NOT NULL)", "winner_completeness_depends_on_result")`'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 66
+        end_line: 76
+        file: ''
+      uid: c418f0f2-7e2b-437b-b0f8-b479f2a77b2d
+  '["team1","team2"]':
+    code:
+    - suggestion: '.satisfies("`team1` <> `team2`", "team1_and_team2_must_be_different",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 629fcb79-b751-4090-8f2a-28e4d6ab44dc
+      source_assumptions:
+      - 95903c8f-667d-40df-bd7d-c5cc6c37df62
+    assumptions:
+    - text: 'The ''team1'' and ''team2'' columns should contain different values in
+        each row. This is a fundamental assumption for a sports match, where a team
+        cannot play against itself. The code on lines 33 and 35-39 relies on this
+        assumption to determine the opposing team (e.g., ''batting_second'' or ''loser'').
+        This logic, which selects the other team from the pair, would be invalid if
+        ''team1'' and ''team2'' were identical. We could represent this assumption
+        as a deequ constraint like this: .satisfies("team1 <> team2", "team1 and team2
+        must be different")'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: 95903c8f-667d-40df-bd7d-c5cc6c37df62
+  '["team1","team2","toss_decision","toss_winner"]':
+    code:
+    - suggestion: '.satisfies("`toss_winner` = `team1` OR `toss_winner` = `team2`",
+        "toss_winner must be one of the participating teams", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a5fe1176-a93d-43f9-aad4-6c6561db95e0
+      source_assumptions:
+      - f0de68e1-c4fe-4651-ae7c-dfa1f318a895
+    - suggestion: '.satisfies("`team1` <> `team2`", "team1 and team2 should be different",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1683cb8b-6e7b-4b2f-9a27-feb9b9e109f2
+      source_assumptions:
+      - 1d4b4162-5250-4b91-a2cc-4fe1e7416452
+    assumptions:
+    - text: 'The value in the ''toss_winner'' column must be one of the values from
+        either the ''team1'' or ''team2'' columns for the same record. The logic for
+        deriving ''toss_winner_side'' and ''batting_first'' depends on the toss winner
+        being one of the two participating teams. We could represent this assumption
+        as a deequ constraint like this:
+
+        .satisfies("toss_winner = team1 OR toss_winner = team2", "toss_winner must
+        be one of the participating teams")'
+      sources:
+      - start_line: 22
+        end_line: 32
+        file: ''
+      uid: f0de68e1-c4fe-4651-ae7c-dfa1f318a895
+    - text: 'The values in the ''team1'' and ''team2'' columns must be different for
+        each record, as a team cannot play against itself. This is implicitly required
+        by the logic that determines the ''batting_second'' and ''loser'' teams by
+        selecting the team that is not the ''batting_first'' or ''winner''. We could
+        represent this assumption as a deequ constraint like this:
+
+        .satisfies("team1 <> team2", "team1 and team2 should be different")'
+      sources:
+      - start_line: 33
+        end_line: 39
+        file: ''
+      uid: 1d4b4162-5250-4b91-a2cc-4fe1e7416452
+  '["team1","team2","toss_winner"]':
+    code:
+    - suggestion: '.satisfies("`toss_winner` = `team1` OR `toss_winner` = `team2`",
+        "toss_winner_is_competing_team", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 953b32a4-bc53-4f58-967b-0586915c5e56
+      source_assumptions:
+      - 1d5016ad-d348-44b8-8c56-988e32796ab1
+    - suggestion: '.satisfies("`team1` <> `team2`", "teams_are_different", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 10792909-6f8a-46a9-95f2-b8cc4f8b508b
+      source_assumptions:
+      - 45b2eb78-b697-425d-9cce-31f84dd937f6
+    assumptions:
+    - text: 'The value in the ''toss_winner'' column must be one of the values from
+        the ''team1'' or ''team2'' columns for the same record. The code at lines
+        22-32 determines the batting order based on which of the two competing teams
+        won the toss, and the logic would fail if the toss winner was a different
+        team. We could represent this assumption as a Deequ constraint like this:
+        ".where(\"toss_winner = team1 OR toss_winner = team2\")"'
+      sources:
+      - start_line: 22
+        end_line: 32
+        file: ''
+      uid: 1d5016ad-d348-44b8-8c56-988e32796ab1
+    - text: 'The ''team1'' and ''team2'' columns must contain different values for
+        each record, as a team cannot play against itself. This is implicitly required
+        by the logic that determines the second batting team (line 33) and the loser
+        (lines 35-39), which assumes two distinct opponents. We could represent this
+        assumption as a Deequ constraint like this: ".where(\"team1 <> team2\")"'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: 45b2eb78-b697-425d-9cce-31f84dd937f6
+  '["team1","team2","winner"]':
+    code:
+    - suggestion: '.satisfies("`team1` <> `team2`", "team1_and_team2_are_different",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a82fb67a-e32b-4099-b07e-08864a534073
+      source_assumptions:
+      - bae4bf42-8c03-4419-9fc4-da8f04b2a73b
+    - suggestion: '.satisfies("(`winner` IS NULL) OR (`winner` = `team1`) OR (`winner`
+        = `team2`)", "winner_is_one_of_the_teams", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 958f301b-90a3-4462-bab2-8995542f045a
+      source_assumptions:
+      - 83f65c59-3fd7-4ca8-999f-5fdc83222d63
+    assumptions:
+    - text: 'The ''team1'' and ''team2'' columns should contain different values for
+        each record. The code implicitly assumes that a team cannot play against itself,
+        as seen in the logic for determining the ''loser'' and the team batting second.
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfy("team1 <> team2", "team1_and_team2_are_different")'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: bae4bf42-8c03-4419-9fc4-da8f04b2a73b
+    - text: 'For any match with a result, the value in the ''winner'' column must
+        be one of the values from the ''team1'' or ''team2'' columns in the same row.
+        The code assumes this when calculating the ''loser'': if the winner is ''team1'',
+        the loser is ''team2'', and vice-versa. This logic would fail if the winner
+        was a team not listed in ''team1'' or ''team2''. We could represent this assumption
+        as a deequ constraint like this:
+
+        .satisfy("winner IS NULL OR winner = team1 OR winner = team2", "winner_is_one_of_the_teams")'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: 83f65c59-3fd7-4ca8-999f-5fdc83222d63
+column_data_flow_locations:
+  '["team1","team2","toss_winner"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 23
+    end_line: 32
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 40
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 100
+    end_line: 114
+    file: ''
+  '["team1","team2","winner"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 23
+    end_line: 32
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 75
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  '["team1","team2"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 23
+    end_line: 32
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 40
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  '["result","super_over"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 40
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 124
+    file: ''
+  '["result","winner"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 40
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 124
+    file: ''
+  '["result","result_margin"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 40
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 124
+    file: ''
+  '["team1","team2","toss_decision","toss_winner"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 23
+    end_line: 32
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 40
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 100
+    end_line: 114
+    file: ''
+  '["method","target_overs","target_runs"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 40
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 100
+    end_line: 114
+    file: ''
+  '["date","season"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 20
+    end_line: 20
+    file: ''
+  - start_line: 40
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  '["city","venue"]':
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 40
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  date:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 20
+    end_line: 20
+    file: ''
+  - start_line: 40
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  toss_winner:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 22
+    end_line: 32
+    file: ''
+  - start_line: 40
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 100
+    end_line: 114
+    file: ''
+  team1:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 22
+    end_line: 33
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  toss_decision:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 23
+    end_line: 33
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 49
+    end_line: 50
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 100
+    end_line: 114
+    file: ''
+  team2:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 23
+    end_line: 33
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  result:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 40
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 124
+    file: ''
+  winner:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 75
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 102
+    end_line: 114
+    file: ''
+  venue:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  season:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  id:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 40
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  method:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 52
+    end_line: 54
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 93
+    end_line: 94
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 102
+    end_line: 102
+    file: ''
+  - start_line: 111
+    end_line: 112
+    file: ''
+  - start_line: 114
+    end_line: 114
+    file: ''
+  target_runs:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 54
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 100
+    end_line: 114
+    file: ''
+  target_overs:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 40
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 100
+    end_line: 114
+    file: ''
+  result_margin:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 69
+    end_line: 70
+    file: ''
+  - start_line: 72
+    end_line: 73
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 114
+    file: ''
+  city:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  super_over:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 80
+    end_line: 95
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 102
+    end_line: 114
+    file: ''
+fixing_results:
+  '["method","target_overs","target_runs"]':
+    681bf37a-ad53-43e1-809b-9777fb871c16: .satisfies("(method IS NULL OR method <>
+      'D/L') OR (target_runs IS NOT NULL AND target_overs IS NOT NULL)", "D/L method
+      requires target runs and overs")
+consolidation_results:
+  team1:
+  - idx_to_remove: 33533eae-53b6-4569-9880-49e21ba8b9a4
+    redundant_with:
+    - 7937e608-f758-4039-b238-1671b120c9c0
+  toss_decision:
+  - idx_to_remove: 251fdf8e-8a6d-4405-b6ac-6c0b1a1ed71c
+    redundant_with:
+    - b8470f32-0e79-44a2-942c-df2b3469f659
+  super_over:
+  - idx_to_remove: d8bd216b-9b8c-4d21-adc1-652e91d1a79b
+    redundant_with:
+    - af6cbeb8-7a1e-4509-a761-4311ad2fbfc1
+  toss_winner:
+  - idx_to_remove: e1f18616-5c03-492e-95c5-602a48dad84f
+    redundant_with:
+    - c528308f-4ff7-4494-852a-844035229c88
+  date:
+  - idx_to_remove: 56ad6993-82e2-42de-b173-5177f0c13d75
+    redundant_with:
+    - 9268a577-12eb-4e52-9620-be29514090ef
+  venue:
+  - idx_to_remove: 53376ff2-3177-4244-89bd-cdc171e2ed2a
+    redundant_with:
+    - 83f7f42e-15df-41e4-9cb8-921a687d4cc8
+  result:
+  - idx_to_remove: d0a09359-0f0d-4770-95a7-d2501f9c1a57
+    redundant_with:
+    - 34fe1dec-09d5-4bfa-9da4-d5504dfbba9a
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 8629
+    prompt_tokens: 5782
+    completion_tokens: 2847
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 147960
+    prompt_tokens: 48286
+    completion_tokens: 99674
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 8906
+    prompt_tokens: 3723
+    completion_tokens: 5183
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 72746
+    prompt_tokens: 30708
+    completion_tokens: 42038
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 66951
+    prompt_tokens: 35799
+    completion_tokens: 31152
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 70255
+    prompt_tokens: 48779
+    completion_tokens: 21476
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 108414
+    prompt_tokens: 63793
+    completion_tokens: 44621
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 138493
+    prompt_tokens: 108834
+    completion_tokens: 29659
+  code_fixing:
+    cost: 0.0
+    total_tokens: 11051
+    prompt_tokens: 1926
+    completion_tokens: 9125
+  consolidate_constraints:
+    cost: 0.0
+    total_tokens: 27878
+    prompt_tokens: 12891
+    completion_tokens: 14987

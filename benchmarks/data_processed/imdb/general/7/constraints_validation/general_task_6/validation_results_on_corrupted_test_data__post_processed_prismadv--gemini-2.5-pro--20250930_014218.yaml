@@ -1,0 +1,151 @@
+results:
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies("`IMDB_Rating` IS NULL OR (`IMDB_Rating` >= 0.0 AND
+        `IMDB_Rating` <= 10.0)", "IMDB_Rating must be between 0 and 10", lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasCompleteness("IMDB_Rating", lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Certificate:
+    code:
+    - suggestion: '.hasCompleteness("Certificate", lambda completeness: completeness
+        > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["Certificate","Gross","IMDB_Rating","No_of_Votes","Released_Year","Runtime"]':
+    code:
+    - suggestion: '.satisfies("(`IMDB_Rating` > 8.5 AND `No_of_Votes` > 500000) IS
+        FALSE OR `Certificate` IS NOT NULL", "HighQualityMoviesShouldHaveCertificate",
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Genre:
+    code:
+    - suggestion: .isComplete("Genre")
+      status: true
+      reason_if_failed: ''
+      level: error
+  Gross:
+    code:
+    - suggestion: '.hasCompleteness("Gross", lambda c: c > 0.5, "Gross column should
+        be at least 50% complete to be useful for scoring")'
+      status: false
+      reason_if_failed: 'Constraint ''.hasCompleteness("Gross", lambda c: c > 0.5,
+        "Gross column should be at least 50% complete to be useful for scoring")''
+        failed on data sample: Input data does not include column Gross!'
+      level: warning
+    - suggestion: '.satisfies("`Gross` IS NULL OR `Gross` RLIKE ''^\\d{1,3}(,\\d{3})*$''",
+        "Gross format check", lambda p: p >= 0.17)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("`Gross` IS NULL OR `Gross` RLIKE
+        ''^\\d{1,3}(,\\d{3})*$''", "Gross format check", lambda p: p >= 0.17)'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Gross` cannot be resolved. Did you
+        mean one of the following? [`id`, `Genre`, `Star1`, `Star2`, `Star3`].; line
+        1 pos 0;
+
+        ''Aggregate [sum(cast((isnull(''Gross) OR RLIKE(''Gross, ^d{1,3}(,d{3})*$))
+        as int)) AS sum(CAST(((Gross IS NULL) OR RLIKE(Gross, ^d{1,3}(,d{3})*$)) AS
+        INT))#351300, count(1) AS count(1)#351301L]
+
+        +- LogicalRDD [id#349454L, Poster_Link#349455, Series_Title#349456, Released_Year#349457L,
+        Certificate#349458, Runtime#349459, Genre#349460, IMDB_Rating#349461, Overview#349462,
+        Meta_score#349463, Director#349464, Star1#349465, Star2#349466, Star3#349467,
+        Star4#349468, No_of_Votes#349469L], false
+
+        '
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Gross` IS NOT NULL AND `Gross` RLIKE ''^\\d{1,3}(,\\d{3})*$''
+        THEN CAST(REPLACE(`Gross`, '','', '''') AS DOUBLE) >= 0 ELSE TRUE END", "Non-negative
+        Gross values", lambda p: p == 1)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("CASE WHEN `Gross` IS NOT NULL AND
+        `Gross` RLIKE ''^\\d{1,3}(,\\d{3})*$'' THEN CAST(REPLACE(`Gross`, '','', '''')
+        AS DOUBLE) >= 0 ELSE TRUE END", "Non-negative Gross values", lambda p: p ==
+        1)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Gross` cannot be resolved. Did you
+        mean one of the following? [`id`, `Genre`, `Star1`, `Star2`, `Star3`].; line
+        1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN (isnotnull(''Gross) AND RLIKE(''Gross, ^d{1,3}(,d{3})*$))
+        THEN (cast(''REPLACE(''Gross, ,, ) as double) >= 0) ELSE true END as int))
+        AS sum(CAST(CASE WHEN ((Gross IS NOT NULL) AND RLIKE(Gross, ^d{1,3}(,d{3})*$))
+        THEN (CAST(REPLACE(Gross, ,, ) AS DOUBLE) >= 0) ELSE true END AS INT))#351355,
+        count(1) AS count(1)#351356L]
+
+        +- LogicalRDD [id#349454L, Poster_Link#349455, Series_Title#349456, Released_Year#349457L,
+        Certificate#349458, Runtime#349459, Genre#349460, IMDB_Rating#349461, Overview#349462,
+        Meta_score#349463, Director#349464, Star1#349465, Star2#349466, Star3#349467,
+        Star4#349468, No_of_Votes#349469L], false
+
+        '
+      level: warning
+  '["IMDB_Rating","No_of_Votes"]':
+    code:
+    - suggestion: '.hasCorrelation("IMDB_Rating", "No_of_Votes", lambda x: x >= 0.2)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Poster_Link:
+    code:
+    - suggestion: .isUnique("Poster_Link")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isComplete("Poster_Link")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .containsURL("Poster_Link")
+      status: true
+      reason_if_failed: ''
+      level: warning
+  No_of_Votes:
+    code:
+    - suggestion: '.isNonNegative(''No_of_Votes'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasStandardDeviation(''No_of_Votes'', lambda std: std > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["Poster_Link","Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Poster_Link'', ''Series_Title''], lambda x: x
+        == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda corr:
+        corr > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Released_Year:
+    code:
+    - suggestion: '.satisfies("`Released_Year` >= 1888 AND `Released_Year` <= YEAR(CURRENT_DATE())",
+        "Released_Year is within a reasonable range", assertion=lambda x: x > 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Runtime:
+    code:
+    - suggestion: .isComplete("Runtime")
+      status: true
+      reason_if_failed: ''
+      level: error
+  Series_Title:
+    code:
+    - suggestion: '.satisfies("TRIM(Series_Title) != ''''", "Series_Title should not
+        be empty", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error

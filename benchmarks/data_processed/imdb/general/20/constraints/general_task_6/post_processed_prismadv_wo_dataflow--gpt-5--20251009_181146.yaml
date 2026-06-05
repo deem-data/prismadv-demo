@@ -1,0 +1,1090 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: false
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: .isComplete('IMDB_Rating')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e10c638a-bf23-4495-b778-954624d4182f
+      source_assumptions:
+      - 436ba3b7-0dbd-49e0-a538-620990f38bdd
+    - suggestion: '.satisfies(''CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL'', ''IMDB_Rating
+        numeric'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 146ec6db-73ed-46b5-90a1-b996314e6e42
+      source_assumptions:
+      - 436ba3b7-0dbd-49e0-a538-620990f38bdd
+    - suggestion: '.satisfies(''CAST(`IMDB_Rating` AS DOUBLE) BETWEEN 0 AND 10'',
+        ''IMDB_Rating in [0,10]'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e8c34324-e4d6-46f3-a7a8-635a85d6e5bc
+      source_assumptions:
+      - 80d5d53f-9d40-4a79-9222-6f0616686f55
+    - suggestion: '.hasStandardDeviation(''IMDB_Rating'', lambda v: v > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: cfe584eb-0ad4-48d9-9751-ebfd2b9aad10
+      source_assumptions:
+      - 28eca6e4-ebc1-4c73-a612-c2d1b53a765b
+    - suggestion: '.satisfies(''CASE WHEN `No_of_Votes` IS NOT NULL THEN CAST(`IMDB_Rating`
+        AS DOUBLE) IS NOT NULL ELSE TRUE END'', ''Ratings present when votes present'',
+        lambda r: r >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2463ac62-db54-476b-99fa-31addc12958e
+      source_assumptions:
+      - 1a05bfa9-4292-45eb-b869-8003f3189795
+    assumptions:
+    - text: 'IMDB_Rating must be present and numeric-parsable for all rows; the script
+        coerces to numeric and immediately uses it in normalization and scoring without
+        imputing missing values. We could represent this with Deequ like: .isComplete("IMDB_Rating")
+        and .satisfies("CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL", "IMDB_Rating numeric",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 25
+        end_line: 26
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 436ba3b7-0dbd-49e0-a538-620990f38bdd
+    - text: "IMDB_Rating values should be on the 0\u201310 scale since the code normalizes\
+        \ by dividing by 10 without clipping. We could represent this with Deequ like:\
+        \ .hasMin(\"IMDB_Rating\", lambda m: m >= 0.0) and .hasMax(\"IMDB_Rating\"\
+        , lambda m: m <= 10.0) (or .satisfies(\"CAST(`IMDB_Rating` AS DOUBLE) BETWEEN\
+        \ 0 AND 10\", \"IMDB_Rating in [0,10]\", lambda x: x == 1.0))."
+      sources:
+      - start_line: 26
+        end_line: 26
+        file: ''
+      uid: 80d5d53f-9d40-4a79-9222-6f0616686f55
+    - text: 'IMDB_Rating should not be constant; there must be at least 2 distinct
+        numeric values so the correlation with votes is defined and ranking is meaningful.
+        We could represent this with Deequ like: .hasNumberOfDistinctValues("IMDB_Rating",
+        lambda v: v >= 2).'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 71
+        end_line: 71
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 28eca6e4-ebc1-4c73-a612-c2d1b53a765b
+    - text: 'When No_of_Votes is present, IMDB_Rating should also be present and numeric
+        for the vast majority of those rows (e.g., >= 95%) so the correlation used
+        for dynamic weighting is finite. We could represent this with Deequ like:
+        .satisfies("CASE WHEN `No_of_Votes` IS NOT NULL THEN CAST(`IMDB_Rating` AS
+        DOUBLE) IS NOT NULL ELSE TRUE END", "Ratings present when votes present",
+        lambda r: r >= 0.95).'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 71
+        end_line: 71
+        file: ''
+      uid: 1a05bfa9-4292-45eb-b869-8003f3189795
+  Certificate:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NULL OR TRIM(`Certificate`)
+        = '''' THEN 1 ELSE CASE WHEN UPPER(TRIM(`Certificate`)) IN (''U'',''UA'',''A'',''G'',''PG'',''PG-13'',''R'',''NC-17'',''NOT
+        RATED'',''UNRATED'') THEN 1 ELSE 0 END END", "Certificate domain coverage",
+        lambda x: x >= 0.94)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1ec43d4e-86a9-46f6-8f38-f3100d3220e3
+      source_assumptions:
+      - 73987c66-3986-4e7a-98db-1cf06eb5ccc1
+    - suggestion: '.hasCompleteness("Certificate", lambda x: x >= 0.80)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b17be4a6-b1e1-4a50-9ca7-8281f3f48484
+      source_assumptions:
+      - f026efd7-ce50-4f28-8434-6a24f93034c8
+    - suggestion: '.satisfies("CASE WHEN UPPER(TRIM(`Certificate`)) IN (''U'',''G'',''PG'',''PG-13'',''UA'')
+        THEN 1 ELSE 0 END", "At least one family-friendly row", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ceeb7708-5be9-4273-9879-696f89b74dbb
+      source_assumptions:
+      - 52a7314d-15fd-4339-b677-1cf9ac2cf578
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NULL THEN 1 ELSE CASE WHEN
+        CAST(`Certificate` AS STRING) IS NOT NULL THEN 1 ELSE 0 END END", "Certificate
+        castable to string", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b1942886-dabd-4d7b-90e3-b0d55cffd348
+      source_assumptions:
+      - 93182882-7d9c-47ce-82f2-dac422816faf
+    assumptions:
+    - text: 'After trimming and uppercasing, ''Certificate'' values should mostly
+        be one of the recognized rating tokens: {''U'', ''UA'', ''A'', ''G'', ''PG'',
+        ''PG-13'', ''R'', ''NC-17'', ''NOT RATED'', ''UNRATED''}. Aim for at least
+        95% of non-null/non-empty values to match exactly (ignoring case and surrounding
+        whitespace). Example validations: Great Expectations: expect_column_values_to_match_regex
+        with mostly=0.95 and regex ''^(?i)\s*(U|UA|A|G|PG|PG-13|R|NC-17|NOT RATED|UNRATED)\s*$'';
+        Deequ: .satisfies("CASE WHEN `Certificate` IS NULL OR TRIM(`Certificate`)
+        = '''' THEN 1 ELSE CASE WHEN UPPER(TRIM(`Certificate`)) IN (''U'',''UA'',''A'',''G'',''PG'',''PG-13'',''R'',''NC-17'',''NOT
+        RATED'',''UNRATED'') THEN 1 ELSE 0 END END", "Certificate domain coverage",
+        lambda x: x >= 0.95).'
+      sources:
+      - start_line: 45
+        end_line: 50
+        file: ''
+      uid: 73987c66-3986-4e7a-98db-1cf06eb5ccc1
+    - text: '''Certificate'' may be null in the input, but the null/empty fraction
+        should be limited so that enough rows can be evaluated for eligibility. Target
+        completeness >= 0.80 (null/empty <= 20%). Example validations: Deequ: .hasCompleteness("Certificate",
+        lambda x: x >= 0.80); Great Expectations: expect_column_values_to_not_be_null
+        with mostly=0.80.'
+      sources:
+      - start_line: 47
+        end_line: 48
+        file: ''
+      - start_line: 84
+        end_line: 86
+        file: ''
+      - start_line: 97
+        end_line: 99
+        file: ''
+      uid: f026efd7-ce50-4f28-8434-6a24f93034c8
+    - text: 'There should be at least one row with a family-friendly certificate to
+        ensure the ranked outputs are non-empty: normalized ''Certificate'' in {''U'',
+        ''G'', ''PG'', ''PG-13'', ''UA''}. Example validations: Deequ: .satisfies("CASE
+        WHEN UPPER(TRIM(`Certificate`)) IN (''U'',''G'',''PG'',''PG-13'',''UA'') THEN
+        1 ELSE 0 END", "At least one family-friendly row", lambda x: x > 0); Great
+        Expectations: expect_column_values_to_be_in_set on a normalized view with
+        mostly > 0.0 (or assert row count of filtered subset > 0).'
+      sources:
+      - start_line: 84
+        end_line: 86
+        file: ''
+      - start_line: 97
+        end_line: 108
+        file: ''
+      uid: 52a7314d-15fd-4339-b677-1cf9ac2cf578
+    - text: '''Certificate'' should be string-like (castable to string) because the
+        pipeline trims and uppercases it before set membership checks. Example validations:
+        Great Expectations: expect_column_values_to_be_of_type(''object'') or ensure
+        all values are castable to string; Deequ: .satisfies("CASE WHEN CAST(`Certificate`
+        AS STRING) IS NOT NULL THEN 1 ELSE 0 END", "Certificate castable to string",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 47
+        end_line: 48
+        file: ''
+      uid: 93182882-7d9c-47ce-82f2-dac422816faf
+  '["Certificate","Genre"]':
+    code: []
+    assumptions:
+    - text: 'If the Genre indicates family/kid-oriented content (e.g., contains ''family'',
+        ''animation'', ''kids'', ''children''), then Certificate must be present and
+        within the family-friendly set {''U'',''G'',''PG'',''PG-13'',''UA''}. This
+        ensures such titles are not excluded by the family-friendly filter. Example
+        Deequ constraint: .satisfies("case when lower(Genre) rlike ''(family|animation|kids|children)''
+        then upper(trim(coalesce(Certificate,''''))) in (''U'',''G'',''PG'',''PG-13'',''UA'')
+        else true end", "Family genres must have family-friendly certificates")'
+      sources:
+      - start_line: 45
+        end_line: 50
+        file: ''
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 83
+        end_line: 86
+        file: ''
+      uid: f4fe00f2-4103-4a01-82f0-6bcff9107be3
+    - text: 'If the Genre indicates adult/erotic content (e.g., contains ''adult''
+        or ''erotic''), then Certificate must not be family-friendly and should instead
+        be in {''R'',''NC-17'',''A'',''NOT RATED'',''UNRATED''}. Example Deequ constraint:
+        .satisfies("case when lower(Genre) rlike ''(adult|erotic)'' then upper(trim(coalesce(Certificate,'''')))
+        in (''R'',''NC-17'',''A'',''NOT RATED'',''UNRATED'') else true end", "Adult
+        genres must not have family-friendly certificates")'
+      sources:
+      - start_line: 48
+        end_line: 50
+        file: ''
+      - start_line: 51
+        end_line: 53
+        file: ''
+      uid: aa9879cf-0792-48e3-9729-59fde409f6de
+    - text: 'If Certificate is family-friendly (one of {''U'',''G'',''PG'',''PG-13'',''UA''}),
+        then Genre must not indicate adult/erotic content (no match to ''(adult|erotic|xxx)'').
+        Example Deequ constraint: .satisfies("case when upper(trim(coalesce(Certificate,'''')))
+        in (''U'',''G'',''PG'',''PG-13'',''UA'') then not(lower(Genre) rlike ''(adult|erotic|xxx)'')
+        else true end", "Family-friendly certificates cannot have adult genres")'
+      sources:
+      - start_line: 83
+        end_line: 86
+        file: ''
+      - start_line: 51
+        end_line: 53
+        file: ''
+      uid: 18e96c8e-f072-4bf2-ba62-5d1fb7142929
+  '["Certificate","Genre","Gross","IMDB_Rating","No_of_Votes","Poster_Link","Released_Year","Runtime","Series_Title"]':
+    code: []
+    assumptions:
+    - text: 'Poster_Link functions as a stable identifier for a movie and must functionally
+        determine all output attributes. For any given Poster_Link, the fields Series_Title,
+        Released_Year, IMDB_Rating, No_of_Votes, Gross, Certificate, and Genre should
+        be consistent across duplicates. This can be enforced as functional dependencies
+        such as: isFunctionalDependency(''Poster_Link'', ''Series_Title''), ... ,
+        isFunctionalDependency(''Poster_Link'', ''Genre''). Optionally, also enforce
+        .isUnique([''Poster_Link'']) to avoid duplicates entirely.'
+      sources:
+      - start_line: 93
+        end_line: 96
+        file: ''
+      - start_line: 101
+        end_line: 104
+        file: ''
+      uid: 147198c1-9a88-4749-a319-d07f09e99ea6
+    - text: The dynamic weighting assumes a well-defined, positive correlation between
+        IMDB_Rating and No_of_Votes. To ensure the vote_weight reflects observed correlation
+        (rather than defaulting to bounds), the Pearson correlation corr(IMDB_Rating,
+        No_of_Votes) should be finite and within [0.20, 0.35]. Represent with two
+        constraints, e.g., hasCorrelation('IMDB_Rating','No_of_Votes', lowerBound=0.20)
+        and hasCorrelation('IMDB_Rating','No_of_Votes', upperBound=0.35).
+      sources:
+      - start_line: 32
+        end_line: 33
+        file: ''
+      - start_line: 70
+        end_line: 74
+        file: ''
+      uid: 18e338b1-e540-40c3-a7be-916a75455781
+    - text: 'Family-friendly eligibility is derived solely from Certificate; thus,
+        for any given Poster_Link, the eligibility decision must be consistent. Enforce
+        Poster_Link -> Certificate (or directly Poster_Link -> EligibleFamilyFriendly)
+        via functional dependency: isFunctionalDependency(''Poster_Link'',''Certificate'')
+        and/or isFunctionalDependency(''Poster_Link'',''EligibleFamilyFriendly'').'
+      sources:
+      - start_line: 83
+        end_line: 86
+        file: ''
+      - start_line: 93
+        end_line: 96
+        file: ''
+      - start_line: 45
+        end_line: 50
+        file: ''
+      uid: ebc50de0-988c-4311-9e85-51c2b15e39f7
+    - text: 'Each logical movie (Series_Title, Released_Year) should appear at most
+        once in the ranked outputs to avoid duplicate display of the same title under
+        different posters. Enforce multi-column uniqueness: .isUnique([''Series_Title'',
+        ''Released_Year'']).'
+      sources:
+      - start_line: 97
+        end_line: 108
+        file: ''
+      uid: d76517e1-5882-4c92-b81c-575c7efdb1de
+  Genre:
+    code:
+    - suggestion: '.hasDataType(''Genre'', ConstrainableDataTypes.String, lambda x:
+        x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Genre'', ConstrainableDataTypes.String,
+        lambda x: x == 1.0)'
+      level: error
+      uid: 290be0f6-0c7e-43c4-9539-e0318f25e4aa
+      source_assumptions:
+      - 6352ed83-385c-4030-a997-b0a1db998202
+    - suggestion: '.satisfies(''`Genre` IS NOT NULL AND LENGTH(TRIM(`Genre`)) > 0'',
+        ''Genre non-null and non-blank >= 95%'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 739b4acc-af1e-4610-ab1a-4d85b8a8daf9
+      source_assumptions:
+      - 7428ea43-3dd5-47ef-a1a7-c3e61dc894e1
+    - suggestion: '.satisfies("`Genre` IS NULL OR (`Genre` rlike ''(?i)^\\s*(Action|Adventure|Animation|Biography|Comedy|Crime|Documentary|Drama|Family|Fantasy|Film-Noir|History|Horror|Music|Musical|Mystery|Romance|Sci-Fi|Sport|Thriller|War|Western|Short)\\s*(\\s*[,|]\\s*(Action|Adventure|Animation|Biography|Comedy|Crime|Documentary|Drama|Family|Fantasy|Film-Noir|History|Horror|Music|Musical|Mystery|Romance|Sci-Fi|Sport|Thriller|War|Western|Short)\\s*)*$'')",
+        ''Genre values use allowed tokens'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Genre` IS NULL OR (`Genre` rlike
+        ''(?i)^\\s*(Action|Adventure|Animation|Biography|Comedy|Crime|Documentary|Drama|Family|Fantasy|Film-Noir|History|Horror|Music|Musical|Mystery|Romance|Sci-Fi|Sport|Thriller|War|Western|Short)\\s*(\\s*[,|]\\s*(Action|Adventure|Animation|Biography|Comedy|Crime|Documentary|Drama|Family|Fantasy|Film-Noir|History|Horror|Music|Musical|Mystery|Romance|Sci-Fi|Sport|Thriller|War|Western|Short)\\s*)*$'')",
+        ''Genre values use allowed tokens'', lambda x: x == 1.0)'' failed on data
+        sample: Value: 0.11018363939899833 does not meet the constraint requirement!'
+      level: warning
+      uid: 73eb37fc-0f69-43d3-88a0-c65596f69efe
+      source_assumptions:
+      - 84431ac8-42be-4df6-a660-390a2066de7f
+    - suggestion: '.satisfies("(upper(`Certificate`) NOT IN (''U'',''G'',''PG'',''PG-13'',''UA''))
+        OR (`Genre` IS NULL OR NOT (`Genre` rlike ''(?i)(Adult|Erotic|Porn|XXX|NSFW)''))",
+        ''No adult-only Genre terms for family certificates'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 08a688fc-05bb-481b-b5e1-5ff532468fda
+      source_assumptions:
+      - 2da7a6f0-b882-43b3-b87c-a410066532b5
+    - suggestion: '.hasNumberOfDistinctValues(''Genre'', lambda x: x <= 300, None,
+        1000)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1855cf47-3dd0-44d4-9d7b-c444f7312c25
+      source_assumptions:
+      - 185dc99d-0d56-4008-a109-233f287b3bd9
+    assumptions:
+    - text: The 'Genre' column must exist in the input and all values must be safely
+        castable to strings (no complex objects), because the code directly coerces
+        df['Genre'] to string before use and export.
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 6352ed83-385c-4030-a997-b0a1db998202
+    - text: 'The ''Genre'' column should be non-null and non-blank for the vast majority
+        of rows (e.g., at least 95%), since it is included in the final exported outputs
+        with no fallback or fill-in. Validation: proportion of rows where TRIM(Genre)
+        is not empty should be >= 0.95.'
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      - start_line: 101
+        end_line: 105
+        file: ''
+      uid: 7428ea43-3dd5-47ef-a1a7-c3e61dc894e1
+    - text: 'Each ''Genre'' value should be a delimited list (e.g., comma- or pipe-separated)
+        of known genre tokens from a predefined taxonomy, after case-folding and trimming.
+        Example allowed tokens: Action, Adventure, Animation, Biography, Comedy, Crime,
+        Documentary, Drama, Family, Fantasy, Film-Noir, History, Horror, Music, Musical,
+        Mystery, Romance, Sci-Fi, Sport, Thriller, War, Western, Short. Validation:
+        for each non-null row, all tokens parsed from ''Genre'' must be in the allowed
+        set.'
+      sources:
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 101
+        end_line: 105
+        file: ''
+      uid: 84431ac8-42be-4df6-a660-390a2066de7f
+    - text: 'Cross-field consistency for family-friendly rows: if Certificate is in
+        {U, G, PG, PG-13, UA}, then ''Genre'' must not contain adult-only indicators
+        (e.g., ''Adult'', ''Erotic'', ''Porn'', ''XXX'', ''NSFW''). Validation: for
+        rows with Certificate in the family-allowed set, assert no adult-only tokens
+        appear in ''Genre''.'
+      sources:
+      - start_line: 84
+        end_line: 86
+        file: ''
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 97
+        end_line: 99
+        file: ''
+      - start_line: 101
+        end_line: 105
+        file: ''
+      uid: 2da7a6f0-b882-43b3-b87c-a410066532b5
+    - text: 'The number of distinct ''Genre'' strings should be bounded (e.g., <=
+        300) to reflect a controlled combination of tokens for consistent display
+        and filtering in the outputs. Validation: approximate distinct count of ''Genre''
+        <= 300.'
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      - start_line: 101
+        end_line: 105
+        file: ''
+      uid: 185dc99d-0d56-4008-a109-233f287b3bd9
+  Gross:
+    code:
+    - suggestion: '.hasCompleteness(''Gross'', lambda v: v >= 0.75)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b2b2ec4e-4b98-4b6a-bce0-0427ec0325ed
+      source_assumptions:
+      - 9d4916d4-d1a0-45c9-93af-991ab7f81aa0
+    - suggestion: '.satisfies("CASE WHEN Gross IS NULL THEN 1 WHEN regexp_replace(Gross,
+        '','', '''') RLIKE ''^[0-9]+(\\.[0-9]+)?$'' THEN 1 ELSE 0 END", "Gross numeric-like",
+        lambda x: x >= 0.90)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4830fb56-bf38-42e3-b4b3-43c70d894b31
+      source_assumptions:
+      - 072126c5-4cb0-4b29-801e-10d2e9e29080
+    - suggestion: '.satisfies("CASE WHEN Gross IS NOT NULL AND regexp_replace(Gross,
+        '','', '''') RLIKE ''^-?\\d+(\\.\\d+)?$'' AND CAST(regexp_replace(Gross, '','',
+        '''') AS DOUBLE) < 0 THEN 0 ELSE 1 END", "No negative gross", lambda x: x
+        == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 6889fd92-429b-4c07-87c0-f74d0dd4a840
+      source_assumptions:
+      - dada869d-9c46-43ec-8af3-6b46883756a8
+    - suggestion: '.satisfies("Gross IS NOT NULL AND regexp_replace(Gross, '','',
+        '''') RLIKE ''^[0-9]+(\\.[0-9]+)?$'' AND CAST(regexp_replace(Gross, '','',
+        '''') AS DOUBLE) > 0", "Some positive numeric Gross values exist", lambda
+        x: x > 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 11bdc951-d234-46d5-8be9-8cbf4e1de707
+      source_assumptions:
+      - 4d22caf9-3f4c-4755-b30b-d40bcf833f4a
+    - suggestion: ".satisfies(\"CASE WHEN Gross IS NULL THEN 1 WHEN Gross RLIKE '.*([$\u20AC\
+        \xA3]|[A-Za-z]).*' THEN 0 ELSE 1 END\", \"No currency/unit symbols in Gross\"\
+        , lambda x: x >= 0.99)"
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 88787ea1-4d12-4c5d-9e67-cab1f3816a35
+      source_assumptions:
+      - 5daf3ff2-f8d8-4dfc-87c6-3b10be7a5d8a
+    assumptions:
+    - text: 'Gross may be null in some rows, but the dataset should be reasonably
+        complete so the feature contributes to scoring. Expect at least 75% completeness
+        (non-null values). Example (Deequ): .hasCompleteness(''Gross'', lambda v:
+        v >= 0.75)'
+      sources:
+      - start_line: 41
+        end_line: 44
+        file: ''
+      uid: 9d4916d4-d1a0-45c9-93af-991ab7f81aa0
+    - text: 'When present, Gross should be a numeric amount encoded as a string with
+        only optional thousands commas and an optional decimal part (no currency symbols
+        or text). At least 90% of non-null values should be parseable after removing
+        commas. Example regex: ^\s*(\d{1,3}(,\d{3})+|\d+)(\.\d+)?\s*$; Example (Deequ
+        compliance): .satisfies("CASE WHEN Gross IS NULL THEN 1 WHEN regexp_replace(Gross,
+        '','', '''') RLIKE ''^[0-9]+(\\.[0-9]+)?$'' THEN 1 ELSE 0 END", ''Gross numeric-like'',
+        lambda x: x >= 0.90)'
+      sources:
+      - start_line: 41
+        end_line: 44
+        file: ''
+      uid: 072126c5-4cb0-4b29-801e-10d2e9e29080
+    - text: 'Gross values should be non-negative monetary amounts. No negative values
+        are expected among parseable rows. Example (Deequ): .satisfies("CASE WHEN
+        Gross IS NOT NULL AND regexp_replace(Gross, '','', '''') RLIKE ''^-?\\d+(\\.\\d+)?$''
+        AND CAST(regexp_replace(Gross, '','', '''') AS DOUBLE) < 0 THEN 0 ELSE 1 END",
+        ''No negative gross'', lambda x: x == 1)'
+      sources:
+      - start_line: 58
+        end_line: 61
+        file: ''
+      uid: dada869d-9c46-43ec-8af3-6b46883756a8
+    - text: 'To avoid degenerate normalization, there should be at least two distinct
+        positive numeric Gross values in the input. Equivalent checks: max(cleaned_gross)
+        > min(cleaned_gross) AND min(cleaned_gross) > 0, or distinct_count(cleaned_gross
+        WHERE cleaned_gross > 0) >= 2. Example (Deequ): .hasMax(''GrossNumeric'',
+        lambda m: m > 0) AND .hasMin(''GrossNumeric'', lambda m: m > 0) AND .hasNumberOfDistinctValues(''GrossNumeric'',
+        lambda d: d >= 2)'
+      sources:
+      - start_line: 58
+        end_line: 61
+        file: ''
+      uid: 4d22caf9-3f4c-4755-b30b-d40bcf833f4a
+    - text: "Gross values should not contain currency symbols or alphabetic unit suffixes\
+        \ (e.g., '$', 'USD', '\xA3', 'M', 'K'). At least 99% of non-null values should\
+        \ be free of such characters. Example (Deequ compliance): .satisfies(\"CASE\
+        \ WHEN Gross IS NULL THEN 1 WHEN Gross RLIKE '.*([$\u20AC\xA3]|[A-Za-z]).*'\
+        \ THEN 0 ELSE 1 END\", 'No currency/unit symbols in Gross', lambda x: x >=\
+        \ 0.99)"
+      sources:
+      - start_line: 43
+        end_line: 44
+        file: ''
+      uid: 5daf3ff2-f8d8-4dfc-87c6-3b10be7a5d8a
+  '["IMDB_Rating","No_of_Votes"]':
+    code:
+    - suggestion: '.satisfies("`IMDB_Rating` IS NOT NULL AND `No_of_Votes` IS NOT
+        NULL", "Both IMDB_Rating and No_of_Votes must be present in all rows for correlation",
+        lambda compliance: compliance == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 548d3a89-eb16-46a2-b3f9-5e284bf414e3
+      source_assumptions:
+      - c04b40cd-a839-4386-985e-67790d304625
+    - suggestion: '.hasCorrelation("IMDB_Rating", "No_of_Votes", lambda c: c >= 0.0
+        and c <= 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fbe5926e-dffc-44db-ab7b-98bf5abaaea2
+      source_assumptions:
+      - c7aeebac-e96b-47e7-96d5-1a8ab09a4aa9
+    - suggestion: '.satisfies("(UPPER(`Certificate`) NOT IN (''U'',''G'',''PG'',''PG-13'',''UA''))
+        OR (CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL AND CAST(`No_of_Votes` AS BIGINT)
+        IS NOT NULL)", "Family-friendly rows must have numeric IMDB_Rating and No_of_Votes",
+        lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: eb4cfc03-e986-4516-9567-6245b0ba72da
+      source_assumptions:
+      - a99204d0-61c3-48cc-a917-f637fc47c6af
+    assumptions:
+    - text: 'There must be enough rows where IMDB_Rating and No_of_Votes are both
+        present and numeric to compute a meaningful correlation and downstream weights.
+        At minimum, the dataset should have at least two rows with both fields non-null
+        after parsing. Deequ examples: .hasSizeWhere("IMDB_Rating IS NOT NULL AND
+        No_of_Votes IS NOT NULL", _ >= 2) and, more strictly for robustness, .satisfies("IMDB_Rating
+        IS NOT NULL AND No_of_Votes IS NOT NULL", assertion=1.0).'
+      sources:
+      - start_line: 25
+        end_line: 33
+        file: ''
+      uid: 9f1072a5-4b79-41f4-bb1c-e8259f96fb51
+    - text: 'The Pearson correlation between IMDB_Rating and No_of_Votes should be
+        finite and non-negative, as it is used directly to set the vote weight for
+        the composite score. Deequ example: .hasCorrelation("IMDB_Rating", "No_of_Votes",
+        lowerBound=0.0, upperBound=1.0).'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 71
+        end_line: 74
+        file: ''
+      uid: c04b40cd-a839-4386-985e-67790d304625
+    - text: 'For any duplicate Poster_Link values, IMDB_Rating and No_of_Votes should
+        be identical across those duplicates (Poster_Link functionally determines
+        these metrics). This avoids inconsistent scoring when de-duplicating by Poster_Link
+        after ranking. Deequ example: .isFunctionalDependency(["Poster_Link"], ["IMDB_Rating",
+        "No_of_Votes"]).'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: c7aeebac-e96b-47e7-96d5-1a8ab09a4aa9
+    - text: 'Among items eligible for family-friendly ranking (Certificate in {''U'',''G'',''PG'',''PG-13'',''UA''}),
+        both IMDB_Rating and No_of_Votes must be present and numeric, since these
+        rows are sorted and exported. Deequ examples: .satisfies("upper(Certificate)
+        IN (''U'',''G'',''PG'',''PG-13'',''UA'') => (IMDB_Rating IS NOT NULL AND No_of_Votes
+        IS NOT NULL)", assertion=1.0) and optionally enforce numeric via regex or
+        cast checks.'
+      sources:
+      - start_line: 84
+        end_line: 99
+        file: ''
+      - start_line: 101
+        end_line: 108
+        file: ''
+      uid: 2e301ca3-c11e-4478-a165-f2585b67c6e5
+    - text: 'To ensure the correlation is defined (not NaN), the pairwise non-null
+        subset of IMDB_Rating and No_of_Votes must exhibit variability (at least two
+        distinct values in each column). Deequ examples: .hasNumberOfDistinctValues("IMDB_Rating",
+        where="No_of_Votes IS NOT NULL", _ >= 2) and .hasNumberOfDistinctValues("No_of_Votes",
+        where="IMDB_Rating IS NOT NULL", _ >= 2).'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: a99204d0-61c3-48cc-a917-f637fc47c6af
+  Poster_Link:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(`Poster_Link`) NOT RLIKE ''^(?i)(|null|none|nan)$''
+        THEN 1 ELSE 0 END", "Poster_Link_non_empty_after_trim", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a70427e5-c3c6-49b9-a5d5-9a3051c16e14
+      source_assumptions:
+      - bae99668-2098-4883-9b5b-470d43be78f1
+    - suggestion: '.satisfies("CASE WHEN `Poster_Link` RLIKE ''^https?://[^\\s]+$''
+        THEN 1 ELSE 0 END", "Poster_Link_valid_http_url", lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `Poster_Link` RLIKE ''^https?://[^\\s]+$''
+        THEN 1 ELSE 0 END", "Poster_Link_valid_http_url", lambda x: x >= 0.99)'' failed
+        on data sample: Value: 0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: 2737da09-7440-4bd0-88b0-a63084e9b6f9
+      source_assumptions:
+      - 5ea0a3ed-b99f-422c-9c1e-750bff8dd8ed
+    - suggestion: '.hasDistinctness([''Poster_Link''], lambda d: d >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a2cf6a97-5b62-44c2-869b-116bf3c46fa4
+      source_assumptions:
+      - 314656f8-c138-497b-b557-0be1f24c0e28
+    - suggestion: '.satisfies("CASE WHEN `Poster_Link` = TRIM(`Poster_Link`) THEN
+        1 ELSE 0 END", "Poster_Link_trimmed_no_whitespace", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 61a06c87-ec72-4210-8f7d-5b9ca1bc2cb0
+      source_assumptions:
+      - 311685bf-8e35-4229-b8b9-f11c31260111
+    assumptions:
+    - text: 'Poster_Link must be present for every row and not be an empty or placeholder
+        value. Specifically, values should be non-null and, after trimming, not equal
+        to '''', ''NULL'', ''None'', or ''NaN'' (case-insensitive). Example Deequ:
+        .isComplete(''Poster_Link'').satisfies("CASE WHEN TRIM(`Poster_Link`) NOT
+        RLIKE ''^(?i)(|null|none|nan)$'' THEN 1 ELSE 0 END", ''Poster_Link_non_empty'',
+        lambda x: x == 1.0). Example Great Expectations: expect_column_values_to_not_be_null(''Poster_Link'');
+        expect_column_values_to_not_match_regex_list(''Poster_Link'', [r''^\s*$'',
+        r''^(?i)null$'', r''^(?i)none$'', r''^(?i)nan$'']).'
+      sources:
+      - start_line: 18
+        end_line: 19
+        file: ''
+      - start_line: 93
+        end_line: 96
+        file: ''
+      - start_line: 101
+        end_line: 108
+        file: ''
+      uid: bae99668-2098-4883-9b5b-470d43be78f1
+    - text: 'Poster_Link values should be valid HTTP/HTTPS URLs suitable for direct
+        passthrough to the homepage (no broken schemes). At minimum, they should start
+        with http:// or https:// and contain no spaces. Example Deequ: .satisfies("CASE
+        WHEN `Poster_Link` RLIKE ''^https?://[^\s]+'' THEN 1 ELSE 0 END", ''Poster_Link_valid_url'',
+        lambda x: x >= 0.99). Example Great Expectations: expect_column_values_to_match_regex(''Poster_Link'',
+        r''^https?://[^\s]+$'').'
+      sources:
+      - start_line: 18
+        end_line: 19
+        file: ''
+      - start_line: 101
+        end_line: 108
+        file: ''
+      uid: 5ea0a3ed-b99f-422c-9c1e-750bff8dd8ed
+    - text: 'Poster_Link should be mostly unique because it is used to deduplicate
+        display items. A high distinctness is expected so that only a small fraction
+        of rows are dropped during drop_duplicates. Example Deequ: .hasDistinctness([''Poster_Link''],
+        lambda d: d >= 0.9). Example Great Expectations: expect_column_proportion_of_unique_values_to_be_greater_than(''Poster_Link'',
+        0.9).'
+      sources:
+      - start_line: 93
+        end_line: 96
+        file: ''
+      uid: 314656f8-c138-497b-b557-0be1f24c0e28
+    - text: 'Poster_Link values should have no leading or trailing whitespace (to
+        avoid false duplicates and broken URLs, since the code does not trim). Example
+        Deequ: .satisfies("CASE WHEN `Poster_Link` = TRIM(`Poster_Link`) THEN 1 ELSE
+        0 END", ''Poster_Link_trimmed'', lambda x: x == 1.0). Example Great Expectations:
+        expect_column_values_to_not_match_regex(''Poster_Link'', r''^\s|\s$'').'
+      sources:
+      - start_line: 19
+        end_line: 19
+        file: ''
+      - start_line: 95
+        end_line: 96
+        file: ''
+      - start_line: 101
+        end_line: 108
+        file: ''
+      uid: 311685bf-8e35-4229-b8b9-f11c31260111
+  No_of_Votes:
+    code:
+    - suggestion: '.satisfies(''CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL'', ''Votes
+        numeric'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 00c114bf-ef99-40a4-be7c-6c20fba3817c
+      source_assumptions:
+      - 2a0d4666-13f8-4e0e-84d8-d7ccb0a56c85
+    - suggestion: '.satisfies(''CAST(`No_of_Votes` AS DOUBLE) >= 0'', ''Non-negative
+        votes'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1d4b1c84-b93a-4960-b5ad-03bdce37e7c1
+      source_assumptions:
+      - 3694cd84-4281-4761-a0e5-592d135a2fcd
+    - suggestion: '.satisfies(''CAST(`No_of_Votes` AS DOUBLE) >= 1'', ''Mostly positive
+        votes'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1e2ecfbd-c0f1-40b3-b3be-c72189139a00
+      source_assumptions:
+      - 3694cd84-4281-4761-a0e5-592d135a2fcd
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda c: (c
+        == c) and (abs(c) <= 1))'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: aef4499b-e1cc-4196-a142-045aa8a4cd92
+      source_assumptions:
+      - 8dceee80-fb2f-40e0-a491-a24bafbcb596
+    assumptions:
+    - text: 'The ''No_of_Votes'' column should be numeric and free of formatting characters
+        (e.g., no commas or words). At least 99% of rows must be castable to a number
+        because the code coerces non-numeric values to null before log/normalization
+        and correlation. We could represent this assumption as a deequ constraint
+        like this: .satisfies(''CASE WHEN CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL
+        THEN 1 ELSE 0 END'', ''Votes numeric'', lambda x: x >= 0.99)'
+      sources:
+      - start_line: 29
+        end_line: 30
+        file: ''
+      uid: 2a0d4666-13f8-4e0e-84d8-d7ccb0a56c85
+    - text: 'The ''No_of_Votes'' column represents a count and should be non-negative
+        for all rows, and the vast majority should be strictly positive to avoid distortion
+        from clipping to 1 before the log transform. Enforce: 100% of values >= 0
+        and at least 95% of values >= 1. We could represent this with deequ constraints
+        like: .satisfies(''CASE WHEN CAST(`No_of_Votes` AS DOUBLE) >= 0 THEN 1 ELSE
+        0 END'', ''Non-negative votes'', lambda x: x == 1.0) and .satisfies(''CASE
+        WHEN CAST(`No_of_Votes` AS DOUBLE) >= 1 THEN 1 ELSE 0 END'', ''Mostly positive
+        votes'', lambda x: x >= 0.95)'
+      sources:
+      - start_line: 30
+        end_line: 30
+        file: ''
+      - start_line: 66
+        end_line: 69
+        file: ''
+      uid: 3694cd84-4281-4761-a0e5-592d135a2fcd
+    - text: 'There must be enough valid numeric ''No_of_Votes'' values co-present
+        with numeric ''IMDB_Rating'' values to compute a finite correlation used for
+        dynamic weighting. Specifically, require at least two rows where both fields
+        are numeric and non-null, and ''No_of_Votes'' takes at least two distinct
+        values among those rows (non-constant). We could represent this as deequ constraints
+        like: .compliance(''valid_pair'', ''CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL
+        AND CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL'', lambda p: p > 0) and .approxCountDistinctWhere(''No_of_Votes'',
+        ''CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL AND CAST(`IMDB_Rating` AS DOUBLE)
+        IS NOT NULL'', lambda c: c >= 2)'
+      sources:
+      - start_line: 25
+        end_line: 26
+        file: ''
+      - start_line: 29
+        end_line: 29
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: 8dceee80-fb2f-40e0-a491-a24bafbcb596
+  Released_Year:
+    code:
+    - suggestion: '.satisfies(''`Released_Year` >= 1000 AND `Released_Year` <= 9999'',
+        ''Released_Year is a 4-digit year'', lambda v: v >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 43776170-2b80-45f3-8043-494aad77e9f5
+      source_assumptions:
+      - 74f48c11-e117-419e-af11-36f7e64b4b10
+      - 77f34a12-56e1-4988-a763-f4682423074a
+    - suggestion: '.satisfies(''CAST(TRIM(`Released_Year`) AS INT) <= year(current_date())'',
+        ''Released_Year not in future'', lambda v: v >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 68ee9518-7830-4b0e-85f0-cf98ad6f40aa
+      source_assumptions:
+      - 49458144-6e7a-4199-a6c0-c4721f1c7b06
+    assumptions:
+    - text: 'Released_Year should be present (non-null) for almost all records so
+        that recency_score and CompositeScore are not NaN. A suitable rule is completeness
+        of Released_Year >= 0.99. Example: Deequ completeness(''Released_Year'') >=
+        0.99 or Great Expectations expect_column_values_to_not_be_null with mostly
+        >= 0.99.'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      - start_line: 54
+        end_line: 56
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 78e6993f-3424-46f1-b932-d11e5b49f440
+    - text: 'Released_Year values should be parseable to an integer year after trimming
+        whitespace (i.e., match a 4-digit year). At least 99% of values should match
+        ^\s*\d{4}\s*$ so pd.to_numeric does not coerce to NaN. Example: Deequ hasPattern(''Released_Year'',
+        ''^\\s*\\d{4}\\s*$'', assertion >= 0.99) or Great Expectations expect_column_values_to_match_regex
+        with mostly >= 0.99.'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      uid: 74f48c11-e117-419e-af11-36f7e64b4b10
+    - text: 'Released_Year should not be in the future relative to the run date; at
+        least 99% of values should be <= current_year. This prevents artificially
+        maxed recency scores due to age clipping at 0. Example: Deequ satisfies(''`Released_Year`
+        <= '' + current_year, ''No future years'', lambda x: x >= 0.99) or Great Expectations
+        expect_column_values_to_be_between(max_value=current_year, mostly >= 0.99).'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 54
+        end_line: 56
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 49458144-6e7a-4199-a6c0-c4721f1c7b06
+    - text: 'Released_Year should be an integer-valued year (no decimals). For values
+        that parse numerically, the integer cast should equal the numeric value. Example:
+        Deequ satisfies(''CAST(`Released_Year` AS DOUBLE) = CAST(CAST(`Released_Year`
+        AS DOUBLE) AS BIGINT)'', ''Year is integer-like'', lambda x: x >= 0.99) or
+        Great Expectations expect_column_values_to_match_regex ''^\s*\d{4}\s*$'' with
+        mostly >= 0.99.'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      uid: 77f34a12-56e1-4988-a763-f4682423074a
+  Runtime:
+    code:
+    - suggestion: .isComplete("Runtime")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 20350ed0-79e1-4576-9b76-38d36efabaeb
+      source_assumptions:
+      - cf075561-e885-437b-ae1f-3a3772f4fe7b
+    - suggestion: '.satisfies("Runtime RLIKE ''^\\s*\\d+''", "Runtime parseable to
+        minutes", lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("Runtime RLIKE ''^\\s*\\d+''", "Runtime
+        parseable to minutes", lambda x: x >= 0.95)'' failed on data sample: Value:
+        0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: 24e86d92-d1a8-4de2-accb-a5f211e0d66d
+      source_assumptions:
+      - e75f09b4-5c17-4bf8-a9ec-025622de40f8
+    - suggestion: '.hasPattern("Runtime", "^\\s*\\d+\\s*(min|minutes)?\\s*$", lambda
+        f: f >= 0.95, name="Runtime minutes-only format >=95%")'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 8fff8e97-d69e-4317-aff1-29841de0b888
+      source_assumptions:
+      - e089ee7c-284e-4d75-bc0b-4380df25c9cf
+    - suggestion: '.satisfies("CAST(regexp_extract(Runtime, ''^\\s*(\\d+)'', 1) AS
+        DOUBLE) BETWEEN 40 AND 240", "Runtime minutes range 40-240", lambda x: x >=
+        0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CAST(regexp_extract(Runtime, ''^\\s*(\\d+)'',
+        1) AS DOUBLE) BETWEEN 40 AND 240", "Runtime minutes range 40-240", lambda
+        x: x >= 0.95)'' failed on data sample: Empty state for analyzer Compliance(Runtime
+        minutes range 40-240,CAST(regexp_extract(Runtime, ''^\s*(\d+)'', 1) AS DOUBLE)
+        BETWEEN 40 AND 240,None,List(),None), all input values were NULL.'
+      level: warning
+      uid: d6aebbe5-68e8-4cdc-b3b3-f25f2a56a4d3
+      source_assumptions:
+      - c214adeb-85f6-48a0-8816-80bf0e2f3a64
+    assumptions:
+    - text: 'Runtime should be non-null for all records because it is used directly
+        to compute a component of CompositeScore. If Runtime is null/unset, runtime_bonus
+        becomes NaN and propagates to CompositeScore. Deequ example: .isComplete("Runtime").
+        Great Expectations example: expect_column_values_to_not_be_null("Runtime").'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: cf075561-e885-437b-ae1f-3a3772f4fe7b
+    - text: 'Runtime should be parseable to an integer number of minutes in the majority
+        of rows (>= 95%). Concretely, the value should start with digits that represent
+        minutes so that regexp_extract(Runtime, ''^(\\d+)'', 1) is not null. Deequ
+        example: .satisfies("regexp_extract(Runtime, ''^(\\d+)'', 1) IS NOT NULL",
+        "Runtime parseable", lambda x: x >= 0.95). Great Expectations example: expect_column_values_to_match_regex(Runtime,
+        "^\\s*\\d+").'
+      sources:
+      - start_line: 35
+        end_line: 36
+        file: ''
+      uid: e75f09b4-5c17-4bf8-a9ec-025622de40f8
+    - text: 'Runtime values should be expressed in minutes only (not hour-minute formats
+        like ''2h 30m''), optionally followed by ''min'' or ''minutes''. This ensures
+        the extracted leading number truly represents minutes and avoids mis-parsing
+        ''2h 30m'' as 2. Great Expectations example: expect_column_values_to_match_regex(Runtime,
+        "^\\s*\\d+\\s*(min|minutes)?\\s*$", mostly=0.95).'
+      sources:
+      - start_line: 35
+        end_line: 36
+        file: ''
+      uid: e089ee7c-284e-4d75-bc0b-4380df25c9cf
+    - text: "The parsed Runtime (in minutes) should be within a realistic movie range\
+        \ for most rows (e.g., 40 to 240 minutes for >= 95%), given the runtime bonus\
+        \ is centered at 100 with sigma\u224835. Deequ example: .satisfies(\"CAST(regexp_extract(Runtime,\
+        \ '^(\\\\d+)', 1) AS DOUBLE) BETWEEN 40 AND 240\", \"Runtime minutes range\"\
+        , lambda x: x >= 0.95). Great Expectations example (after deriving a parsed\
+        \ column): expect_column_values_to_be_between(parsed_runtime_min, min_value=40,\
+        \ max_value=240, mostly=0.95)."
+      sources:
+      - start_line: 36
+        end_line: 38
+        file: ''
+      uid: c214adeb-85f6-48a0-8816-80bf0e2f3a64
+  Series_Title:
+    code:
+    - suggestion: '.satisfies("length(trim(`Series_Title`)) > 0", "Non-blank Series_Title
+        after trim", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: cd063871-3982-47b9-a17c-5899d90cf57e
+      source_assumptions:
+      - 01130859-4735-4111-a370-bf463a2408c2
+    assumptions:
+    - text: 'Series_Title must be present and non-empty for all input rows that may
+        be exported; there should be no nulls and no strings that become empty after
+        trimming whitespace. This can be represented as: completeness(''Series_Title'')
+        == 1.0 and satisfies("length(trim(`Series_Title`)) > 0", "Non-blank Series_Title",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 101
+        end_line: 108
+        file: ''
+      uid: 01130859-4735-4111-a370-bf463a2408c2
+    - text: Series_Title should be string-like and safely serializable to CSV (i.e.,
+        values are castable to string). This can be represented as a Great Expectations
+        rule like expect_column_values_to_be_in_type_list('Series_Title', ['object',
+        'string']) or a Deequ satisfies on CAST to string.
+      sources:
+      - start_line: 101
+        end_line: 108
+        file: ''
+      uid: eab01d29-feb8-4b44-922f-f3b2e00a5412
+    - text: Series_Title does not need to be unique; duplicate titles are allowed
+        because deduplication is performed on Poster_Link, not on Series_Title. Therefore,
+        do not enforce a uniqueness constraint on Series_Title (i.e., no expect_column_values_to_be_unique
+        or uniqueness check on this column).
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      - start_line: 101
+        end_line: 104
+        file: ''
+      uid: c832905f-c0f5-4202-8346-60cb60c9be82
+column_data_flow_locations:
+  IMDB_Rating: []
+  Released_Year: []
+  No_of_Votes: []
+  Poster_Link: []
+  Runtime: []
+  Gross: []
+  Certificate: []
+  Genre: []
+  Series_Title: []
+fixing_results:
+  IMDB_Rating:
+    cfe584eb-0ad4-48d9-9751-ebfd2b9aad10: '.hasStandardDeviation(''IMDB_Rating'',
+      lambda v: v > 0)'
+  Certificate:
+    1ec43d4e-86a9-46f6-8f38-f3100d3220e3: '.satisfies("CASE WHEN `Certificate` IS
+      NULL OR TRIM(`Certificate`) = '''' THEN 1 ELSE CASE WHEN UPPER(TRIM(`Certificate`))
+      IN (''U'',''UA'',''A'',''G'',''PG'',''PG-13'',''R'',''NC-17'',''NOT RATED'',''UNRATED'')
+      THEN 1 ELSE 0 END END", "Certificate domain coverage", lambda x: x >= 0.94)'
+  Genre:
+    1855cf47-3dd0-44d4-9d7b-c444f7312c25: '.hasNumberOfDistinctValues(''Genre'', lambda
+      x: x <= 300, None, 1000)'
+  Gross:
+    11bdc951-d234-46d5-8be9-8cbf4e1de707: '.satisfies("Gross IS NOT NULL AND regexp_replace(Gross,
+      '','', '''') RLIKE ''^[0-9]+(\\.[0-9]+)?$'' AND CAST(regexp_replace(Gross, '','',
+      '''') AS DOUBLE) > 0", "Some positive numeric Gross values exist", lambda x:
+      x > 0.0)'
+  '["IMDB_Rating","No_of_Votes"]':
+    548d3a89-eb16-46a2-b3f9-5e284bf414e3: '.satisfies("`IMDB_Rating` IS NOT NULL AND
+      `No_of_Votes` IS NOT NULL", "Both IMDB_Rating and No_of_Votes must be present
+      in all rows for correlation", lambda compliance: compliance == 1.0)'
+  Released_Year:
+    43776170-2b80-45f3-8043-494aad77e9f5: '.satisfies(''`Released_Year` >= 1000 AND
+      `Released_Year` <= 9999'', ''Released_Year is a 4-digit year'', lambda v: v
+      >= 0.99)'
+consolidation_results:
+  Poster_Link:
+  - idx_to_remove: a5c9715e-9e8d-4322-a1c1-ece01b044d1e
+    redundant_with:
+    - a70427e5-c3c6-49b9-a5d5-9a3051c16e14
+  Released_Year:
+  - idx_to_remove: b2eb573f-9323-4ab4-bb10-50c4f05aeb3f
+    redundant_with:
+    - 43776170-2b80-45f3-8043-494aad77e9f5
+    - 68ee9518-7830-4b0e-85f0-cf98ad6f40aa
+  Series_Title:
+  - idx_to_remove: f0cb6de0-d35f-44bf-8e36-15c4142b9792
+    redundant_with:
+    - c38d7423-7833-4a6b-96d6-1023f193e2ca
+  - idx_to_remove: c38d7423-7833-4a6b-96d6-1023f193e2ca
+    redundant_with:
+    - cd063871-3982-47b9-a17c-5899d90cf57e
+cost_summary:
+  column_access_detection:
+    cost: 0.009937500000000002
+    total_tokens: 4135
+    prompt_tokens: 3590
+    completion_tokens: 545
+  column_correlation_discovery:
+    cost: 0.04758375
+    total_tokens: 6714
+    prompt_tokens: 2235
+    completion_tokens: 4479
+  multi_column_assumption_generation:
+    cost: 0.17895374999999997
+    total_tokens: 24436
+    prompt_tokens: 7475
+    completion_tokens: 16961
+  multi_column_code_generation:
+    cost: 0.11263125
+    total_tokens: 22805
+    prompt_tokens: 12697
+    completion_tokens: 10108
+  single_column_assumption_generation:
+    cost: 0.468815
+    total_tokens: 68089
+    prompt_tokens: 23908
+    completion_tokens: 44181
+  single_column_code_generation:
+    cost: 0.40683325000000004
+    total_tokens: 90650
+    prompt_tokens: 53945
+    completion_tokens: 36705
+  code_fixing:
+    cost: 0.28626625
+    total_tokens: 35792
+    prompt_tokens: 8189
+    completion_tokens: 27603
+  consolidate_constraints:
+    cost: 0.1817275
+    total_tokens: 28629
+    prompt_tokens: 11950
+    completion_tokens: 16679

@@ -1,0 +1,3 @@
+class MissingDependencyError(ImportError):
+    pass
+

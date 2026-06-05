@@ -1,0 +1,2061 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-4.1
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN `IMDB_Rating` IS NULL OR CAST(`IMDB_Rating`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END'', ''IMDB_Rating is numeric or null'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d8bd898a-edc9-42ad-9614-3e347fa400fd
+      source_assumptions:
+      - a525cd49-739f-4df8-9ee4-5df5bee6e0a7
+    - suggestion: '.hasCompleteness(''IMDB_Rating'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1a29e6ba-341d-47ca-9b23-ea2377955315
+      source_assumptions:
+      - fbd5fc12-83dd-4846-8727-35cba4fad05d
+    - suggestion: '.satisfies(''CASE WHEN `IMDB_Rating` IS NULL OR (`IMDB_Rating`
+        >= 0 AND `IMDB_Rating` <= 10) THEN 1 ELSE 0 END'', ''IMDB_Rating range [0,
+        10]'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6a717312-cf89-45a7-bdd6-96820bf0a2f5
+      source_assumptions:
+      - f8a538f6-8052-4aec-9440-314d05c27d5a
+    - suggestion: '.hasNumberOfDistinctValues(''IMDB_Rating'', lambda x: x <= 20)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''IMDB_Rating'',
+        lambda x: x <= 20)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 554b0f8b-f61f-4616-8d0b-b299a5a1dbf4
+      source_assumptions:
+      - 07324c3a-cad8-4c36-9613-ad5c1ad1f712
+    assumptions:
+    - text: 'The ''IMDB_Rating'' column must be present in the input data and should
+        have values that can be parsed as fractional (float) numbers. The script explicitly
+        converts the column to numeric type, coercing errors to NaN, so any non-numeric
+        values in the input will be treated as missing. Therefore, the input should
+        contain only valid numeric (float) values in ''IMDB_Rating'', or else those
+        rows will be considered as having missing values for this column.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''CASE WHEN `IMDB_Rating` IS NULL OR CAST(`IMDB_Rating` AS DOUBLE)
+        IS NOT NULL THEN 1 ELSE 0 END'', ''IMDB_Rating is numeric or null'', lambda
+        x: x == 1)'
+      sources:
+      - start_line: 113
+        end_line: 113
+        file: ''
+      - start_line: 139
+        end_line: 139
+        file: ''
+      uid: a525cd49-739f-4df8-9ee4-5df5bee6e0a7
+    - text: 'The ''IMDB_Rating'' column is expected to have no missing values in the
+        input data, or at least a sufficient number of non-null values to ensure meaningful
+        score computations and leaderboard outputs. Although the code handles missing
+        values (e.g., by propagating NaN or omitting them in outputs), the downstream
+        use of ''IMDB_Rating'' in calculations, formatting for HTML, and inclusion
+        in final CSV/JSON outputs implies that missing values are not desirable and
+        may result in incomplete records.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCompleteness(''IMDB_Rating'', lambda x: x >= 0.99)  # assuming at most
+        1% missing is tolerable'
+      sources:
+      - start_line: 22
+        end_line: 28
+        file: ''
+      - start_line: 139
+        end_line: 147
+        file: ''
+      - start_line: 173
+        end_line: 173
+        file: ''
+      - start_line: 190
+        end_line: 190
+        file: ''
+      uid: fbd5fc12-83dd-4846-8727-35cba4fad05d
+    - text: 'The ''IMDB_Rating'' column''s values are expected to be within a reasonable
+        range for IMDb ratings, typically between 0 and 10 (inclusive). The code normalizes
+        ''IMDB_Rating'' by dividing by 10, and formats it with one decimal place for
+        presentation. Therefore, any value outside [0, 10] would be suspicious and
+        likely indicate a data quality issue.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''CASE WHEN `IMDB_Rating` IS NULL OR (`IMDB_Rating` >= 0 AND `IMDB_Rating`
+        <= 10) THEN 1 ELSE 0 END'', ''IMDB_Rating range [0, 10]'', lambda x: x ==
+        1)'
+      sources:
+      - start_line: 139
+        end_line: 147
+        file: ''
+      - start_line: 28
+        end_line: 28
+        file: ''
+      - start_line: 190
+        end_line: 190
+        file: ''
+      uid: f8a538f6-8052-4aec-9440-314d05c27d5a
+    - text: 'The ''IMDB_Rating'' column should have a limited set of distinct values,
+        reflecting the dataset''s approximateNumDistinctValues of 16. This suggests
+        that ratings are typically reported in 0.1 or 0.5 increments (e.g., 7.1, 8.0,
+        etc.), and outliers with excessive decimal precision or unexpected values
+        are likely erroneous.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasNumberOfDistinctValues(''IMDB_Rating'', lambda x: x <= 20)'
+      sources:
+      - start_line: 1
+        end_line: 1
+        file: ''
+      uid: 07324c3a-cad8-4c36-9613-ad5c1ad1f712
+  Certificate:
+    code:
+    - suggestion: .satisfies("CASE WHEN `Certificate` IS NULL OR TRIM(`Certificate`)
+        = '' OR `Certificate` IN ('G', 'PG', 'PG-13', 'R', 'NC-17', 'U', 'UA', 'A',
+        '12', '12A', '15', '18') THEN 1 ELSE 0 END", "Valid Certificate Values")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `Certificate` IS NULL
+        OR TRIM(`Certificate`) = '''' OR `Certificate` IN (''G'', ''PG'', ''PG-13'',
+        ''R'', ''NC-17'', ''U'', ''UA'', ''A'', ''12'', ''12A'', ''15'', ''18'') THEN
+        1 ELSE 0 END", "Valid Certificate Values")'' failed on data sample: Value:
+        0.9499165275459098 does not meet the constraint requirement!'
+      level: error
+      uid: 596af469-9604-42ce-8b0b-b0422b8e03f1
+      source_assumptions:
+      - 4a936133-7d29-414d-b7f1-8ac6570b65c6
+    - suggestion: '.hasCompleteness("Certificate", lambda x: x >= 0.89)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d9990407-a00f-4054-bc3b-006e6b257ecd
+      source_assumptions:
+      - ec080059-4a01-4470-ab50-f92c207977b3
+    - suggestion: .satisfies("CASE WHEN `Certificate` = 'nan' THEN 0 ELSE 1 END",
+        "Certificate Not NaN String")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: be229e78-f671-4cd6-a232-7c60bd55bf74
+      source_assumptions:
+      - aff45a00-2521-4129-9f8a-4bcba75a4526
+    - suggestion: .hasDataType("Certificate", ConstrainableDataTypes.String)
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Certificate",
+        ConstrainableDataTypes.String)'
+      level: warning
+      uid: e0bc79d1-007e-4a67-aeda-56f81c78de9f
+      source_assumptions:
+      - 75bde74b-f788-4a4f-9c3b-188f39099188
+    assumptions:
+    - text: 'The ''Certificate'' column should contain only values from the set: G,
+        PG, PG-13, R, NC-17, U, UA, A, 12, 12A, 15, 18, or be null/empty. Any other
+        value is considered invalid and should be treated as missing or excluded from
+        downstream use. This can be represented as a constraint such as: .satisfies("CASE
+        WHEN `Certificate` IS NULL OR `Certificate` = '''' OR `Certificate` IN (''G'',
+        ''PG'', ''PG-13'', ''R'', ''NC-17'', ''U'', ''UA'', ''A'', ''12'', ''12A'',
+        ''15'', ''18'') THEN 1 ELSE 0 END", "Valid Certificate Values", lambda x:
+        x == 1)'
+      sources:
+      - start_line: 131
+        end_line: 134
+        file: ''
+      uid: 4a936133-7d29-414d-b7f1-8ac6570b65c6
+    - text: 'The ''Certificate'' column can have missing (null or empty string) values,
+        and the downstream code is robust to this (renders empty HTML, writes null
+        in JSON). However, not all rows are required to have a non-null certificate,
+        so the completeness of this column can be less than 100%. This can be represented
+        as a constraint such as: .hasCompleteness("Certificate", lambda x: x >= 0.89)
+        (based on the observed completeness of ~89.8%).'
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      - start_line: 189
+        end_line: 189
+        file: ''
+      uid: ec080059-4a01-4470-ab50-f92c207977b3
+    - text: 'The ''Certificate'' column should not contain the string ''nan'' as a
+        value; these should be interpreted as missing/null. Any string representation
+        of null (such as ''nan'') should be mapped to an actual null value before
+        downstream usage. This can be represented as a constraint such as: .satisfies("CASE
+        WHEN `Certificate` = ''nan'' THEN 0 ELSE 1 END", "Certificate Not NaN String",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 133
+        end_line: 133
+        file: ''
+      uid: aff45a00-2521-4129-9f8a-4bcba75a4526
+    - text: 'The ''Certificate'' column is expected to be a string field (even if
+        originally mixed type), as the code converts it to string and trims whitespace.
+        Any non-string types (e.g., numbers) should be converted to string or treated
+        as missing. This can be represented as a constraint such as: .hasDataType("Certificate",
+        ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 93
+        end_line: 95
+        file: ''
+      uid: 75bde74b-f788-4a4f-9c3b-188f39099188
+  '["Certificate","GenreTokens"]':
+    code:
+    - suggestion: .satisfies('((`GenreToken` = "Family" OR `GenreToken` = "Animation")
+        AND (`Certificate` = "R" OR `Certificate` = "NC-17")) = FALSE', 'No R/NC-17
+        for Family/Animation')
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''((`GenreToken` = "Family" OR `GenreToken`
+        = "Animation") AND (`Certificate` = "R" OR `Certificate` = "NC-17")) = FALSE'',
+        ''No R/NC-17 for Family/Animation'')'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `GenreToken` cannot be resolved. Did you mean one of the following? [`Genre`,
+        `Director`, `Gross`, `Meta_score`, `Overview`].; line 1 pos 2;
+
+        ''Aggregate [sum(cast(((((''GenreToken = Family) OR (''GenreToken = Animation))
+        AND ((Certificate#1378 = R) OR (Certificate#1378 = NC-17))) = false) as int))
+        AS sum(CAST(((((GenreToken = Family) OR (GenreToken = Animation)) AND ((Certificate
+        = R) OR (Certificate = NC-17))) = false) AS INT))#211868, count(1) AS count(1)#211869L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: 7f59ef02-9340-4252-a1fd-a82319b85d17
+      source_assumptions:
+      - 18749e5e-f12a-4629-a3ab-dd61a7096863
+    - suggestion: .satisfies('`GenreToken` IN ("Action", "Adventure", "Animation",
+        "Biography", "Comedy", "Crime", "Drama", "Family", "Fantasy", "Film-Noir",
+        "History", "Horror", "Music", "Musical", "Mystery", "Romance", "Sci-Fi", "Sport",
+        "Thriller", "War", "Western")', 'GenreToken allowed values')
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''`GenreToken` IN ("Action", "Adventure",
+        "Animation", "Biography", "Comedy", "Crime", "Drama", "Family", "Fantasy",
+        "Film-Noir", "History", "Horror", "Music", "Musical", "Mystery", "Romance",
+        "Sci-Fi", "Sport", "Thriller", "War", "Western")'', ''GenreToken allowed values'')''
+        failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `GenreToken` cannot be resolved.
+        Did you mean one of the following? [`Genre`, `Director`, `Gross`, `Meta_score`,
+        `Overview`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast(''GenreToken IN (Action,Adventure,Animation,Biography,Comedy,Crime,Drama,Family,Fantasy,Film-Noir,History,Horror,Music,Musical,Mystery,Romance,Sci-Fi,Sport,Thriller,War,Western)
+        as int)) AS sum(CAST((GenreToken IN (Action, Adventure, Animation, Biography,
+        Comedy, Crime, Drama, Family, Fantasy, Film-Noir, History, Horror, Music,
+        Musical, Mystery, Romance, Sci-Fi, Sport, Thriller, War, Western)) AS INT))#211905,
+        count(1) AS count(1)#211906L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: a2b85f6c-49a2-4891-90bd-96129dfb10a2
+      source_assumptions:
+      - eaeb6535-6d86-45d3-8ba5-1248ba83b3f9
+    - suggestion: '.hasUniqueness([''Decade_Label'', ''GenreToken'', ''Series_Title'',
+        ''Year''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''Decade_Label'', ''GenreToken'',
+        ''Series_Title'', ''Year''], lambda x: x == 1.0)'' failed on data sample:
+        Input data does not include column Decade_Label!'
+      level: error
+      uid: 13f53444-0b14-4ac3-9268-8178533dea24
+      source_assumptions:
+      - 3cd539c4-bc01-4803-881c-998270717f66
+    assumptions:
+    - text: 'For any record where the ''GenreTokens'' (or ''GenreToken'') column contains
+        ''Family'' or ''Animation'', the ''Certificate'' column must not be ''R''
+        or ''NC-17''. This is a business/content-policy assumption that can be represented
+        as a multi-column conditional constraint (e.g., in Deequ: .where(''GenreToken
+        IN ("Family", "Animation")'').isContainedIn(''Certificate'', [<allowed_certs_excluding_R_and_NC17>])).'
+      sources:
+      - start_line: 128
+        end_line: 134
+        file: ''
+      uid: 18749e5e-f12a-4629-a3ab-dd61a7096863
+    - text: After exploding the 'GenreTokens' column, each output record must have
+        a valid correspondence between its 'GenreToken' value and the original tokens
+        parsed from the 'Genre' column for that row. That is, every non-empty token
+        in the comma-separated 'Genre' field must be represented exactly once per
+        row in the exploded DataFrame, and each 'GenreToken' must be one of the allowed
+        genres ('Action', 'Adventure', etc.). This assumption ensures the integrity
+        of the one-to-many relationship between the original row and the exploded
+        records.
+      sources:
+      - start_line: 128
+        end_line: 129
+        file: ''
+      - start_line: 159
+        end_line: 159
+        file: ''
+      uid: eaeb6535-6d86-45d3-8ba5-1248ba83b3f9
+    - text: Within each ('Decade_Label', 'GenreToken') group, the combination of 'Series_Title'
+        and 'Year' should be unique. This ensures that the same movie (by title and
+        year) does not appear multiple times within the same genre/decade leaderboard.
+      sources:
+      - start_line: 161
+        end_line: 165
+        file: ''
+      - start_line: 173
+        end_line: 174
+        file: ''
+      uid: 3cd539c4-bc01-4803-881c-998270717f66
+  '["Decade","Decade_Label","Released_Year","Year"]':
+    code:
+    - suggestion: .satisfies("(`Decade` = FLOOR(`Year` / 10) * 10) AND (`Decade_Label`
+        = CONCAT(CAST(FLOOR(`Year` / 10) * 10 AS STRING), 's'))", "Year-Decade-Decade_Label
+        consistency")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(`Decade` = FLOOR(`Year` / 10)
+        * 10) AND (`Decade_Label` = CONCAT(CAST(FLOOR(`Year` / 10) * 10 AS STRING),
+        ''s''))", "Year-Decade-Decade_Label consistency")'' failed on data sample:
+        org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Decade` cannot be resolved. Did
+        you mean one of the following? [`id`, `Genre`, `Star1`, `Star2`, `Star3`].;
+        line 1 pos 1;
+
+        ''Aggregate [sum(cast(((''Decade = (''FLOOR((''Year / 10)) * 10)) AND (''Decade_Label
+        = ''CONCAT(cast((''FLOOR((''Year / 10)) * 10) as string), s))) as int)) AS
+        sum(CAST(((Decade = (FLOOR((Year / 10)) * 10)) AND (Decade_Label = CONCAT(CAST((FLOOR((Year
+        / 10)) * 10) AS STRING), s))) AS INT))#212060, count(1) AS count(1)#212061L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: 0d71cd81-1f6f-437a-b99e-477af0a56c54
+      source_assumptions:
+      - 633786b0-bbed-48ec-bb31-bfcd59f659c6
+      - aaa393ff-ce86-4c8d-8e5a-0d503a6378a2
+    - suggestion: .satisfies("LENGTH(CAST(`Released_Year` AS STRING)) = 4 AND `Released_Year`
+        RLIKE '^[0-9]{4}$' AND CAST(`Released_Year` AS INT) = `Year`", "Released_Year-Year
+        mapping")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("LENGTH(CAST(`Released_Year` AS
+        STRING)) = 4 AND `Released_Year` RLIKE ''^[0-9]{4}$'' AND CAST(`Released_Year`
+        AS INT) = `Year`", "Released_Year-Year mapping")'' failed on data sample:
+        org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Year` cannot be resolved. Did you
+        mean one of the following? [`id`, `Genre`, `Star1`, `Star2`, `Star3`].; line
+        1 pos 118;
+
+        ''Aggregate [sum(cast((((length(cast(Released_Year#1377L as string)) = 4)
+        AND RLIKE(cast(Released_Year#1377L as string), ^[0-9]{4}$)) AND (cast(Released_Year#1377L
+        as int) = ''Year)) as int)) AS sum(CAST((((LENGTH(CAST(Released_Year AS STRING))
+        = 4) AND RLIKE(Released_Year, ^[0-9]{4}$)) AND (CAST(Released_Year AS INT)
+        = Year)) AS INT))#212011, count(1) AS count(1)#212012L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: e537518e-af9c-4aad-9549-9b335bb76c34
+      source_assumptions:
+      - e60f7d76-ea07-41f9-af9d-14f0dbeef6aa
+    - suggestion: '.hasUniqueness(["Decade_Label", "GenreToken", "Rank"], lambda x:
+        x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness(["Decade_Label", "GenreToken",
+        "Rank"], lambda x: x == 1)'' failed on data sample: Input data does not include
+        column Decade_Label!'
+      level: error
+      uid: 38db5152-044b-48fa-bf61-31731187a8d3
+      source_assumptions:
+      - 282a472d-9d64-41a8-b51b-e97d5e0a214a
+    - suggestion: '.hasUniqueness(["Series_Title", "Year", "GenreToken"], lambda x:
+        x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness(["Series_Title", "Year", "GenreToken"],
+        lambda x: x == 1)'' failed on data sample: Input data does not include column
+        Year!'
+      level: error
+      uid: 48f34cdf-3bb5-4a70-b71b-a4ab0c1a77da
+      source_assumptions:
+      - fe690f99-1417-4c62-a60c-6025d2f6f43a
+    assumptions:
+    - text: "The 'Year', 'Decade', and 'Decade_Label' columns must be mutually consistent\
+        \ for each record: 'Decade' is derived as (Year // 10) * 10, and 'Decade_Label'\
+        \ is the string representation of 'Decade' with an appended 's' (e.g., 1990\
+        \ \u2192 '1990s'). There should be no mismatch between these columns for any\
+        \ row."
+      sources:
+      - start_line: 97
+        end_line: 105
+        file: ''
+      uid: 633786b0-bbed-48ec-bb31-bfcd59f659c6
+    - text: All rows included in the leaderboard output must have a valid integer
+        'Year' corresponding to a 4-digit string in 'Released_Year'; thus, the mapping
+        between 'Released_Year' and 'Year' must be one-to-one and complete for all
+        records that pass the year validation.
+      sources:
+      - start_line: 97
+        end_line: 103
+        file: ''
+      - start_line: 173
+        end_line: 174
+        file: ''
+      uid: e60f7d76-ea07-41f9-af9d-14f0dbeef6aa
+    - text: Within each group defined by the combination of 'Decade_Label' and 'GenreToken',
+        the 'Rank' column must contain unique integer values starting from 1, with
+        no gaps, up to the number of items in the group (or TOP_K if there are more).
+      sources:
+      - start_line: 162
+        end_line: 164
+        file: ''
+      - start_line: 166
+        end_line: 167
+        file: ''
+      uid: 282a472d-9d64-41a8-b51b-e97d5e0a214a
+    - text: For every output record, the combination of 'Series_Title', 'Year', and
+        'GenreToken' should be unique. No two records should have the same title,
+        year, and genre token in the final leaderboard output.
+      sources:
+      - start_line: 159
+        end_line: 176
+        file: ''
+      uid: fe690f99-1417-4c62-a60c-6025d2f6f43a
+    - text: For all records, 'Decade_Label' must correspond to the decade implied
+        by the 'Year' column (i.e., str((Year // 10) * 10) + 's' == Decade_Label).
+      sources:
+      - start_line: 104
+        end_line: 105
+        file: ''
+      - start_line: 188
+        end_line: 200
+        file: ''
+      uid: aaa393ff-ce86-4c8d-8e5a-0d503a6378a2
+  '["Decade_Label","GenreToken","Gross_Tie","Rank","Score"]':
+    code: []
+    assumptions:
+    - text: 'For each combination of ''Decade_Label'' and ''GenreToken'', the pair
+        should uniquely identify a group in the data. That is, every record belongs
+        to exactly one (Decade_Label, GenreToken) group after exploding, and there
+        are no missing or null values in either column after explosion. This is necessary
+        for correct ranking and leaderboard creation by (Decade_Label, GenreToken).
+        This can be expressed in Deequ as: .hasCompleteness([''Decade_Label'', ''GenreToken''],
+        1.0)'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 159
+        end_line: 165
+        file: ''
+      - start_line: 184
+        end_line: 199
+        file: ''
+      uid: 5795b6b2-8026-45b4-b53f-3ded5c75843e
+    - text: 'Within each (Decade_Label, GenreToken) group, the ''Rank'' column must
+        contain unique values for each record, ensuring no ties in ranking within
+        a group. This can be represented as a Deequ multi-column uniqueness constraint:
+        .isUnique([''Decade_Label'', ''GenreToken'', ''Rank''])'
+      sources:
+      - start_line: 162
+        end_line: 165
+        file: ''
+      - start_line: 184
+        end_line: 199
+        file: ''
+      uid: 08bc365d-f639-4ddb-ab82-4af0207aec1d
+    - text: 'When sorting within each (Decade_Label, GenreToken) group, ranking is
+        determined first by ''Score'' (descending), then by ''Gross_Tie'' (descending)
+        as a tie-breaker. This assumes that for any records sharing the same ''Decade_Label'',
+        ''GenreToken'', and ''Score'', the ''Gross_Tie'' values are sufficient to
+        establish a unique rank and avoid ties. This can be encoded as: For each (Decade_Label,
+        GenreToken), the tuple (Score, Gross_Tie) should be unique, or at least sufficient
+        to break ties in ranking.'
+      sources:
+      - start_line: 162
+        end_line: 165
+        file: ''
+      uid: 52bd92df-8e1d-4f2e-ab14-00978a315fb2
+    - text: 'The ''Score'' column is calculated from ''IMDB_Rating'', ''Meta_score'',
+        and ''No_of_Votes'', and further adjusted by ''Runtime_Min''. Therefore, for
+        any record, if ''Score'' is not null, then ''IMDB_Rating'', ''Meta_score'',
+        ''No_of_Votes'', and ''Runtime_Min'' must also be present and valid (i.e.,
+        not null and within valid ranges). This can be formalized as: .where(''Score
+        IS NOT NULL'', ''IMDB_Rating IS NOT NULL AND Meta_score IS NOT NULL AND No_of_Votes
+        IS NOT NULL AND Runtime_Min IS NOT NULL'')'
+      sources:
+      - start_line: 139
+        end_line: 148
+        file: ''
+      uid: 01a4455c-2c0e-4e5c-bf2c-34cc14a47e23
+    - text: 'For any output row, the combination of (''Decade_Label'', ''GenreToken'',
+        ''Series_Title'', ''Year'') should be unique, ensuring that the same film
+        does not appear more than once in the same leaderboard group. This can be
+        enforced as: .isUnique([''Decade_Label'', ''GenreToken'', ''Series_Title'',
+        ''Year''])'
+      sources:
+      - start_line: 172
+        end_line: 176
+        file: ''
+      - start_line: 184
+        end_line: 200
+        file: ''
+      uid: 9a713336-085c-4c9d-9556-68e366887a88
+  Genre:
+    code:
+    - suggestion: '.hasCompleteness(''Genre'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 705e2fb5-cd01-441b-ac65-9784513fea5e
+      source_assumptions:
+      - 64f23fc0-e29a-4307-8318-ca5c62e996ae
+    - suggestion: '.satisfies(''typeof(`Genre`) = "string"'', ''Genre is string'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 714d572a-9810-49a2-b7bb-69c61ac8ba6e
+      source_assumptions:
+      - b7081f3d-a5ea-49ef-9376-359b06232b85
+    - suggestion: '.satisfies(''array_all(split(trim(`Genre`), ","), x -> trim(x)
+        IN ("Action", "Adventure", "Animation", "Biography", "Comedy", "Crime", "Drama",
+        "Family", "Fantasy", "Film-Noir", "History", "Horror", "Music", "Musical",
+        "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"))'',
+        ''Valid Genre Tokens'', lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''array_all(split(trim(`Genre`),
+        ","), x -> trim(x) IN ("Action", "Adventure", "Animation", "Biography", "Comedy",
+        "Crime", "Drama", "Family", "Fantasy", "Film-Noir", "History", "Horror", "Music",
+        "Musical", "Mystery", "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western"))'',
+        ''Valid Genre Tokens'', lambda x: x >= 0.99)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_ROUTINE] Cannot resolve function `array_all` on search path [`system`.`builtin`,
+        `system`.`session`, `spark_catalog`.`default`].; line 1 pos 0'
+      level: warning
+      uid: 1b797251-1e67-4081-bc52-3f1c9266df2c
+      source_assumptions:
+      - 6019cbb6-0c1f-4ee6-9885-76296247c772
+    - suggestion: '.satisfies(''length(trim(`Genre`)) > 0'', ''Non-empty Genre'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 66f5ec5e-4e3c-4600-89b7-a08a5c27cb04
+      source_assumptions:
+      - b9fcf89d-72a8-446f-9163-186367389a30
+    assumptions:
+    - text: 'The ''Genre'' column should be complete (non-null) for all rows, as the
+        code expects to be able to strip and split its values without checking for
+        nulls. This means there should be no missing values in the ''Genre'' column
+        in the input data.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCompleteness(''Genre'', lambda x: x == 1.0)'
+      sources:
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: 64f23fc0-e29a-4307-8318-ca5c62e996ae
+    - text: 'The ''Genre'' column values are expected to be strings (not lists, numbers,
+        or other types). The code trims and splits these values using string operations,
+        so non-string types would cause failures.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''typeof(`Genre`) = "string"'', ''Genre is string'', lambda x:
+        x == 1.0)'
+      sources:
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: b7081f3d-a5ea-49ef-9376-359b06232b85
+    - text: 'Each value in the ''Genre'' column should be a comma-separated list of
+        valid genre tokens, where each token (after stripping whitespace) is non-empty
+        and belongs to a defined set of allowed genres (Action, Adventure, Animation,
+        Biography, Comedy, Crime, Drama, Family, Fantasy, Film-Noir, History, Horror,
+        Music, Musical, Mystery, Romance, Sci-Fi, Sport, Thriller, War, Western).
+        While the code does not enforce this strictly on the input, it assumes that
+        after splitting and stripping, all genre tokens should be in the allowed set.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''array_all(split(trim(`Genre`), ","), x -> trim(x) IN ("Action",
+        "Adventure", ... , "Western"))'', ''Valid Genre Tokens'', lambda x: x >= 0.99)'
+      sources:
+      - start_line: 124
+        end_line: 127
+        file: ''
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: 6019cbb6-0c1f-4ee6-9885-76296247c772
+    - text: 'The ''Genre'' column should not contain empty strings or rows with only
+        whitespace, as the code strips and splits the values and expects at least
+        one valid genre token per row.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''length(trim(`Genre`)) > 0'', ''Non-empty Genre'', lambda x: x
+        == 1.0)'
+      sources:
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: b9fcf89d-72a8-446f-9163-186367389a30
+  Gross:
+    code:
+    - suggestion: '.satisfies("`Gross` is NULL OR regexp_replace(`Gross`, '','', '''')
+        rlike ''^[0-9]+(\.[0-9]+)?$''", "Non-null Gross values are numeric strings
+        with optional commas", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d2f8cac5-584d-4b4c-a0d6-ef4ed7a4f446
+      source_assumptions:
+      - e4983872-9e5f-43bb-9e31-b77dec659501
+    - suggestion: '.hasCompleteness(''Gross'', lambda x: x > 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4bc235dd-fe7a-40e7-8a81-fa7c8736b034
+      source_assumptions:
+      - 12e42c47-9584-4040-bcc7-bf0835caed56
+      - e464d451-79af-4d34-8ee2-70dd86d681b0
+    assumptions:
+    - text: The 'Gross' column may contain null or missing values, as the code attempts
+        to parse all values and later checks if any non-null numeric values exist
+        before using it as a tie-breaker. However, at least some rows are expected
+        to have valid, parseable numeric values for 'Gross' (i.e., after removing
+        commas, the result is a valid number), otherwise the tie-breaker logic falls
+        back to a default value. This means the input data should have at least some
+        non-null, parseable 'Gross' values.
+      sources:
+      - start_line: 119
+        end_line: 121
+        file: ''
+      - start_line: 151
+        end_line: 156
+        file: ''
+      uid: 12e42c47-9584-4040-bcc7-bf0835caed56
+    - text: All non-null values in the 'Gross' column should be numeric strings (possibly
+        containing commas as thousands separators), as the code removes commas and
+        attempts to convert the result to a number. Values that cannot be parsed as
+        numbers (after removing commas) will be treated as null, so ideally, non-null
+        values should not contain alphabetic characters or symbols other than commas
+        and digits.
+      sources:
+      - start_line: 119
+        end_line: 121
+        file: ''
+      uid: e4983872-9e5f-43bb-9e31-b77dec659501
+    - text: The 'Gross' column may have a relatively high proportion of missing or
+        unparsable values, but the code assumes that the distribution of valid 'Gross'
+        values is sufficient for calculating a median and for use as a tie-breaker
+        in at least some cases. If all values are missing or unparsable, the code
+        will default to a tie-breaker value of 0.0, which is a fallback rather than
+        the intended behavior.
+      sources:
+      - start_line: 151
+        end_line: 156
+        file: ''
+      uid: e464d451-79af-4d34-8ee2-70dd86d681b0
+  '["Genre","GenreToken","GenreTokens"]':
+    code:
+    - suggestion: '.satisfies(''array_except(GenreTokens, array("Action", "Adventure",
+        "Animation", "Biography", "Comedy", "Crime", "Drama", "Family", "Fantasy",
+        "Film-Noir", "History", "Horror", "Music", "Musical", "Mystery", "Romance",
+        "Sci-Fi", "Sport", "Thriller", "War", "Western")).size = 0'', ''All GenreTokens
+        valid'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''array_except(GenreTokens, array("Action",
+        "Adventure", "Animation", "Biography", "Comedy", "Crime", "Drama", "Family",
+        "Fantasy", "Film-Noir", "History", "Horror", "Music", "Musical", "Mystery",
+        "Romance", "Sci-Fi", "Sport", "Thriller", "War", "Western")).size = 0'', ''All
+        GenreTokens valid'', lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `GenreTokens` cannot be resolved. Did you mean one of the following? [`Genre`,
+        `Director`, `Gross`, `Overview`, `Meta_score`].; line 1 pos 13;
+
+        ''Aggregate [sum(cast((''array_except(''GenreTokens, array(Action, Adventure,
+        Animation, Biography, Comedy, Crime, Drama, Family, Fantasy, Film-Noir, History,
+        Horror, Music, Musical, Mystery, Romance, Sci-Fi, Sport, Thriller, War, Western))[size]
+        = 0) as int)) AS sum(CAST((array_except(GenreTokens, array(Action, Adventure,
+        Animation, Biography, Comedy, Crime, Drama, Family, Fantasy, Film-Noir, History,
+        Horror, Music, Musical, Mystery, Romance, Sci-Fi, Sport, Thriller, War, Western))[size]
+        = 0) AS INT))#212185, count(1) AS count(1)#212186L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: e87df58c-09a3-4c00-a119-554727ff3f40
+      source_assumptions:
+      - eb372c6d-d812-48d2-b1bd-652eaac5713e
+    - suggestion: '.haveCompleteness([''Decade_Label'', ''GenreToken''], lambda x:
+        x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''Decade_Label'', ''GenreToken''],
+        lambda x: x == 1)'' failed on data sample: Input data does not include column
+        Decade_Label!'
+      level: error
+      uid: d036920f-099c-4364-b075-e72db9845045
+      source_assumptions:
+      - 1d20aa16-c8e0-46ab-b1b8-ede60ed3b03f
+    - suggestion: '.haveCompleteness([''Score'', ''Gross_Tie''], lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''Score'', ''Gross_Tie''],
+        lambda x: x == 1)'' failed on data sample: Input data does not include column
+        Score!'
+      level: error
+      uid: 0afa1347-369e-4764-89ee-61e804afcdd5
+      source_assumptions:
+      - 4dd2c8b5-f578-4730-bcaa-077bc82e6046
+    - suggestion: '.haveCompleteness([''Decade_Label'', ''GenreToken'', ''Rank'',
+        ''Series_Title'', ''Year'', ''Score''], lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''Decade_Label'', ''GenreToken'',
+        ''Rank'', ''Series_Title'', ''Year'', ''Score''], lambda x: x == 1)'' failed
+        on data sample: Input data does not include column Decade_Label!'
+      level: error
+      uid: 98675827-006d-48fa-9d27-7e1812c7ad1d
+      source_assumptions:
+      - e04d08d5-07f5-42a7-88f2-9efcd8f859fa
+    - suggestion: '.hasUniqueness([''Decade_Label'', ''GenreToken'', ''Rank''], lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''Decade_Label'', ''GenreToken'',
+        ''Rank''], lambda x: x == 1)'' failed on data sample: Input data does not
+        include column Decade_Label!'
+      level: error
+      uid: 3fb07901-63c3-435a-a55c-1cfc7fa83f1e
+      source_assumptions:
+      - 1d20aa16-c8e0-46ab-b1b8-ede60ed3b03f
+    assumptions:
+    - text: The 'Genre' column contains a comma-separated list of genre names, each
+        of which must be in the allowed set of genres. After splitting and stripping,
+        every token in 'GenreTokens' must be a non-empty string and present in the
+        allowed genre list. Thus, for every row, all tokens in 'GenreTokens' derived
+        from 'Genre' must be valid (i.e., a subset of the allowed genres).
+      sources:
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: eb372c6d-d812-48d2-b1bd-652eaac5713e
+    - text: After exploding the 'GenreTokens' column to create the 'GenreToken' column,
+        the pair ('Decade_Label', 'GenreToken') is used as a grouping key for ranking
+        and summary. Therefore, for every record, the combination of 'Decade_Label'
+        and 'GenreToken' must be non-null, and for each group, the 'Rank' column must
+        contain unique values from 1 to at most TOP_K (here, 10).
+      sources:
+      - start_line: 159
+        end_line: 167
+        file: ''
+      - start_line: 184
+        end_line: 200
+        file: ''
+      uid: 1d20aa16-c8e0-46ab-b1b8-ede60ed3b03f
+    - text: Within each group defined by ('Decade_Label', 'GenreToken'), rows are
+        sorted by 'Score' (descending) and then by 'Gross_Tie' (descending). It is
+        assumed that for every group, 'Score' and 'Gross_Tie' are not null for all
+        rows included in the top K (Rank <= TOP_K).
+      sources:
+      - start_line: 162
+        end_line: 167
+        file: ''
+      uid: 4dd2c8b5-f578-4730-bcaa-077bc82e6046
+    - text: For all output records, the columns ['Decade_Label', 'GenreToken', 'Rank',
+        'Series_Title', 'Year', 'Certificate', 'IMDB_Rating', 'Meta_score', 'No_of_Votes',
+        'Runtime', 'Score', 'Poster_Link'] must be present and non-null except for
+        'Certificate', 'Meta_score', and 'No_of_Votes', which are allowed to be null.
+        In particular, 'Decade_Label', 'GenreToken', 'Rank', 'Series_Title', 'Year',
+        and 'Score' must not have missing values for any row in the final output.
+      sources:
+      - start_line: 172
+        end_line: 176
+        file: ''
+      uid: e04d08d5-07f5-42a7-88f2-9efcd8f859fa
+  '["Gross","Gross_Num","Gross_Tie"]':
+    code:
+    - suggestion: .satisfies("(Gross_Num IS NULL) OR (Gross IS NOT NULL AND Gross
+        != '' AND Gross NOT LIKE 'nan')", "Gross_Num non-null implies Gross is parseable")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(Gross_Num IS NULL) OR (Gross IS
+        NOT NULL AND Gross != '''' AND Gross NOT LIKE ''nan'')", "Gross_Num non-null
+        implies Gross is parseable")'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Gross_Num` cannot be resolved. Did you mean one of the following? [`Gross`,
+        `Genre`, `Runtime`, `Star1`, `Star2`].; line 1 pos 1;
+
+        ''Aggregate [sum(cast((isnull(''Gross_Num) OR ((isnotnull(Gross#1390) AND
+        NOT (Gross#1390 = )) AND NOT Gross#1390 LIKE nan)) as int)) AS sum(CAST(((Gross_Num
+        IS NULL) OR (((Gross IS NOT NULL) AND (NOT (Gross = ))) AND (NOT Gross LIKE
+        nan))) AS INT))#211495, count(1) AS count(1)#211496L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: 5b217c94-921b-4fe4-8004-5bb0648d641a
+      source_assumptions:
+      - 9f67e0c5-01eb-4f76-9da9-0d05fbd04ff7
+    - suggestion: .satisfies("(Gross_Num IS NOT NULL) OR (Gross_Tie = 0.0)", "Gross_Tie
+        is zero if Gross_Num is all null")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(Gross_Num IS NOT NULL) OR (Gross_Tie
+        = 0.0)", "Gross_Tie is zero if Gross_Num is all null")'' failed on data sample:
+        org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Gross_Num` cannot be resolved. Did
+        you mean one of the following? [`Gross`, `Genre`, `Runtime`, `Star1`, `Star2`].;
+        line 1 pos 1;
+
+        ''Aggregate [sum(cast((isnotnull(''Gross_Num) OR (''Gross_Tie = 0.0)) as int))
+        AS sum(CAST(((Gross_Num IS NOT NULL) OR (Gross_Tie = 0.0)) AS INT))#211470,
+        count(1) AS count(1)#211471L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: 3a2b610d-4ea1-4884-ad64-7024d36ec5d5
+      source_assumptions:
+      - 6c5a8866-3402-46b4-b348-52287be084f7
+    assumptions:
+    - text: If any value in the 'Gross_Num' column is not null, then all corresponding
+        values in the 'Gross' column must be parseable as numeric values (after removing
+        commas). This ensures that 'Gross' and 'Gross_Num' are consistently convertible
+        and aligned, so that 'Gross_Num' accurately reflects the numeric value of
+        'Gross'.
+      sources:
+      - start_line: 119
+        end_line: 121
+        file: ''
+      uid: 9f67e0c5-01eb-4f76-9da9-0d05fbd04ff7
+    - text: 'The ''Gross_Tie'' column is derived from ''Gross_Num'', and is only meaningful
+        if at least one value in ''Gross_Num'' is not null. If all values in ''Gross_Num''
+        are null, then all values in ''Gross_Tie'' should be zero. This enforces that
+        ''Gross_Tie'' and ''Gross_Num'' are coherently related: if there is no gross
+        information, the tie-breaker is always zero.'
+      sources:
+      - start_line: 151
+        end_line: 156
+        file: ''
+      uid: 6c5a8866-3402-46b4-b348-52287be084f7
+    - text: For each record, if 'Gross_Num' is null, then 'Gross_Tie' should be equal
+        to the value assigned to missing gross data (either the normalized median
+        or zero, depending on the path taken in the code). This ensures consistency
+        when missing gross data is handled and prevents mismatches between the two
+        columns.
+      sources:
+      - start_line: 151
+        end_line: 156
+        file: ''
+      uid: a75895db-86fc-4091-ba06-2a630dd8f836
+  '["IMDB_Rating","Meta_score","No_of_Votes","Runtime_Min","Score"]':
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''Meta_score'', ''No_of_Votes''],
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''IMDB_Rating'', ''Meta_score'',
+        ''No_of_Votes''], lambda x: x == 1.0)'' failed on data sample: Value: 0.8564273789649416
+        does not meet the constraint requirement!'
+      level: error
+      uid: 9821ea03-0f09-4985-8c49-86e32ec35737
+      source_assumptions:
+      - 591b80c6-573b-40f7-ae00-48efac2d7e6b
+    - suggestion: '.haveCompleteness([''Decade_Label'', ''GenreToken'', ''Rank'',
+        ''Series_Title'', ''Year'', ''Certificate'', ''IMDB_Rating'', ''Meta_score'',
+        ''No_of_Votes'', ''Runtime'', ''Score'', ''Poster_Link''], lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''Decade_Label'', ''GenreToken'',
+        ''Rank'', ''Series_Title'', ''Year'', ''Certificate'', ''IMDB_Rating'', ''Meta_score'',
+        ''No_of_Votes'', ''Runtime'', ''Score'', ''Poster_Link''], lambda x: x ==
+        1.0)'' failed on data sample: Input data does not include column Decade_Label!'
+      level: error
+      uid: b3894e64-ae3f-4679-a054-9cd4285f2d90
+      source_assumptions:
+      - 5bc7142d-ec09-46ee-ad06-85f6bba20a6e
+    - suggestion: '.hasUniqueness([''Decade_Label'', ''GenreToken'', ''Rank''], lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''Decade_Label'', ''GenreToken'',
+        ''Rank''], lambda x: x == 1.0)'' failed on data sample: Input data does not
+        include column Decade_Label!'
+      level: error
+      uid: 8e701d25-de57-41a4-ba1c-34da1383c4a1
+      source_assumptions:
+      - 5bc7142d-ec09-46ee-ad06-85f6bba20a6e
+    - suggestion: .satisfies('(`IMDB_Rating` IS NULL OR CAST(`IMDB_Rating` AS DOUBLE)
+        IS NOT NULL) AND (`Meta_score` IS NULL OR CAST(`Meta_score` AS DOUBLE) IS
+        NOT NULL) AND (`No_of_Votes` IS NULL OR CAST(`No_of_Votes` AS BIGINT) IS NOT
+        NULL)', 'Numeric-castable ratings/votes')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 08151ee7-e0dc-4f7f-ab50-67fbc27775a7
+      source_assumptions:
+      - 58ea25cf-5b3a-41a4-9cb6-841d98814c0d
+    - suggestion: .satisfies('(`Score` IS NULL) OR (`IMDB_Rating` IS NOT NULL AND
+        `Meta_score` IS NOT NULL AND `No_of_Votes` IS NOT NULL AND `Runtime_Min` IS
+        NOT NULL)', 'Score requires source columns')
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''(`Score` IS NULL) OR (`IMDB_Rating`
+        IS NOT NULL AND `Meta_score` IS NOT NULL AND `No_of_Votes` IS NOT NULL AND
+        `Runtime_Min` IS NOT NULL)'', ''Score requires source columns'')'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Score` cannot be resolved. Did you
+        mean one of the following? [`Genre`, `Star1`, `Star2`, `Star3`, `Star4`].;
+        line 1 pos 1;
+
+        ''Aggregate [sum(cast((isnull(''Score) OR ((isnotnull(IMDB_Rating#1381) AND
+        isnotnull(Meta_score#1383)) AND (isnotnull(No_of_Votes#1389L) AND isnotnull(''Runtime_Min))))
+        as int)) AS sum(CAST(((Score IS NULL) OR (((IMDB_Rating IS NOT NULL) AND (Meta_score
+        IS NOT NULL)) AND ((No_of_Votes IS NOT NULL) AND (Runtime_Min IS NOT NULL))))
+        AS INT))#212395, count(1) AS count(1)#212397L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: b0b2da58-0ef5-4122-aac5-aa6d67ed0f5a
+      source_assumptions:
+      - 456de09f-d379-419e-b584-23592d90c8a7
+    assumptions:
+    - text: The columns 'IMDB_Rating', 'Meta_score', and 'No_of_Votes' must be present,
+        numeric, and non-null for all records where a 'Score' is calculated, since
+        'Score' is a weighted combination of these three columns. To ensure accurate
+        scoring, these three columns should not have missing values simultaneously
+        for any row used in ranking, leaderboard, or card generation. In Deequ, this
+        could be represented with an 'assertion' that the fraction of rows where all
+        three are non-null is 1.0 for the subset of data used for scoring and output.
+      sources:
+      - start_line: 139
+        end_line: 148
+        file: ''
+      uid: 591b80c6-573b-40f7-ae00-48efac2d7e6b
+    - text: When exporting leaderboard outputs, the combination of 'Decade_Label',
+        'GenreToken', 'Rank', 'Series_Title', 'Year', 'Certificate', 'IMDB_Rating',
+        'Meta_score', 'No_of_Votes', 'Runtime', 'Score', and 'Poster_Link' must be
+        complete and consistent for each record. In particular, for each (Decade_Label,
+        GenreToken), ranks must be unique and the associated values for 'IMDB_Rating',
+        'Meta_score', 'No_of_Votes', and 'Score' should be present and valid. Rows
+        with missing or invalid values in any of these columns should not appear in
+        the leaderboard outputs. Deequ can assert completeness for these columns and
+        uniqueness for ('Decade_Label', 'GenreToken', 'Rank').
+      sources:
+      - start_line: 173
+        end_line: 176
+        file: ''
+      uid: 5bc7142d-ec09-46ee-ad06-85f6bba20a6e
+    - text: For each record emitted in the JSON index, if 'IMDB_Rating', 'Meta_score',
+        or 'No_of_Votes' is present, they must be convertible to float (for 'IMDB_Rating'
+        and 'Meta_score') or int (for 'No_of_Votes') without error. This ensures that
+        numeric representation is always possible for downstream consumption. This
+        can be enforced by a constraint that these fields are either null or of the
+        correct numeric type.
+      sources:
+      - start_line: 190
+        end_line: 192
+        file: ''
+      uid: 58ea25cf-5b3a-41a4-9cb6-841d98814c0d
+    - text: 'The calculation of ''Score'' for each record depends on the normalized
+        values of ''IMDB_Rating'', ''Meta_score'', and ''No_of_Votes'', and is further
+        adjusted by ''Runtime_Min''. Therefore, whenever ''Score'' is present, the
+        source columns (''IMDB_Rating'', ''Meta_score'', ''No_of_Votes'', ''Runtime_Min'')
+        must also be present and valid for that record. Deequ can assert conditional
+        completeness: if ''Score'' is not null, then none of these source columns
+        are null.'
+      sources:
+      - start_line: 139
+        end_line: 148
+        file: ''
+      uid: 456de09f-d379-419e-b584-23592d90c8a7
+  Poster_Link:
+    code:
+    - suggestion: .isComplete('Poster_Link')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8e0c43d0-0c31-45c8-8add-baa31ced911c
+      source_assumptions:
+      - 36ea32fe-e9e8-4bc6-b0b6-e44d2c7d7132
+    - suggestion: '.containsURL(''Poster_Link'', assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a40c39c2-691f-489d-8a42-f2cc993aabeb
+      source_assumptions:
+      - a10baf89-4bf2-4fee-97ba-759b38b9ebf2
+    - suggestion: '.hasDataType(''Poster_Link'', ''String'', assertion=lambda x: x
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Poster_Link'',
+        ''String'', assertion=lambda x: x == 1.0)'
+      level: error
+      uid: ba8b8271-16e2-426d-9919-ddabd6b54ff3
+      source_assumptions:
+      - 1b30ebb8-fd30-49a3-b359-6fec7e1538ff
+    - suggestion: '.satisfies(''length(trim(`Poster_Link`)) = length(`Poster_Link`)
+        AND length(`Poster_Link`) > 0'', ''Poster_Link has no leading/trailing whitespace
+        and is non-empty'', assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b514588e-4648-4d55-b2d6-0565b88ba523
+      source_assumptions:
+      - aeb2efe9-e2e3-43a3-a434-0bc6ed9b1221
+      - a10baf89-4bf2-4fee-97ba-759b38b9ebf2
+    assumptions:
+    - text: The 'Poster_Link' column must be present in the input data and must have
+        no missing (null or NaN) values. The code expects every row to have a valid,
+        non-empty string for 'Poster_Link', as it is used both for HTML rendering
+        and JSON export without any null checks or fillna applied. This is supported
+        by the data completeness of 1.0 for this column.
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 33
+        end_line: 34
+        file: ''
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 136
+        end_line: 136
+        file: ''
+      - start_line: 173
+        end_line: 174
+        file: ''
+      - start_line: 195
+        end_line: 195
+        file: ''
+      uid: 36ea32fe-e9e8-4bc6-b0b6-e44d2c7d7132
+    - text: All values in the 'Poster_Link' column should be valid, well-formed URLs
+        or at least non-empty strings, as they are directly used as the href of anchor
+        tags and the src of img tags in HTML output. Malformed or empty values may
+        result in broken images or invalid links in the generated HTML.
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 33
+        end_line: 34
+        file: ''
+      - start_line: 136
+        end_line: 136
+        file: ''
+      uid: a10baf89-4bf2-4fee-97ba-759b38b9ebf2
+    - text: All values in the 'Poster_Link' column should be strings, as the code
+        explicitly casts them to str and applies string operations like .strip().
+        Non-string values may cause errors or unintended results.
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 136
+        end_line: 136
+        file: ''
+      - start_line: 195
+        end_line: 195
+        file: ''
+      uid: 1b30ebb8-fd30-49a3-b359-6fec7e1538ff
+    - text: The 'Poster_Link' column should not contain leading or trailing whitespace,
+        as the code strips whitespace during preprocessing. This suggests that the
+        intended values should be clean, whitespace-free URLs.
+      sources:
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 136
+        end_line: 136
+        file: ''
+      - start_line: 195
+        end_line: 195
+        file: ''
+      uid: aeb2efe9-e2e3-43a3-a434-0bc6ed9b1221
+  Meta_score:
+    code:
+    - suggestion: '.hasCompleteness(''Meta_score'', lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c335917a-08cc-4cb1-b400-a35cf4d24d4e
+      source_assumptions:
+      - 8bb16666-4de3-45c3-8494-719d17ff8699
+      - 2404bfdf-f3ab-4daf-89ea-07425c12129b
+    - suggestion: '.hasCompleteness(''Meta_score'', lambda x: x >= 0.80)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1c12a176-84d5-4372-bd5e-bbd3f6741dfb
+      source_assumptions:
+      - 99112132-6baa-454b-a880-4ad59fd48d9a
+    - suggestion: '.hasDataType(''Meta_score'', ''Fractional'', lambda x: x >= 0.90)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Meta_score'',
+        ''Fractional'', lambda x: x >= 0.90)'
+      level: warning
+      uid: ec1b9b8a-3bf2-404d-b6c2-c3924105ed1a
+      source_assumptions:
+      - de355dbe-c669-4eb7-80c6-a17688501204
+    - suggestion: .satisfies('(`Meta_score` >= 0 AND `Meta_score` <= 100) OR `Meta_score`
+        IS NULL', 'Meta_score in [0,100] or NULL')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fb43b459-87d5-4a61-8757-e0e4d3bdfa71
+      source_assumptions:
+      - 5e3e7126-e1ae-49f1-b04e-875a1b43031a
+    assumptions:
+    - text: The 'Meta_score' column is expected to be mostly complete, but can contain
+        null or missing values. The code explicitly fills missing normalized Meta_score
+        values with the median before downstream calculations. However, not all values
+        can be null, as the median is computed from available values. This implies
+        that at least some non-null values must be present in the input data.
+      sources:
+      - start_line: 140
+        end_line: 141
+        file: ''
+      uid: 8bb16666-4de3-45c3-8494-719d17ff8699
+    - text: The 'Meta_score' column is expected to be numeric and convertible to a
+        number. Any non-numeric values in 'Meta_score' will be coerced to NaN. This
+        means that the majority of values should be parseable as numbers for the downstream
+        logic to function as intended.
+      sources:
+      - start_line: 117
+        end_line: 117
+        file: ''
+      - start_line: 140
+        end_line: 140
+        file: ''
+      uid: de355dbe-c669-4eb7-80c6-a17688501204
+    - text: The 'Meta_score' column values are implicitly expected to be within the
+        range 0 to 100, since they are normalized by dividing by 100 and used as a
+        component of a composite score. Values outside this range would distort the
+        normalization and downstream calculations.
+      sources:
+      - start_line: 140
+        end_line: 140
+        file: ''
+      uid: 5e3e7126-e1ae-49f1-b04e-875a1b43031a
+    - text: The 'Meta_score' column may contain nulls, but for output purposes (such
+        as JSON export and HTML rendering), nulls are explicitly handled and rendered
+        as missing or omitted fields. Therefore, the code assumes that downstream
+        consumers can handle missing Meta_score values, but the input should not have
+        all values missing.
+      sources:
+      - start_line: 23
+        end_line: 29
+        file: ''
+      - start_line: 191
+        end_line: 191
+        file: ''
+      uid: 2404bfdf-f3ab-4daf-89ea-07425c12129b
+    - text: The 'Meta_score' column should not have a large proportion of missing
+        values, since the completeness is approximately 85.6%. If the completeness
+        were much lower, the normalization and median imputation steps would be less
+        meaningful and could impact leaderboard accuracy.
+      sources:
+      - start_line: 140
+        end_line: 141
+        file: ''
+      uid: 99112132-6baa-454b-a880-4ad59fd48d9a
+  No_of_Votes:
+    code:
+    - suggestion: '.hasCompleteness(''No_of_Votes'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f3467086-84d1-45ca-aa99-8df82083a612
+      source_assumptions:
+      - 11b570b2-a726-4e20-a046-10cc1de84f61
+    - suggestion: '.satisfies(''CAST(`No_of_Votes` AS BIGINT) IS NOT NULL'', ''No_of_Votes
+        is integer parseable'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6f64cd8e-21e1-4869-bfc8-8fc864825aa3
+      source_assumptions:
+      - 92705655-39c3-4ebd-bf0a-3e08677e1153
+    - suggestion: '.satisfies(''`No_of_Votes` >= 1'', ''No_of_Votes strictly positive'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b6418ddb-18ab-41b1-af08-ebec23ed7185
+      source_assumptions:
+      - da3d2899-31eb-4466-a912-96559ba0410c
+    - suggestion: '.hasMax(''No_of_Votes'', lambda m: m < 10000000)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0609e3ef-fd9e-4b39-b531-a2ca1dce2f1f
+      source_assumptions:
+      - 35974bc2-d6c8-4a3f-ae9d-f31efcdd7c38
+    assumptions:
+    - text: 'The ''No_of_Votes'' column in the input data should be complete, i.e.,
+        should not contain any null or missing values. This is inferred because the
+        data profile reports 100% completeness, and downstream code (lines 24, 115,
+        142, 192) expects to parse, convert, and use the values as integers without
+        filling missing values or handling nulls except in display logic. Thus, the
+        input should not have nulls in ''No_of_Votes''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCompleteness("No_of_Votes", lambda x: x == 1.0)'
+      sources:
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 115
+        end_line: 115
+        file: ''
+      - start_line: 142
+        end_line: 142
+        file: ''
+      - start_line: 192
+        end_line: 192
+        file: ''
+      uid: 11b570b2-a726-4e20-a046-10cc1de84f61
+    - text: 'All values in the ''No_of_Votes'' column must be parseable as integers
+        (i.e., string or numeric representations that can be cast to integer), as
+        the code uses pd.to_numeric with errors=''coerce'' and subsequently casts
+        to int or uses them in arithmetic operations. Non-numeric or malformed values
+        in ''No_of_Votes'' will be coerced to NaN and may result in missing or invalid
+        downstream data. Therefore, the input should have only valid integer representations.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN CAST(`No_of_Votes` AS BIGINT) IS NOT NULL THEN 1 ELSE
+        0 END", "No_of_Votes is integer parseable", lambda x: x == 1.0)'
+      sources:
+      - start_line: 115
+        end_line: 115
+        file: ''
+      - start_line: 142
+        end_line: 142
+        file: ''
+      - start_line: 192
+        end_line: 192
+        file: ''
+      uid: 92705655-39c3-4ebd-bf0a-3e08677e1153
+    - text: 'The ''No_of_Votes'' column should only contain strictly positive integer
+        values (greater than or equal to 1). This is inferred because the code applies
+        clip(lower=1) before log transformation (line 142), and displaying the vote
+        count and using it as a tie-breaker or for ranking makes little sense for
+        zero or negative votes. Logarithm of zero or negative values is undefined
+        and would result in NaN or errors. Thus, the input should not contain zero
+        or negative values in ''No_of_Votes''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN `No_of_Votes` >= 1 THEN 1 ELSE 0 END", "No_of_Votes
+        strictly positive", lambda x: x == 1.0)'
+      sources:
+      - start_line: 142
+        end_line: 142
+        file: ''
+      uid: da3d2899-31eb-4466-a912-96559ba0410c
+    - text: 'The ''No_of_Votes'' column should not contain extreme outliers that would
+        distort log normalization or ranking. Since the code normalizes votes with
+        log10 and divides by 6 (implying a rough expectation for vote counts up to
+        1,000,000), extremely large values could disproportionately affect the computed
+        ''Score''. For leaderboard fairness and display, the input should not contain
+        implausibly high vote counts (e.g., >10 million). This is a soft assumption
+        for data quality.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasMax("No_of_Votes", lambda m: m < 10000000)'
+      sources:
+      - start_line: 142
+        end_line: 142
+        file: ''
+      uid: 35974bc2-d6c8-4a3f-ae9d-f31efcdd7c38
+  '["Poster_Link","Series_Title","Year"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Year''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''Series_Title'', ''Year''],
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        Year!'
+      level: error
+      uid: d894e80f-0c76-47d7-8260-dedbe0d05564
+      source_assumptions:
+      - a36b0f20-8aed-4669-b9ba-9ad05f8f1027
+    - suggestion: .satisfies('(`Poster_Link` IS NULL) OR (`Series_Title` IS NOT NULL
+        AND TRIM(`Series_Title`) != "" AND `Year` IS NOT NULL)', 'Poster_Link requires
+        Series_Title and Year')
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''(`Poster_Link` IS NULL) OR (`Series_Title`
+        IS NOT NULL AND TRIM(`Series_Title`) != "" AND `Year` IS NOT NULL)'', ''Poster_Link
+        requires Series_Title and Year'')'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Year` cannot be resolved. Did you mean one of the following? [`id`, `Genre`,
+        `Star1`, `Star2`, `Star3`].; line 1 pos 90;
+
+        ''Aggregate [sum(cast((isnull(Poster_Link#1375) OR ((isnotnull(Series_Title#1376)
+        AND NOT (trim(Series_Title#1376, None) = )) AND isnotnull(''Year))) as int))
+        AS sum(CAST(((Poster_Link IS NULL) OR (((Series_Title IS NOT NULL) AND (NOT
+        (TRIM(Series_Title) = ))) AND (Year IS NOT NULL))) AS INT))#211606, count(1)
+        AS count(1)#211607L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: 79a385c1-bb33-4c2f-a82a-62bd53b9566f
+      source_assumptions:
+      - 94227e7c-491c-4a85-9734-c2c4442831e0
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Year'', ''Poster_Link''], lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''Series_Title'', ''Year'',
+        ''Poster_Link''], lambda x: x == 1.0)'' failed on data sample: Input data
+        does not include column Year!'
+      level: warning
+      uid: 3ca950b4-f7c2-4b15-92ad-0aff4be5f80b
+      source_assumptions:
+      - 2fc88168-c0b6-4bdb-bb29-68b1b9c8b156
+    assumptions:
+    - text: 'For each record, the combination of ''Series_Title'' and ''Year'' should
+        be unique. This is implied by their joint use for generating a slug identifier
+        and for output grouping. This can be represented as a Deequ constraint: .isUnique([''Series_Title'',
+        ''Year''])'
+      sources:
+      - start_line: 18
+        end_line: 34
+        file: ''
+      - start_line: 173
+        end_line: 174
+        file: ''
+      - start_line: 187
+        end_line: 195
+        file: ''
+      uid: a36b0f20-8aed-4669-b9ba-9ad05f8f1027
+    - text: 'For each record, if ''Poster_Link'' is present, there must also be non-null
+        and non-empty values for both ''Series_Title'' and ''Year''. This is required
+        to generate HTML cards and JSON entries that link a title/year to its poster.
+        This can be expressed as a multi-column completeness constraint: .where(''Poster_Link
+        IS NOT NULL'').hasCompleteness(''Series_Title'', _ >= 1.0).hasCompleteness(''Year'',
+        _ >= 1.0)'
+      sources:
+      - start_line: 18
+        end_line: 36
+        file: ''
+      - start_line: 195
+        end_line: 195
+        file: ''
+      uid: 94227e7c-491c-4a85-9734-c2c4442831e0
+    - text: 'The values in ''Poster_Link'' should be unique within each (''Series_Title'',
+        ''Year'') pair. This ensures that each movie (by title and year) corresponds
+        to a single poster URL and prevents ambiguity in card rendering or JSON indexing.
+        This can be represented as a Deequ constraint: .isUnique([''Series_Title'',
+        ''Year'', ''Poster_Link''])'
+      sources:
+      - start_line: 18
+        end_line: 36
+        file: ''
+      - start_line: 173
+        end_line: 174
+        file: ''
+      - start_line: 187
+        end_line: 195
+        file: ''
+      uid: 2fc88168-c0b6-4bdb-bb29-68b1b9c8b156
+  Released_Year:
+    code:
+    - suggestion: '.hasCompleteness(''Released_Year'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 85609f8c-93a8-4d9a-b229-ea3be75d432b
+      source_assumptions:
+      - ed204b00-800d-41f2-9c7d-7d186ad92b60
+    - suggestion: '.satisfies(''Released_Year RLIKE "^\\d{4}$"'', ''Released_Year
+        4-digit format'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''Released_Year RLIKE "^\\d{4}$"'',
+        ''Released_Year 4-digit format'', lambda x: x == 1.0)'' failed on data sample:
+        Value: 0.0 does not meet the constraint requirement!'
+      level: error
+      uid: a459c053-b5a2-4f4e-b350-3242f098321b
+      source_assumptions:
+      - 304862f4-e691-48a4-aafa-8672645dfc59
+    - suggestion: '.satisfies(''CAST(Released_Year AS INT) <= {current_year}'', ''Released_Year
+        not in future'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies('CAST(Released_Year AS INT) <= {current_year}',\
+        \ 'Released_Year not in future', lambda x: x == 1.0)' failed on data sample:\
+        \ org.apache.spark.sql.catalyst.parser.ParseException: \n[PARSE_SYNTAX_ERROR]\
+        \ Syntax error at or near '{'.(line 1, pos 30)\n\n== SQL ==\nCAST(Released_Year\
+        \ AS INT) <= {current_year}\n------------------------------^^^\n"
+      level: error
+      uid: 4f2fdcdf-bfda-4247-a91c-02ceb2789cd7
+      source_assumptions:
+      - 237f1a37-c0fc-4816-bc92-8d7a1acb48fd
+    - suggestion: '.satisfies(''CAST(Released_Year AS INT) IS NOT NULL'', ''Released_Year
+        is integer'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bf40fd14-223e-468a-9b37-bca86ca1300c
+      source_assumptions:
+      - 3389032f-4d9e-4c7a-a588-0095300f89a5
+    assumptions:
+    - text: 'The ''Released_Year'' column must be 100% complete (i.e., must not contain
+        any null or missing values). This is required because the code does not perform
+        any fillna or missing value imputation, and downstream logic expects all entries
+        to be present for filtering, transformation, and output purposes.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCompleteness(''Released_Year'', lambda x: x == 1.0)'
+      sources:
+      - start_line: 93
+        end_line: 96
+        file: ''
+      - start_line: 97
+        end_line: 103
+        file: ''
+      uid: ed204b00-800d-41f2-9c7d-7d186ad92b60
+    - text: 'Every value in the ''Released_Year'' column must be a four-digit string
+        representing a valid year (e.g., ''1984'', ''2001''). Rows that do not match
+        a 4-digit year are filtered out and excluded from downstream processing. Thus,
+        the input data is expected to have only 4-digit years in ''Released_Year''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''Released_Year RLIKE "^\\d{4}$"'', ''Released_Year 4-digit format'',
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 97
+        end_line: 103
+        file: ''
+      uid: 304862f4-e691-48a4-aafa-8672645dfc59
+    - text: 'The numeric value of ''Released_Year'' must be a plausible year, specifically
+        a four-digit integer not greater than the current year (as of processing time).
+        The code attempts to coerce to integer and only keeps rows with plain 4-digit
+        years. This means the input data should not contain entries with years in
+        the future or non-numeric years.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''CAST(Released_Year AS INT) <= <current_year>'', ''Released_Year
+        not in future'', lambda x: x == 1.0)'
+      sources:
+      - start_line: 98
+        end_line: 103
+        file: ''
+      uid: 237f1a37-c0fc-4816-bc92-8d7a1acb48fd
+    - text: 'The ''Released_Year'' column should have integral (integer) values after
+        validation, as the code converts the validated string to int for further processing
+        (such as calculating the decade, labeling, and output). This means the input
+        should not contain non-integer or malformed values in this column.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''CAST(Released_Year AS INT) IS NOT NULL'', ''Released_Year is
+        integer'', lambda x: x == 1.0)'
+      sources:
+      - start_line: 97
+        end_line: 104
+        file: ''
+      uid: 3389032f-4d9e-4c7a-a588-0095300f89a5
+  Runtime:
+    code:
+    - suggestion: .isComplete('Runtime')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ca0fef49-f108-41ff-beaa-bd41344b5768
+      source_assumptions:
+      - bca6a67c-74ab-41bc-b7db-65963d7cc07f
+      - 7a602618-18eb-4617-ac99-1627a4c18def
+    - suggestion: .hasPattern('Runtime', r'^\d{2,3} min$')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bffa5055-cb55-4cd2-8dcb-187dd8ff04fb
+      source_assumptions:
+      - bcb85e98-b81a-4ec3-b43b-7c5fe91e21d8
+    - suggestion: .satisfies('CAST(SPLIT(`Runtime`, " ")[0] AS INT) >= 10 AND CAST(SPLIT(`Runtime`,
+        " ")[0] AS INT) <= 999', 'Runtime integer minutes between 10 and 999')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4ba834c1-cca5-40ca-9811-d0c2ad4de40d
+      source_assumptions:
+      - 2898bcb5-e240-4d77-a9e1-b3cff3f6f0f7
+    assumptions:
+    - text: The 'Runtime' column must be present in the input dataset, as it is explicitly
+        referenced and processed in the code.
+      sources:
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 108
+        end_line: 110
+        file: ''
+      uid: bca6a67c-74ab-41bc-b7db-65963d7cc07f
+    - text: All values in the 'Runtime' column must be non-null, as the column is
+        cast to string, stripped, and used for further parsing without any missing
+        value handling (e.g., fillna or dropna). The dataset metadata also indicates
+        completeness is 1.0.
+      sources:
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 108
+        end_line: 110
+        file: ''
+      uid: 7a602618-18eb-4617-ac99-1627a4c18def
+    - text: All values in the 'Runtime' column must be strings matching the pattern
+        '\d{2,3} min' (e.g., '120 min'), as the code checks for this pattern using
+        str.fullmatch and extracts the numeric part for further processing. Values
+        not matching this pattern would result in downstream errors or dropped/incomplete
+        rows.
+      sources:
+      - start_line: 108
+        end_line: 110
+        file: ''
+      uid: bcb85e98-b81a-4ec3-b43b-7c5fe91e21d8
+    - text: All values in the 'Runtime' column should represent integer minute values
+        between 10 and 999 (as enforced by the regex '\d{2,3}'), and the extracted
+        value should be convertible to an integer. Non-numeric or malformed values
+        will result in NaN after conversion and could cause downstream errors.
+      sources:
+      - start_line: 108
+        end_line: 110
+        file: ''
+      uid: 2898bcb5-e240-4d77-a9e1-b3cff3f6f0f7
+  '["Runtime","Runtime_Min"]':
+    code:
+    - suggestion: .satisfies("(Runtime IS NULL OR Runtime = '' OR (Runtime RLIKE '^\\d{2,3}
+        min$' AND Runtime_Min = CAST(regexp_extract(Runtime, '([0-9]{2,3})', 1) AS
+        INT) AND Runtime_Min BETWEEN 10 AND 999))", "Runtime and Runtime_Min consistency")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(Runtime IS NULL OR Runtime = ''''
+        OR (Runtime RLIKE ''^\\d{2,3} min$'' AND Runtime_Min = CAST(regexp_extract(Runtime,
+        ''([0-9]{2,3})'', 1) AS INT) AND Runtime_Min BETWEEN 10 AND 999))", "Runtime
+        and Runtime_Min consistency")'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Runtime_Min` cannot be resolved. Did you mean one of the following? [`Runtime`,
+        `Director`, `Genre`, `Poster_Link`, `Star1`].; line 1 pos 71;
+
+        ''Aggregate [sum(cast(((isnull(Runtime#1379) OR (Runtime#1379 = )) OR ((RLIKE(Runtime#1379,
+        ^d{2,3} min$) AND (''Runtime_Min = cast(regexp_extract(Runtime#1379, ([0-9]{2,3}),
+        1) as int))) AND ((''Runtime_Min >= 10) AND (''Runtime_Min <= 999)))) as int))
+        AS sum(CAST((((Runtime IS NULL) OR (Runtime = )) OR ((RLIKE(Runtime, ^d{2,3}
+        min$) AND (Runtime_Min = CAST(regexp_extract(Runtime, ([0-9]{2,3}), 1) AS
+        INT))) AND ((Runtime_Min >= 10) AND (Runtime_Min <= 999)))) AS INT))#211750,
+        count(1) AS count(1)#211751L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: a430c539-7fab-4c65-886f-61541119cac6
+      source_assumptions:
+      - 768a71bc-5a4b-4564-ac1c-1e2db58ba5e6
+    - suggestion: .satisfies("(Runtime IS NULL OR Runtime = '' OR (Runtime RLIKE '^\\d{2,3}
+        min$' AND Runtime_Min IS NOT NULL))", "Non-null Runtime_Min when Runtime is
+        valid")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(Runtime IS NULL OR Runtime = ''''
+        OR (Runtime RLIKE ''^\\d{2,3} min$'' AND Runtime_Min IS NOT NULL))", "Non-null
+        Runtime_Min when Runtime is valid")'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Runtime_Min` cannot be resolved. Did you mean one of the following? [`Runtime`,
+        `Director`, `Genre`, `Poster_Link`, `Star1`].; line 1 pos 71;
+
+        ''Aggregate [sum(cast(((isnull(Runtime#1379) OR (Runtime#1379 = )) OR (RLIKE(Runtime#1379,
+        ^d{2,3} min$) AND isnotnull(''Runtime_Min))) as int)) AS sum(CAST((((Runtime
+        IS NULL) OR (Runtime = )) OR (RLIKE(Runtime, ^d{2,3} min$) AND (Runtime_Min
+        IS NOT NULL))) AS INT))#211725, count(1) AS count(1)#211726L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: error
+      uid: 21c9bc77-d21c-4bd2-848c-3a116c55a587
+      source_assumptions:
+      - bdf95674-28f0-4876-b589-bfa2e7bf31f3
+    - suggestion: .satisfies("(Runtime_Min IS NULL OR (Runtime_Min >= 40 AND Runtime_Min
+        <= 300))", "Runtime_Min in typical movie range")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(Runtime_Min IS NULL OR (Runtime_Min
+        >= 40 AND Runtime_Min <= 300))", "Runtime_Min in typical movie range")'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Runtime_Min` cannot be resolved.
+        Did you mean one of the following? [`Runtime`, `Director`, `Genre`, `Poster_Link`,
+        `Star1`].; line 1 pos 1;
+
+        ''Aggregate [sum(cast((isnull(''Runtime_Min) OR ((''Runtime_Min >= 40) AND
+        (''Runtime_Min <= 300))) as int)) AS sum(CAST(((Runtime_Min IS NULL) OR ((Runtime_Min
+        >= 40) AND (Runtime_Min <= 300))) AS INT))#211703, count(1) AS count(1)#211704L]
+
+        +- LogicalRDD [id#1374L, Poster_Link#1375, Series_Title#1376, Released_Year#1377L,
+        Certificate#1378, Runtime#1379, Genre#1380, IMDB_Rating#1381, Overview#1382,
+        Meta_score#1383, Director#1384, Star1#1385, Star2#1386, Star3#1387, Star4#1388,
+        No_of_Votes#1389L, Gross#1390], false
+
+        '
+      level: warning
+      uid: f804662f-0d3e-41eb-b139-dacbfd64a53d
+      source_assumptions:
+      - 36a1e0d1-3032-4b01-9d12-094f9df98e47
+    assumptions:
+    - text: For every row, if 'Runtime' is present and non-empty, it must match the
+        pattern '\d{2,3} min' (e.g., '120 min'), and the corresponding 'Runtime_Min'
+        must be a valid integer between 10 and 999 (inclusive). Furthermore, 'Runtime_Min'
+        must be correctly extracted as the numeric part of 'Runtime'. This ensures
+        that 'Runtime' and 'Runtime_Min' are consistently and validly paired.
+      sources:
+      - start_line: 108
+        end_line: 110
+        file: ''
+      uid: 768a71bc-5a4b-4564-ac1c-1e2db58ba5e6
+    - text: The 'Runtime_Min' column must not contain null values for any row where
+        'Runtime' is present and matches the expected pattern. This ensures that the
+        numeric extraction from 'Runtime' always succeeds when the format is correct.
+      sources:
+      - start_line: 108
+        end_line: 110
+        file: ''
+      uid: bdf95674-28f0-4876-b589-bfa2e7bf31f3
+    - text: For all rows, the value of 'Runtime_Min' must be within a reasonable range
+        for movies (e.g., between 40 and 300 minutes). This is implied by the 'pacing'
+        calculation, which assumes typical runtimes are centered around 120 minutes.
+      sources:
+      - start_line: 144
+        end_line: 145
+        file: ''
+      uid: 36a1e0d1-3032-4b01-9d12-094f9df98e47
+  Series_Title:
+    code:
+    - suggestion: .isComplete('Series_Title')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c7c3110c-f35a-4e85-9aa6-7f9f1fc47b0e
+      source_assumptions:
+      - 4a0bfa37-e74e-4492-a2e1-7b6893ecade3
+    - suggestion: '.hasDataType(''Series_Title'', ''String'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Series_Title'',
+        ''String'', lambda x: x == 1.0)'
+      level: error
+      uid: 640d8255-5af5-4943-bdef-2deab7ae49fb
+      source_assumptions:
+      - 4a0bfa37-e74e-4492-a2e1-7b6893ecade3
+    - suggestion: '.satisfies(''`Series_Title` = TRIM(`Series_Title`)'', ''Series_Title
+        whitespace'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7a972231-f184-479f-8649-2a0264cdb612
+      source_assumptions:
+      - 1a457882-c395-4a16-a53c-1008e88eb7e0
+    - suggestion: .isUnique(['Decade_Label', 'GenreToken', 'Rank', 'Series_Title'])
+      validity: false
+      reason_if_invalid: "Unable to instantiate constraint '.isUnique(['Decade_Label',\
+        \ 'GenreToken', 'Rank', 'Series_Title'])': An error occurred while calling\
+        \ o5313.isUnique. Trace:\npy4j.Py4JException: Method isUnique([class java.util.ArrayList,\
+        \ class scala.None$, class scala.None$]) does not exist\n\tat py4j.reflection.ReflectionEngine.getMethod(ReflectionEngine.java:321)\n\
+        \tat py4j.reflection.ReflectionEngine.getMethod(ReflectionEngine.java:329)\n\
+        \tat py4j.Gateway.invoke(Gateway.java:274)\n\tat py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)\n\
+        \tat py4j.commands.CallCommand.execute(CallCommand.java:79)\n\tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:840)\n\n"
+      level: error
+      uid: 186ceab1-a879-47b5-b7a7-392486bbf2d2
+      source_assumptions:
+      - b64aab51-349f-4c8f-af81-20583027f758
+    - suggestion: '.satisfies(''LENGTH(TRIM(`Series_Title`)) > 0'', ''Series_Title
+        not empty'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ae5a38bc-95af-44e1-99a0-d8657398b191
+      source_assumptions:
+      - c9b5b1f4-edce-4b28-b4a6-b80eef2c76a3
+    assumptions:
+    - text: 'The ''Series_Title'' column must be present in the input data, must be
+        complete (no null or missing values), and every value must be a string (or
+        at least convertible to string), as the code processes and outputs it as a
+        required identifier for each record. This is evidenced by its direct use in
+        string operations (str.strip(), lowercasing, slug generation, HTML, and JSON
+        output) with no null checks or fillna applied. If any value is missing or
+        not convertible to string, the code may produce incorrect outputs or errors.
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''`Series_Title` IS NOT NULL AND CAST(`Series_Title` AS STRING)
+        IS NOT NULL'', ''Series_Title completeness and type'', lambda x: x == 1.0)'
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 173
+        end_line: 173
+        file: ''
+      - start_line: 187
+        end_line: 187
+        file: ''
+      uid: 4a0bfa37-e74e-4492-a2e1-7b6893ecade3
+    - text: 'The ''Series_Title'' column values should not have leading or trailing
+        whitespace in the input data, as the code applies str.strip() to each title
+        both during preprocessing and downstream usage. While the code strips whitespace,
+        excessive or inconsistent whitespace could indicate data quality issues upstream.
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''`Series_Title` = TRIM(`Series_Title`)'', ''Series_Title whitespace'',
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 187
+        end_line: 187
+        file: ''
+      uid: 1a457882-c395-4a16-a53c-1008e88eb7e0
+    - text: 'The ''Series_Title'' column values should be unique within the combination
+        of ''Decade_Label'', ''GenreToken'', and ''Rank'' in the output, as the script
+        uses ''Series_Title'' (along with other columns) as a primary identifier in
+        the leaderboard outputs, and each card or JSON object is expected to correspond
+        to a unique series within a (decade, genre, rank) group. Duplicate titles
+        within the same group may indicate data issues or ambiguous records. We could
+        represent this assumption as a deequ constraint like this:
+
+        .isUnique([''Decade_Label'', ''GenreToken'', ''Rank'', ''Series_Title''])'
+      sources:
+      - start_line: 173
+        end_line: 173
+        file: ''
+      - start_line: 164
+        end_line: 164
+        file: ''
+      - start_line: 187
+        end_line: 187
+        file: ''
+      uid: b64aab51-349f-4c8f-af81-20583027f758
+    - text: 'The ''Series_Title'' column should not contain values that are empty
+        strings or strings consisting solely of whitespace, as these would result
+        in malformed slugs, HTML cards, and JSON outputs. The code expects each title
+        to be a meaningful, non-empty string after stripping. We could represent this
+        assumption as a deequ constraint like this:
+
+        .satisfies(''LENGTH(TRIM(`Series_Title`)) > 0'', ''Series_Title not empty'',
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 187
+        end_line: 187
+        file: ''
+      uid: c9b5b1f4-edce-4b28-b4a6-b80eef2c76a3
+  '["Series_Title","Year"]':
+    code:
+    - suggestion: '.haveCompleteness([''Series_Title'', ''Year''], lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''Series_Title'', ''Year''],
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        Year!'
+      level: error
+      uid: 2c5b0724-b250-48e2-82ae-d27bf6968c95
+      source_assumptions:
+      - 623bb6cd-3d91-4d08-bdc1-013baf694a54
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Year''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''Series_Title'', ''Year''],
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        Year!'
+      level: error
+      uid: de347d97-7b38-4ebd-a910-d553b81093f1
+      source_assumptions:
+      - 24e2adfc-658a-487c-a424-e16a146a6aa7
+    assumptions:
+    - text: The combination of 'Series_Title' and 'Year' must uniquely identify a
+        record (i.e., there should be no duplicate pairs of the same 'Series_Title'
+        and 'Year'). This is because these two fields are used together as a unique
+        identifier for a movie across the dataset and are both included in the final
+        outputs and JSON objects.
+      sources:
+      - start_line: 18
+        end_line: 31
+        file: ''
+      - start_line: 173
+        end_line: 174
+        file: ''
+      - start_line: 187
+        end_line: 188
+        file: ''
+      uid: 24e2adfc-658a-487c-a424-e16a146a6aa7
+    - text: '''Series_Title'' and ''Year'' must both be non-null and non-empty for
+        every record included in the final outputs, as both are required fields for
+        rendering cards, generating slugs, and populating the output CSV and JSON.'
+      sources:
+      - start_line: 18
+        end_line: 31
+        file: ''
+      - start_line: 103
+        end_line: 103
+        file: ''
+      - start_line: 173
+        end_line: 174
+        file: ''
+      - start_line: 187
+        end_line: 188
+        file: ''
+      uid: 623bb6cd-3d91-4d08-bdc1-013baf694a54
+column_data_flow_locations:
+  Series_Title:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 93
+    end_line: 95
+    file: ''
+  - start_line: 173
+    end_line: 173
+    file: ''
+  - start_line: 187
+    end_line: 187
+    file: ''
+  Released_Year:
+  - start_line: 93
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 101
+    file: ''
+  - start_line: 104
+    end_line: 104
+    file: ''
+  - start_line: 187
+    end_line: 188
+    file: ''
+  Runtime:
+  - start_line: 93
+    end_line: 95
+    file: ''
+  - start_line: 108
+    end_line: 111
+    file: ''
+  - start_line: 193
+    end_line: 193
+    file: ''
+  Genre:
+  - start_line: 93
+    end_line: 94
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  Poster_Link:
+  - start_line: 25
+    end_line: 25
+    file: ''
+  - start_line: 36
+    end_line: 37
+    file: ''
+  - start_line: 93
+    end_line: 95
+    file: ''
+  - start_line: 136
+    end_line: 136
+    file: ''
+  - start_line: 173
+    end_line: 173
+    file: ''
+  - start_line: 195
+    end_line: 195
+    file: ''
+  Certificate:
+  - start_line: 20
+    end_line: 21
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 93
+    end_line: 95
+    file: ''
+  - start_line: 131
+    end_line: 134
+    file: ''
+  - start_line: 173
+    end_line: 173
+    file: ''
+  - start_line: 189
+    end_line: 189
+    file: ''
+  IMDB_Rating:
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 113
+    end_line: 113
+    file: ''
+  - start_line: 139
+    end_line: 139
+    file: ''
+  - start_line: 147
+    end_line: 147
+    file: ''
+  - start_line: 173
+    end_line: 173
+    file: ''
+  - start_line: 190
+    end_line: 190
+    file: ''
+  Meta_score:
+  - start_line: 22
+    end_line: 23
+    file: ''
+  - start_line: 29
+    end_line: 29
+    file: ''
+  - start_line: 117
+    end_line: 117
+    file: ''
+  - start_line: 140
+    end_line: 141
+    file: ''
+  - start_line: 191
+    end_line: 191
+    file: ''
+  No_of_Votes:
+  - start_line: 24
+    end_line: 24
+    file: ''
+  - start_line: 115
+    end_line: 115
+    file: ''
+  - start_line: 142
+    end_line: 142
+    file: ''
+  - start_line: 192
+    end_line: 192
+    file: ''
+  Gross:
+  - start_line: 119
+    end_line: 121
+    file: ''
+  - start_line: 151
+    end_line: 154
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0

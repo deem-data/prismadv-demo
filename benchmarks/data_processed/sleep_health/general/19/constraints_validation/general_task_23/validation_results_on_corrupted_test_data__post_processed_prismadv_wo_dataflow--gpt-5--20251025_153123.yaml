@@ -1,0 +1,202 @@
+results:
+  Physical Activity Level:
+    code:
+    - suggestion: '.satisfies("CASE WHEN cast(`Physical Activity Level` AS double)
+        IS NOT NULL THEN 1 ELSE 0 END", "PA parseable and non-null >=95%", lambda
+        x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("`Physical Activity Level` >= 0", "PA non-negative",
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasApproxQuantile("Physical Activity Level", 0.99, lambda q: q
+        <= 200)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Physical Activity Level` >= 60 THEN 1 ELSE
+        0 END", "Presence of PA >= 60", lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Quality of Sleep:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Quality of Sleep` IS NULL THEN 1 WHEN CAST(`Quality
+        of Sleep` AS DOUBLE) BETWEEN 0 AND 10 THEN 1 ELSE 0 END", "QoS in [0,10] or
+        null", lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCompleteness(''Quality of Sleep'', lambda v: v >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(`Sleep Duration` IS NULL) OR (`Quality of Sleep` IS
+        NOT NULL)", "QoS present when Duration present", lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Blood Pressure:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Blood Pressure` RLIKE ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$''
+        THEN CAST(regexp_extract(`Blood Pressure`, ''(\\d{2,3})\\s*/'', 1) AS INT)
+        BETWEEN 70 AND 250 ELSE TRUE END", "Systolic plausible range", lambda x: x
+        >= 0.98)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Blood Pressure` RLIKE ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$''
+        THEN CAST(regexp_extract(`Blood Pressure`, ''/\\s*(\\d{2,3})'', 1) AS INT)
+        BETWEEN 40 AND 150 ELSE TRUE END", "Diastolic plausible range", lambda x:
+        x >= 0.98)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Blood Pressure` RLIKE ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$''
+        THEN CAST(regexp_extract(`Blood Pressure`, ''(\\d{2,3})\\s*/\\s*(\\d{2,3})'',
+        1) AS INT) >= CAST(regexp_extract(`Blood Pressure`, ''(\\d{2,3})\\s*/\\s*(\\d{2,3})'',
+        2) AS INT) ELSE TRUE END", "Systolic >= Diastolic", lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Person ID:
+    code:
+    - suggestion: .isComplete('Person ID')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isUnique('Person ID')
+      status: false
+      reason_if_failed: 'Constraint ''isUnique(''Person ID'')'' failed on data sample:
+        Value: 0.92 does not meet the constraint requirement!'
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Person ID` RLIKE ''^[0-9]+$'' THEN 1 ELSE
+        0 END", ''Person ID integer-like'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Sleep Duration:
+    code:
+    - suggestion: .isComplete('Sleep Duration')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''(`Sleep Duration` >= 0 AND `Sleep Duration` <= 24)'',
+        ''Sleep Duration plausible hours'', lambda p: p >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasStandardDeviation(''Sleep Duration'', lambda s: s > 0.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Daily Steps:
+    code:
+    - suggestion: '.satisfies(''CAST(`Daily Steps` AS DOUBLE) IS NOT NULL'', ''At
+        least one numeric Daily Steps'', lambda x: x > 0.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.isNonNegative(''`Daily Steps`'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''(`Daily Steps` >= 0 AND `Daily Steps` <= 30000) OR
+        `Daily Steps` IS NULL'', ''Plausible Daily Steps range [0, 30000]'', lambda
+        x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''`Daily Steps` IS NULL OR CAST(`Daily Steps` AS DOUBLE)
+        IS NOT NULL'', ''Daily Steps coercible to numeric for >=95% rows'', lambda
+        x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''`Daily Steps` IS NULL OR (CAST(`Daily Steps` AS DOUBLE)
+        IS NOT NULL AND CAST(`Daily Steps` AS DOUBLE) = CAST(CAST(`Daily Steps` AS
+        DOUBLE) AS BIGINT))'', ''Integer-like Daily Steps'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Sleep Disorder:
+    code:
+    - suggestion: '.isContainedIn(''Sleep Disorder'', [''Insomnia'', ''Sleep Apnea''],
+        lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCompleteness(''Sleep Disorder'', lambda x: x >= 0.3)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Heart Rate:
+    code:
+    - suggestion: '.satisfies("CASE WHEN CAST(`Heart Rate` AS DOUBLE) IS NOT NULL
+        THEN 1 ELSE 0 END", "HR is numeric-castable", lambda v: v >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasMin("Heart Rate", lambda m: m >= 30)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasMax("Heart Rate", lambda m: m <= 220)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Heart Rate` BETWEEN 50 AND 100 THEN 1 ELSE
+        0 END", "HR midband coverage", lambda v: v >= 0.5)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Heart Rate` > 120 THEN 1 ELSE 0 END", "Tachycardia
+        share", lambda v: v <= 0.1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Stress Level:
+    code:
+    - suggestion: '.satisfies(''CAST(`Stress Level` AS DOUBLE) BETWEEN 3 AND 8'',
+        ''Stress Level within [3,8]'', lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasNumberOfDistinctValues(''Stress Level'', lambda n: (n >= 4)
+        and (n <= 10), None, None)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  ? '["Blood Pressure","Daily Steps","Heart Rate","Person ID","Physical Activity Level","Quality
+    of Sleep","Sleep Disorder","Sleep Duration","Stress Level"]'
+  : code:
+    - suggestion: '.satisfies("CASE WHEN `Blood Pressure` RLIKE ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$''
+        THEN CAST(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        1) AS INT) >= CAST(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        2) AS INT) ELSE TRUE END", "bp_sys_ge_dia", lambda v: v >= 0.98)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCorrelation(''Sleep Duration'', ''Quality of Sleep'', lambda
+        v: v >= 0.1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCorrelation(''Daily Steps'', ''Physical Activity Level'', lambda
+        v: v >= 0.2)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["bp_dia","bp_stage","bp_sys"]':
+    code:
+    - suggestion: '.satisfies("(`Blood Pressure` IS NULL) OR (NOT (`Blood Pressure`
+        RLIKE ''^\\s*\\d+\\s*/\\s*\\d+\\s*$'')) OR (CAST(regexp_extract(`Blood Pressure`,
+        ''^\\s*(\\d+)\\s*/\\s*(\\d+)\\s*$'', 1) AS INT) >= CAST(regexp_extract(`Blood
+        Pressure`, ''^\\s*(\\d+)\\s*/\\s*(\\d+)\\s*$'', 2) AS INT))", "Physiological
+        ordering: systolic >= diastolic when present", lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning

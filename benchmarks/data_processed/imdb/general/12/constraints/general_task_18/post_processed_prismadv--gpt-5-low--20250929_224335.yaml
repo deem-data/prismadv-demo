@@ -1,0 +1,981 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-low
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: '.hasDataType(''IMDB_Rating'', ConstrainableDataTypes.Fractional,
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''IMDB_Rating'',
+        ConstrainableDataTypes.Fractional, lambda x: x == 1.0)'
+      level: error
+      uid: 4633dfe3-3ccb-421d-ba17-a05eb996a10f
+      source_assumptions:
+      - a4f51a22-bdc7-48fd-9fb9-b06dea89be2c
+    - suggestion: '.hasMin(''IMDB_Rating'', lambda m: m >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f760e25e-d639-470d-93ad-14054e82d40f
+      source_assumptions:
+      - 016024c0-1f13-43a4-ab5b-8fc6cd98c2e2
+    - suggestion: '.hasMax(''IMDB_Rating'', lambda m: m <= 10.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fd7655e7-ed1c-498e-96bb-b71865e96fd1
+      source_assumptions:
+      - 016024c0-1f13-43a4-ab5b-8fc6cd98c2e2
+    - suggestion: '.hasSize(lambda n: n >= 2).satisfies("`IMDB_Rating` IS NOT NULL
+        AND `Meta_score` IS NOT NULL", "Rows with both ratings present (fraction >
+        0)", lambda f: f > 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1a002c75-6c33-485d-b15c-b97ba3751766
+      source_assumptions:
+      - dbf11779-9903-432a-8063-89a7eb5738b2
+    - suggestion: '.satisfies("CASE WHEN `Meta_score` IS NULL THEN `IMDB_Rating` IS
+        NOT NULL ELSE TRUE END", "IMDB present when Meta_score missing", lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0127a3ee-b225-433d-91d1-0d11f5c148b2
+      source_assumptions:
+      - 40e620eb-5857-471b-9c44-0a716d376e28
+    - suggestion: '.hasCompleteness(''IMDB_Rating'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b3864761-b29d-4c9a-b743-dae5331cd1a2
+      source_assumptions:
+      - 04750960-998f-405c-b6c4-232ef1073ff3
+    assumptions:
+    - text: 'IMDB_Rating must be numeric/parseable to float for all rows used, since
+        it is cast to float and used in arithmetic, correlation, and linear regression.
+        A suitable validation is: .isNonNegative(''IMDB_Rating'') combined with a
+        type check or a satisfies expression ensuring CAST to double is possible for
+        all non-null values.'
+      sources:
+      - start_line: 44
+        end_line: 44
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 74
+        end_line: 74
+        file: ''
+      - start_line: 82
+        end_line: 82
+        file: ''
+      uid: a4f51a22-bdc7-48fd-9fb9-b06dea89be2c
+    - text: "IMDB_Rating should be on a 0\u201310 scale (inclusive). The code normalizes\
+        \ it by dividing by 10 without clipping; values outside [0,10] would yield\
+        \ invalid normalized scores. A suitable validation is: .hasMin('IMDB_Rating',\
+        \ lambda m: m >= 0) and .hasMax('IMDB_Rating', lambda m: m <= 10)."
+      sources:
+      - start_line: 44
+        end_line: 44
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: 016024c0-1f13-43a4-ab5b-8fc6cd98c2e2
+    - text: 'There must be at least two rows where both IMDB_Rating and Meta_score
+        are non-null to fit the linear model (np.polyfit with degree 1 requires >=2
+        points). A suitable validation is: fraction of rows where IMDB_Rating IS NOT
+        NULL AND Meta_score IS NOT NULL is > 0 and count >= 2.'
+      sources:
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 74
+        end_line: 77
+        file: ''
+      uid: dbf11779-9903-432a-8063-89a7eb5738b2
+    - text: 'For any row with missing Meta_score, IMDB_Rating should be non-null so
+        that Meta_score can be imputed from IMDB_Rating. A suitable validation is:
+        .satisfies("CASE WHEN `Meta_score` IS NULL THEN CASE WHEN `IMDB_Rating` IS
+        NOT NULL THEN 1 ELSE 0 END ELSE 1 END", "IMDB present when Meta_score missing",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 80
+        end_line: 83
+        file: ''
+      uid: 40e620eb-5857-471b-9c44-0a716d376e28
+    - text: IMDB_Rating should not be missing for the vast majority of rows because
+        it contributes directly to content_quality without fillna; high null rates
+        would propagate NaNs into PopularityIndex. A reasonable validation is completeness
+        of IMDB_Rating >= 0.95.
+      sources:
+      - start_line: 44
+        end_line: 44
+        file: ''
+      - start_line: 92
+        end_line: 96
+        file: ''
+      - start_line: 98
+        end_line: 98
+        file: ''
+      uid: 04750960-998f-405c-b6c4-232ef1073ff3
+  Gross:
+    code:
+    - suggestion: '.satisfies("CAST(REGEXP_REPLACE(`Gross`, '','', '''') AS DOUBLE)
+        IS NOT NULL", "At least 10% of Gross parseable to double", lambda v: v >=
+        0.10)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: de2b0ba6-0ac2-47d8-814f-7980d9608aff
+      source_assumptions:
+      - af3d27cb-5912-48fb-bb75-d9ca2c81a5dc
+      - de6f8f7e-34c1-4d15-bb4e-949a5ded23c3
+    - suggestion: '.satisfies("CAST(REGEXP_REPLACE(`Gross`, '','', '''') AS DOUBLE)
+        IS NULL OR CAST(REGEXP_REPLACE(`Gross`, '','', '''') AS DOUBLE) >= 0", "Non-negative
+        CleanGross where present", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ef143c72-3bbb-4e68-b312-fd1e3b325ed3
+      source_assumptions:
+      - efe819b4-f97a-4ab0-a1e1-2f065b2f9ad9
+    - suggestion: '.satisfies("`Gross` IS NULL OR REGEXP_REPLACE(`Gross`, '','', '''')
+        RLIKE ''^-?[0-9]+(\\.[0-9]+)?$''", "Gross values sans commas are numeric for
+        >=90% of non-nulls (approx)", lambda v: v >= 0.90)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1d18a721-22d9-45be-a7ed-3080f69d0483
+      source_assumptions:
+      - 8b98d69d-bb9f-4b9d-bb86-453d3cc1774f
+    assumptions:
+    - text: The 'Gross' input should be parseable to a numeric USD amount after removing
+        thousands separators (commas). Concretely, if we define CleanGross = to_double(regexp_replace(Gross,
+        ',', '')), then at least 10% of rows should have CleanGross IS NOT NULL (i.e.,
+        be successfully parsed). This ensures the median-based fill and normalization
+        behave meaningfully.
+      sources:
+      - start_line: 55
+        end_line: 64
+        file: ''
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: af3d27cb-5912-48fb-bb75-d9ca2c81a5dc
+    - text: For all rows where 'Gross' is parseable (CleanGross IS NOT NULL as defined
+        above), the value should be non-negative so that log1p(CleanGross) is well-defined.
+        In other words, CleanGross >= 0 for all non-null CleanGross.
+      sources:
+      - start_line: 55
+        end_line: 55
+        file: ''
+      - start_line: 64
+        end_line: 64
+        file: ''
+      uid: efe819b4-f97a-4ab0-a1e1-2f065b2f9ad9
+    - text: The 'Gross' column may contain nulls or unparseable strings (e.g., missing
+        values), and these are acceptable because the code coerces them to null and
+        fills them with the median of available values. However, not all values should
+        be null/unparseable; there must be at least one non-null CleanGross to compute
+        a median-based fill. If enforcing a quantitative rule, require count(CleanGross)
+        >= 1.
+      sources:
+      - start_line: 55
+        end_line: 62
+        file: ''
+      - start_line: 64
+        end_line: 64
+        file: ''
+      uid: de6f8f7e-34c1-4d15-bb4e-949a5ded23c3
+    - text: The 'Gross' strings should not contain currency symbols or alphabetic
+        characters if they are expected to be retained as valid values, since only
+        commas are stripped before numeric parsing. Values containing '$', 'USD',
+        or other symbols will be treated as null. If enforcing a validity proportion,
+        after removing commas require that at least 90% of non-null 'Gross' values
+        match the numeric pattern ^-?[0-9]+(\.[0-9]+)?$.
+      sources:
+      - start_line: 55
+        end_line: 55
+        file: ''
+      uid: 8b98d69d-bb9f-4b9d-bb86-453d3cc1774f
+  '["Gross","IMDB_Rating","Meta_score","No_of_Votes","Runtime"]':
+    code: []
+    assumptions:
+    - text: 'The pair [''Series_Title'', ''Released_Year''] must uniquely identify
+        each row (no duplicates). We could enforce this with a uniqueness constraint
+        like: .isUnique([''Series_Title'', ''Released_Year'']).'
+      sources:
+      - start_line: 94
+        end_line: 101
+        file: ''
+      uid: db0b5b07-92c0-4435-ad92-33c6d26c3a77
+    - text: There must be at least two rows where both 'IMDB_Rating' and 'Meta_score'
+        are non-null and numeric, and both columns must have non-zero variance on
+        those rows so that correlation and linear regression are well-defined. This
+        can be represented as a constraint on completeness of the pair and a check
+        that approxCountDistinct > 1 for each within the valid pair filter.
+      sources:
+      - start_line: 67
+        end_line: 77
+        file: ''
+      uid: 5d3a75bf-3d4c-450d-acb0-2dc4e766ee5c
+    - text: 'For any row where ''Meta_score'' is missing, ''IMDB_Rating'' must be
+        present and numeric to allow regression-based imputation: (Meta_score IS NULL)
+        => (IMDB_Rating IS NOT NULL AND castable to float). This can be expressed
+        as a conditional compliance constraint.'
+      sources:
+      - start_line: 79
+        end_line: 85
+        file: ''
+      uid: c5c37adf-a8d7-45e7-afd7-f085d0d5a835
+    - text: The relationship between 'IMDB_Rating' and 'Meta_score' used for imputation
+        is assumed to be approximately monotonic increasing (positive slope) so that
+        higher ratings predict higher metascores. This supports stable linear imputation
+        Meta_score ~ a * IMDB_Rating + b with a > 0. This can be checked by verifying
+        that the fitted slope is positive or that the Pearson correlation r >= 0.
+      sources:
+      - start_line: 67
+        end_line: 77
+        file: ''
+      - start_line: 88
+        end_line: 92
+        file: ''
+      uid: 2be9d7e8-1f34-46da-afe0-3cedc7d8b2ef
+  '["IMDB_Rating","Meta_score"]':
+    code: []
+    assumptions:
+    - text: 'There must be at least two records where both ''IMDB_Rating'' and ''Meta_score''
+        are non-null, and among those records ''IMDB_Rating'' must have at least two
+        distinct values (preferably also ''Meta_score'') so that Pearson correlation
+        and linear regression (polyfit) are well-defined. This can be represented
+        as constraints like: .hasSatisfyingRows("IMDB_Rating IS NOT NULL AND Meta_score
+        IS NOT NULL", atLeast=2) and .hasNumberOfDistinctValues(''IMDB_Rating'', _
+        >= 2, where="Meta_score IS NOT NULL").'
+      sources:
+      - start_line: 67
+        end_line: 71
+        file: ''
+      - start_line: 73
+        end_line: 77
+        file: ''
+      uid: 33a127c0-22f9-49d1-b855-27a5f413909f
+    - text: 'For any row where ''Meta_score'' is missing, ''IMDB_Rating'' must be
+        present (non-null) because ''IMDB_Rating'' is required to impute ''Meta_score''
+        via the fitted linear model. This can be expressed as a conditional completeness
+        constraint: .satisfies("CASE WHEN Meta_score IS NULL THEN IMDB_Rating IS NOT
+        NULL ELSE true END", ''imdb_required_for_meta_imputation'', 1.0).'
+      sources:
+      - start_line: 79
+        end_line: 85
+        file: ''
+      uid: 0d17f2c2-b899-4ad5-aeee-8e75c817fdad
+    - text: 'The correlation used for weighting must be finite (not NaN). Therefore,
+        the Pearson correlation between ''IMDB_Rating'' and ''Meta_score'' over rows
+        where both are non-null must be defined. This is ensured by having sufficient
+        valid pairs and non-zero variance; it can be captured by constraints ensuring
+        at least two valid pairs and variance in the paired values, and optionally
+        a custom check that correlation is not NaN. Example: .hasSatisfyingRows("IMDB_Rating
+        IS NOT NULL AND Meta_score IS NOT NULL", atLeast=2) and .satisfies("variance(IMDB_Rating)
+        > 0 AND variance(Meta_score) > 0", ''nonzero_variance_for_corr'', 1.0).'
+      sources:
+      - start_line: 67
+        end_line: 71
+        file: ''
+      - start_line: 88
+        end_line: 93
+        file: ''
+      uid: 2980c40b-2aa9-4898-9813-ff0f2abae861
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' must be unique
+        across all records, as this composite key is intended to uniquely identify
+        rows for ranking and publishing. This can be represented as: .isUnique([''Series_Title'',
+        ''Released_Year'']).'
+      sources:
+      - start_line: 94
+        end_line: 101
+        file: ''
+      uid: 1a98b0c4-6143-4e9f-98ca-c432976c07c8
+  Meta_score:
+    code:
+    - suggestion: '.satisfies("Meta_score IS NOT NULL AND IMDB_Rating IS NOT NULL
+        AND CAST(Meta_score AS DOUBLE) IS NOT NULL AND CAST(IMDB_Rating AS DOUBLE)
+        IS NOT NULL", "At least two rows with numeric Meta_score and IMDB_Rating for
+        regression", lambda x: x >= 2)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("Meta_score IS NOT NULL AND IMDB_Rating
+        IS NOT NULL AND CAST(Meta_score AS DOUBLE) IS NOT NULL AND CAST(IMDB_Rating
+        AS DOUBLE) IS NOT NULL", "At least two rows with numeric Meta_score and IMDB_Rating
+        for regression", lambda x: x >= 2)'' failed on data sample: Value: 0.8564273789649416
+        does not meet the constraint requirement!'
+      level: error
+      uid: ea7c16ec-0f02-49b2-8988-46d6a69a1f97
+      source_assumptions:
+      - 1f98feed-fdf1-4573-a2ca-3613579bf9c3
+    - suggestion: '.hasDataType(''Meta_score'', ConstrainableDataTypes.Fractional,
+        lambda f: f == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Meta_score'',
+        ConstrainableDataTypes.Fractional, lambda f: f == 1.0)'
+      level: error
+      uid: 30dec0d2-3af9-47bc-9b8e-e0a74bbecbd5
+      source_assumptions:
+      - 27384a06-37f5-44c7-8827-016f6a9d3a88
+    - suggestion: '.satisfies("Meta_score IS NULL OR (CAST(Meta_score AS DOUBLE) >=
+        0 AND CAST(Meta_score AS DOUBLE) <= 100)", "Meta_score within [0,100] when
+        present", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 17424f14-a23a-4cdb-aa4a-9e28f9bc5883
+      source_assumptions:
+      - 207cc994-c7c5-4ee7-8622-4b2f6b089851
+    - suggestion: '.satisfies("Meta_score IS NOT NULL OR (IMDB_Rating IS NOT NULL
+        AND CAST(IMDB_Rating AS DOUBLE) IS NOT NULL)", "IMDB_Rating present and numeric
+        when Meta_score is missing", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0257f145-673f-4df0-84cf-ce9a89d74ca3
+      source_assumptions:
+      - f397b758-8d2f-4199-af61-f44980e43104
+    assumptions:
+    - text: 'There must be at least 2 rows where both ''Meta_score'' and ''IMDB_Rating''
+        are non-null (and numeric) so a linear fit Meta_score ~ IMDB_Rating can be
+        computed. A suitable constraint is: completeness of rows where Meta_score
+        IS NOT NULL AND IMDB_Rating IS NOT NULL >= 2 records.'
+      sources:
+      - start_line: 67
+        end_line: 71
+        file: ''
+      - start_line: 73
+        end_line: 77
+        file: ''
+      uid: 1f98feed-fdf1-4573-a2ca-3613579bf9c3
+    - text: 'All non-null values in ''Meta_score'' must be parseable as float (no
+        non-numeric strings), because the code casts to float without coercion. A
+        suitable constraint is: for all rows where Meta_score IS NOT NULL, CAST(Meta_score
+        AS DOUBLE) succeeds.'
+      sources:
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 73
+        end_line: 76
+        file: ''
+      - start_line: 79
+        end_line: 79
+        file: ''
+      uid: 27384a06-37f5-44c7-8827-016f6a9d3a88
+    - text: "The 'Meta_score' values are expected to be on a 0\u2013100 scale. When\
+        \ present, values should lie within [0, 100]. A suitable constraint is: min(Meta_score)\
+        \ >= 0 and max(Meta_score) <= 100 (evaluated over non-null values)."
+      sources:
+      - start_line: 82
+        end_line: 85
+        file: ''
+      uid: 207cc994-c7c5-4ee7-8622-4b2f6b089851
+    - text: 'The ''Meta_score'' column may contain nulls (missing values) in the input,
+        since the code explicitly imputes them via regression. A suitable constraint
+        is: completeness(''Meta_score'') can be < 1.0, but not required to be 1.0.'
+      sources:
+      - start_line: 79
+        end_line: 84
+        file: ''
+      uid: 2a722885-28a4-42d2-923b-714b1f3d21c0
+    - text: 'For rows where ''Meta_score'' is null, ''IMDB_Rating'' should be present
+        (non-null and numeric), otherwise imputation will fail and downstream scores
+        become null. A suitable constraint is: for all rows where Meta_score IS NULL,
+        IMDB_Rating IS NOT NULL.'
+      sources:
+      - start_line: 82
+        end_line: 83
+        file: ''
+      - start_line: 92
+        end_line: 96
+        file: ''
+      uid: f397b758-8d2f-4199-af61-f44980e43104
+  No_of_Votes:
+    code:
+    - suggestion: '.satisfies("(`No_of_Votes` IS NULL) OR (CAST(`No_of_Votes` AS DOUBLE)
+        IS NOT NULL)", "No_of_Votes parsable as numeric", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 93837e2b-da43-4be7-ba09-fb6097959f24
+      source_assumptions:
+      - 0cfdf9b9-c3aa-45b0-996e-0350fe2f4891
+    - suggestion: '.isNonNegative("No_of_Votes", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e0a18bf5-73ef-459b-9d99-ea0849c62cae
+      source_assumptions:
+      - d45992c7-d55f-4eec-bc2a-35170c5b24b6
+    - suggestion: '.satisfies("`No_of_Votes` IS NULL OR NOT (upper(trim(CAST(`No_of_Votes`
+        AS STRING))) IN (''INF'',''-INF'',''INFINITY'',''-INFINITY''))", "No infinities
+        in No_of_Votes", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 44c5ba64-7fef-48a6-b8a2-1a3c4a11eae3
+      source_assumptions:
+      - 2457db1e-c5f0-4413-96a5-1c6846541985
+    assumptions:
+    - text: 'The ''No_of_Votes'' column must be numeric-like (parsable to float) for
+        all non-null entries; values with thousands separators or other non-numeric
+        text are not allowed. Example validations: Deequ: hasDataType("No_of_Votes",
+        ConstrainableDataTypes.Integral) OR satisfies("CASE WHEN `No_of_Votes` IS
+        NULL OR CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Votes
+        parsable", lambda x: x == 1). Great Expectations: expect_column_values_to_be_in_type_list
+        with types ["int64", "float64"] or expect_column_values_to_match_regex "^-?\d+(\.\d+)?$"
+        allowing nulls.'
+      sources:
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: 0cfdf9b9-c3aa-45b0-996e-0350fe2f4891
+    - text: 'When present, ''No_of_Votes'' values must be non-negative to keep log1p
+        well-defined and avoid -inf/NaN. Example validations: Deequ: columnIsNonNegative("No_of_Votes").
+        Great Expectations: expect_column_values_to_be_between(min_value=0, allow_cross_type_comparisons=True,
+        mostly=1.0) with ignore nulls.'
+      sources:
+      - start_line: 47
+        end_line: 48
+        file: ''
+      - start_line: 95
+        end_line: 96
+        file: ''
+      uid: d45992c7-d55f-4eec-bc2a-35170c5b24b6
+    - text: 'The ''No_of_Votes'' column should not contain infinite values (+/-inf).
+        Example validations: Deequ: satisfies("CASE WHEN `No_of_Votes` IS NULL THEN
+        1 WHEN is_inf(CAST(`No_of_Votes` AS DOUBLE)) THEN 0 ELSE 1 END", "No infinities",
+        lambda x: x == 1). Great Expectations: expect_column_values_to_not_be_in_set
+        with value_set=[inf, -inf] and ignore nulls.'
+      sources:
+      - start_line: 47
+        end_line: 48
+        file: ''
+      uid: 2457db1e-c5f0-4413-96a5-1c6846541985
+    - text: 'Nulls in ''No_of_Votes'' are allowed; the pipeline tolerates missing
+        votes and imputes their contribution downstream during normalization. If you
+        want to assert a completeness threshold, it should be optional (not required
+        by code). Example validations (optional): Deequ: completeness("No_of_Votes")
+        >= 0.0 (trivially true) or set a domain-specific threshold if desired. Great
+        Expectations: expect_column_values_to_not_be_null with mostly set per business
+        need.'
+      sources:
+      - start_line: 47
+        end_line: 48
+        file: ''
+      uid: 1101b5ca-6033-4c61-bb0f-821101eba29a
+  Released_Year:
+    code:
+    - suggestion: .isComplete('Released_Year')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4c1c4beb-6c87-442b-a77f-48d641709b86
+      source_assumptions:
+      - 625241ad-21fa-4052-9f7d-8f3c635829b5
+    - suggestion: '.hasDistinctness([''Series_Title'', ''Released_Year''], lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5708d2d1-76f2-4a4c-b672-6ebb755ec111
+      source_assumptions:
+      - 47e89336-7d06-4aaa-9635-2d869db7f58c
+    - suggestion: '.hasDataType(''Released_Year'', ''Integral'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Released_Year'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: da91a3bb-8114-43c6-8b9b-e8ed546547a9
+      source_assumptions:
+      - 898e67c1-d9b5-4ef3-82a2-59096697db76
+    - suggestion: '.satisfies(''Released_Year BETWEEN 1900 AND 2035'', ''Released_Year
+        plausible range'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c7592082-351c-415c-8a9d-9f72f9303287
+      source_assumptions:
+      - 898e67c1-d9b5-4ef3-82a2-59096697db76
+    assumptions:
+    - text: 'Released_Year must be non-null for all rows because it is used as part
+        of the publishing key and is included in the final outputs. Example validation:
+        completeness(''Released_Year'') == 1.0.'
+      sources:
+      - start_line: 94
+        end_line: 99
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 106
+        end_line: 110
+        file: ''
+      uid: 625241ad-21fa-4052-9f7d-8f3c635829b5
+    - text: 'The combination (Series_Title, Released_Year) must be unique across the
+        dataset, as it acts as a title-year key for indexing/publishing. Example validation:
+        distinctness([''Series_Title'',''Released_Year'']) == 1.0.'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 47e89336-7d06-4aaa-9635-2d869db7f58c
+    - text: 'Released_Year should be an integer-like 4-digit year within a plausible
+        range (e.g., between 1900 and 2035). Example validation: satisfies(''Released_Year
+        BETWEEN 1900 AND 2035'', ''Released_Year range'', lambda x: x == 1.0) and
+        isNonNegative/isinteger checks as applicable.'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      - start_line: 106
+        end_line: 109
+        file: ''
+      uid: 898e67c1-d9b5-4ef3-82a2-59096697db76
+  Runtime:
+    code:
+    - suggestion: '.hasCompleteness(''Runtime'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 138e015a-5b81-46d0-b66a-0c0e4ea89ee7
+      source_assumptions:
+      - 21b4a2a3-4f77-4ab5-972d-eaa9c46de91f
+    - suggestion: '.satisfies("CASE WHEN `Runtime` RLIKE ''.*([0-9]{2,3}).*'' THEN
+        1 ELSE 0 END", "Runtime has 2-3 digit minutes", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b84e348f-10fd-4701-9761-c4dea9dccaaf
+      source_assumptions:
+      - f18e1184-2ca1-4e27-a80f-7cb7c30d0df6
+    - suggestion: '.satisfies("`Runtime` RLIKE ''(?i)^\\s*\\d{2,3}(\\s*(min|mins|minute|minutes))?\\s*$''",
+        "Runtime is simple minute format (2-3 digits, optional min label; case-insensitive)",
+        lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2b20bca3-1fc2-4a3b-a872-c8089359a80d
+      source_assumptions:
+      - ecff63ad-ddb1-435f-a1f5-09858dfc0ba0
+    - suggestion: '.satisfies("CASE WHEN CAST(regexp_extract(`Runtime`, ''([0-9]{2,3})'',
+        1) AS INT) >= 45 AND CAST(regexp_extract(`Runtime`, ''([0-9]{2,3})'', 1) AS
+        INT) <= 240 THEN 1 ELSE 0 END", "Runtime minutes within [45,240]", lambda
+        x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ecb89ca0-20c7-4c80-959f-890f58d64da8
+      source_assumptions:
+      - 0d6a5fd7-2b1d-4570-b698-ffb4d5c92974
+    assumptions:
+    - text: "The 'Runtime' column must contain a 2\u20133 digit minute value for every\
+        \ row (e.g., '142 min'), so that a numeric substring matching [0-9]{2,3} can\
+        \ always be extracted. This implies no blanks or non-numeric-only values.\
+        \ Example Deequ constraint: .satisfies(\"CASE WHEN `Runtime` RLIKE '.*([0-9]{2,3}).*'\
+        \ THEN 1 ELSE 0 END\", \"Runtime has 2-3 digit minutes\", lambda x: x == 1.0)"
+      sources:
+      - start_line: 51
+        end_line: 51
+        file: ''
+      uid: f18e1184-2ca1-4e27-a80f-7cb7c30d0df6
+    - text: 'The extracted minute value from ''Runtime'' must be castable to a non-null
+        integer for all rows (no NaNs after extraction), since the code performs .astype(int)
+        without coercion or null handling. Example Deequ constraint: .satisfies("CASE
+        WHEN `Runtime` RLIKE ''.*([0-9]{2,3}).*'' THEN 1 ELSE 0 END", "Runtime extract
+        non-null", lambda x: x == 1.0)'
+      sources:
+      - start_line: 51
+        end_line: 51
+        file: ''
+      uid: a9d66388-62b5-451f-84fc-35aeedb43fed
+    - text: "The 'Runtime' value should represent total runtime in minutes directly\
+        \ (not mixed hour-minute formats like '1h 45m'); the pipeline expects a single\
+        \ 2\u20133 digit minute count. Example Great Expectations: expect_column_values_to_match_regex\
+        \ column='Runtime', regex='^\\s*\\d{2,3}(\\s*min)?\\s*$' with mostly>=0.95\
+        \ if strict equality is not feasible."
+      sources:
+      - start_line: 51
+        end_line: 52
+        file: ''
+      uid: ecff63ad-ddb1-435f-a1f5-09858dfc0ba0
+    - text: 'Runtime minutes are expected to lie mostly within [45, 240]. Values outside
+        this range should be rare (e.g., at least 95% within bounds), as the scaling
+        function is calibrated to these limits. Example Deequ: .satisfies("CASE WHEN
+        regexp_extract(`Runtime`, ''([0-9]{2,3})'', 1) >= 45 AND regexp_extract(`Runtime`,
+        ''([0-9]{2,3})'', 1) <= 240 THEN 1 ELSE 0 END", "Runtime minutes within [45,240]",
+        lambda x: x >= 0.95)'
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 0d6a5fd7-2b1d-4570-b698-ffb4d5c92974
+    - text: 'The ''Runtime'' column should be complete (no nulls), since the code
+        does not handle missing values before parsing and uses it downstream in outputs.
+        Example Deequ completeness: .hasCompleteness("Runtime", lambda x: x == 1.0)'
+      sources:
+      - start_line: 51
+        end_line: 51
+        file: ''
+      - start_line: 106
+        end_line: 108
+        file: ''
+      uid: 21b4a2a3-4f77-4ab5-972d-eaa9c46de91f
+  '["Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.haveCompleteness([''Series_Title'', ''Released_Year''], lambda
+        c: c == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: aeb60509-fac7-4523-8ae2-12e26d323799
+      source_assumptions:
+      - 4c1db589-c2ce-462f-9ddb-eb913c1123cd
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda u:
+        u == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e0231db4-8bc4-488e-9a3d-cc703b734e41
+      source_assumptions:
+      - ef35eeee-ecb5-4e75-aa31-0f0a3a930c39
+    assumptions:
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' must be unique
+        across all records (i.e., one row per title-year). We could represent this
+        as a Deequ constraint: .isUnique(["Series_Title", "Released_Year"]).'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      - start_line: 101
+        end_line: 110
+        file: ''
+      uid: f2b8c0ef-48f9-4e71-bd65-29c3460f49fc
+    - text: 'All rows used for publishing must have non-null values in both ''Series_Title''
+        and ''Released_Year'' (completeness = 1.0 for both). This can be represented
+        as a Deequ compliance constraint: .isComplete("Series_Title").isComplete("Released_Year")
+        or a combined compliance: .hasCompliance("title_year_complete", "Series_Title
+        IS NOT NULL AND Released_Year IS NOT NULL", 1.0).'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      - start_line: 101
+        end_line: 115
+        file: ''
+      uid: ef35eeee-ecb5-4e75-aa31-0f0a3a930c39
+    - text: 'Uniqueness of the (''Series_Title'', ''Released_Year'') key is expected
+        to hold even after trimming whitespace and normalizing case of ''Series_Title''
+        (i.e., lower(trim(Series_Title))). This guards against duplicate keys differing
+        only by casing or stray spaces. Basis for a Deequ-style constraint: ensure
+        distinct count of concat(lower(trim(Series_Title)), Released_Year) equals
+        row count, e.g., via a compliance or by adding a normalized column then using
+        .isUnique(["Series_Title_normalized", "Released_Year"]).'
+      sources:
+      - start_line: 94
+        end_line: 96
+        file: ''
+      - start_line: 101
+        end_line: 110
+        file: ''
+      uid: 4c1db589-c2ce-462f-9ddb-eb913c1123cd
+  Series_Title:
+    code:
+    - suggestion: '.satisfies(''length(trim(`Series_Title`)) > 0'', ''Series_Title
+        non-empty after trim'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6b66c0a8-1182-4a69-8bd7-d7d9830e877b
+      source_assumptions:
+      - 3aa7154b-3cd6-4f72-928b-068aeb44c188
+      - 8b488a40-6bf3-415a-8b3c-7929fa25d3c2
+    - suggestion: '.satisfies(''`Series_Title` = trim(`Series_Title`)'', ''Series_Title
+        has no leading/trailing whitespace'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 60d76392-c7fa-472a-874c-f46eacb7f01f
+      source_assumptions:
+      - aa2dd059-37d1-4919-94e2-e62e3e4b3f4f
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda u:
+        u == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b2e65443-ac63-48a9-8db6-e36e5be9ec86
+      source_assumptions:
+      - 97d04371-7bac-42d6-8726-889667848b31
+    assumptions:
+    - text: Series_Title must be present (column exists) and complete (no nulls) because
+        it is used as part of the publishing key and included in outputs without any
+        null-handling.
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 106
+        end_line: 109
+        file: ''
+      uid: 3aa7154b-3cd6-4f72-928b-068aeb44c188
+    - text: The combination of Series_Title and Released_Year should uniquely identify
+        each input row (no duplicate title-year pairs), since the script sets this
+        pair as the key for downstream publishing/ranking.
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 97d04371-7bac-42d6-8726-889667848b31
+    - text: Series_Title values should be non-empty strings (after trimming) to serve
+        as reliable keys and CSV outputs; i.e., trimmed length > 0 for all rows.
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 106
+        end_line: 109
+        file: ''
+      uid: 8b488a40-6bf3-415a-8b3c-7929fa25d3c2
+    - text: Series_Title should not contain leading or trailing whitespace so that
+        keys are consistent and not split by accidental spacing differences; i.e.,
+        Series_Title == TRIM(Series_Title) for all rows.
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: aa2dd059-37d1-4919-94e2-e62e3e4b3f4f
+column_data_flow_locations:
+  IMDB_Rating:
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 74
+    end_line: 74
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 93
+    file: ''
+  - start_line: 95
+    end_line: 96
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 112
+    file: ''
+  - start_line: 114
+    end_line: 115
+    file: ''
+  No_of_Votes:
+  - start_line: 8
+    end_line: 15
+    file: ''
+  - start_line: 47
+    end_line: 48
+    file: ''
+  - start_line: 95
+    end_line: 115
+    file: ''
+  Runtime:
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 96
+    end_line: 96
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  Gross:
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 55
+    end_line: 55
+    file: ''
+  - start_line: 57
+    end_line: 62
+    file: ''
+  - start_line: 64
+    end_line: 64
+    file: ''
+  - start_line: 95
+    end_line: 98
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 110
+    file: ''
+  - start_line: 1111
+    end_line: 1112
+    file: ''
+  - start_line: 1114
+    end_line: 1115
+    file: ''
+  Meta_score:
+  - start_line: 67
+    end_line: 71
+    file: ''
+  - start_line: 73
+    end_line: 77
+    file: ''
+  - start_line: 79
+    end_line: 86
+    file: ''
+  - start_line: 88
+    end_line: 92
+    file: ''
+  - start_line: 95
+    end_line: 96
+    file: ''
+  - start_line: 98
+    end_line: 99
+    file: ''
+  - start_line: 103
+    end_line: 105
+    file: ''
+  - start_line: 106
+    end_line: 110
+    file: ''
+  - start_line: 111
+    end_line: 115
+    file: ''
+  Series_Title:
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  Released_Year:
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 106
+    end_line: 115
+    file: ''
+fixing_results:
+  IMDB_Rating:
+    1a002c75-6c33-485d-b15c-b97ba3751766: '.hasSize(lambda n: n >= 2).satisfies("`IMDB_Rating`
+      IS NOT NULL AND `Meta_score` IS NOT NULL", "Rows with both ratings present (fraction
+      > 0)", lambda f: f > 0.0)'
+  Runtime:
+    2b20bca3-1fc2-4a3b-a872-c8089359a80d: '.satisfies("`Runtime` RLIKE ''(?i)^\\s*\\d{2,3}(\\s*(min|mins|minute|minutes))?\\s*$''",
+      "Runtime is simple minute format (2-3 digits, optional min label; case-insensitive)",
+      lambda x: x >= 0.0)'
+consolidation_results:
+  IMDB_Rating:
+  - idx_to_remove: 94ea742e-3ec0-4f29-b4be-cc1f32d5a51d
+    redundant_with:
+    - f760e25e-d639-470d-93ad-14054e82d40f
+  Gross:
+  - idx_to_remove: cb5b9b40-84c0-4d3a-bf0e-20899efc7d83
+    redundant_with:
+    - de2b0ba6-0ac2-47d8-814f-7980d9608aff
+  Runtime:
+  - idx_to_remove: a00dbc2e-c9b0-4b82-81c9-9fe9e2a28d51
+    redundant_with:
+    - b84e348f-10fd-4701-9761-c4dea9dccaaf
+  Series_Title:
+  - idx_to_remove: cec2141b-10c6-411c-abf3-154352980c47
+    redundant_with:
+    - 6b66c0a8-1182-4a69-8bd7-d7d9830e877b
+    - 60d76392-c7fa-472a-874c-f46eacb7f01f
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  code_fixing:
+    cost: 0.04127625
+    total_tokens: 6134
+    prompt_tokens: 2293
+    completion_tokens: 3841
+  consolidate_constraints:
+    cost: 0.06039250000000001
+    total_tokens: 13713
+    prompt_tokens: 8770
+    completion_tokens: 4943

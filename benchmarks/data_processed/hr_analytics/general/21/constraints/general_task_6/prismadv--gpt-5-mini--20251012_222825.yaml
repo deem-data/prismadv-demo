@@ -1,0 +1,2655 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-mini
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  YearsAtCompany:
+    code:
+    - suggestion: '.satisfies("CASE WHEN cast(`YearsAtCompany` as double) IS NOT NULL
+        THEN 1 ELSE 0 END", "YearsAtCompany parseable as numeric", lambda x: x ==
+        1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0e8cf739-1ca9-42a0-9808-23dded87d591
+      source_assumptions:
+      - ff06b908-ac61-4d0f-b316-6a18f6a15553
+    - suggestion: '.satisfies("CASE WHEN cast(`YearsAtCompany` as double) >= 0 THEN
+        1 ELSE 0 END", "YearsAtCompany non-negative", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9e00a0ae-4086-416b-845d-d323ff5a5e43
+      source_assumptions:
+      - 2a57eba4-ac7f-4a52-bd97-398208b4873c
+    - suggestion: '.satisfies("CASE WHEN cast(`YearsAtCompany` as double) <> 0 THEN
+        1 ELSE 0 END", "YearsAtCompany not mostly zeros (<=20% zeros allowed)", lambda
+        x: x >= 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ef476b68-9d17-4ad3-a2a9-9577f0096c97
+      source_assumptions:
+      - 0fa4e299-3e13-4e69-a406-0c7c1c02a5de
+    - suggestion: '.satisfies("CASE WHEN floor(cast(`YearsAtCompany` as double)) =
+        cast(`YearsAtCompany` as double) THEN 1 ELSE 0 END", "YearsAtCompany integer-valued
+        (<=1% non-integers allowed)", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: abd298c6-013d-46b4-b832-b2c21f11c3ed
+      source_assumptions:
+      - 983b1756-7fd3-4a39-8f76-8fe4d42bc162
+    assumptions:
+    - text: 'The ''YearsAtCompany'' column must be numeric (or string values that
+        can be converted to numeric). The code calls pd.to_numeric(..., errors=''coerce''),
+        so any non-convertible value will become NaN and alter downstream computations.
+        Validation rule example: require that 100% (or a high percentage) of values
+        are parseable as numbers (i.e. would not be coerced to NaN).'
+      sources:
+      - start_line: 45
+        end_line: 46
+        file: ''
+      - start_line: 48
+        end_line: 51
+        file: ''
+      uid: ff06b908-ac61-4d0f-b316-6a18f6a15553
+    - text: 'The ''YearsAtCompany'' column should contain non-negative values (>=
+        0). Negative tenure is not handled and would produce unexpected tenure_ratio
+        / scores. Validation rule example: assert YearsAtCompany >= 0 for all rows.'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      - start_line: 67
+        end_line: 76
+        file: ''
+      uid: 2a57eba4-ac7f-4a52-bd97-398208b4873c
+    - text: 'Zero values in ''YearsAtCompany'' are allowed and are treated as "no
+        tenure" by the code: zeros are replaced with NaN for the denominator so tenure_ratio
+        becomes 0 after fillna. Validation rule example: allow YearsAtCompany == 0,
+        and if present ensure this is a small/expected proportion of the population
+        if business logic requires it.'
+      sources:
+      - start_line: 48
+        end_line: 51
+        file: ''
+      uid: 0fa4e299-3e13-4e69-a406-0c7c1c02a5de
+    - text: '''YearsAtCompany'' is expected to be integral (whole years). The dataset
+        metadata indicates an integral type and downstream logic uses it as a count
+        of years. Validation rule example: assert that YearsAtCompany values are integers
+        (e.g., YearAtCompany % 1 == 0) or within 0 tolerance of an integer.'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      uid: 983b1756-7fd3-4a39-8f76-8fe4d42bc162
+  AgeGroup:
+    code:
+    - suggestion: '.hasCompleteness("AgeGroup", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e61a5195-e26f-4300-bc02-aee72db77f73
+      source_assumptions:
+      - 58fdb86a-7321-4978-9d59-0c2c4b2fcabe
+    - suggestion: '.satisfies("CASE WHEN `AgeGroup` IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')
+        THEN 1 ELSE 0 END", "Valid AgeGroup", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e9ef3d5a-1de9-4b0f-8bff-36bc0fe4a1d7
+      source_assumptions:
+      - 27f3c8d0-0a5e-4d2c-b8f3-5b785e1e4606
+      - da6e1f1a-9f57-43b0-8dec-ea2da04bb720
+    assumptions:
+    - text: 'The ''AgeGroup'' column must contain only the five expected categories
+        used by the scoring logic: ''18-25'', ''26-35'', ''36-45'', ''46-55'', and
+        ''55+''. The code maps these exact string values to numeric weights (age_weight_map)
+        and any value not in this set will map to NaN, which will propagate through
+        raw_score and produce invalid/missing AttritionRiskScore values. Example validation
+        rules you can derive:
+
+        - Deequ: .satisfies("CASE WHEN `AgeGroup` IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')
+        THEN 1 ELSE 0 END", "Valid AgeGroup", lambda x: x == 1.0)
+
+        - Great Expectations: expect_column_values_to_be_in_set(''AgeGroup'', [''18-25'',''26-35'',''36-45'',''46-55'',''55+''])'
+      sources:
+      - start_line: 36
+        end_line: 43
+        file: ''
+      - start_line: 67
+        end_line: 76
+        file: ''
+      uid: 27f3c8d0-0a5e-4d2c-b8f3-5b785e1e4606
+    - text: 'The ''AgeGroup'' column should have no null / missing values in the input
+        data. The code does not fill or handle missing AgeGroup values before mapping
+        them to weights and writing outputs; missing values would produce NaN weights
+        and downstream NaN risk scores or missing RiskTier. Example validation rules:
+
+        - Deequ: .hasCompleteness(''AgeGroup'', lambda x: x == 1.0)
+
+        - Great Expectations: expect_column_values_to_not_be_null(''AgeGroup'')'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: 58fdb86a-7321-4978-9d59-0c2c4b2fcabe
+    - text: 'AgeGroup values must match the mapping keys exactly (including spelling,
+        punctuation, and no extraneous whitespace or different casing). The mapping
+        is exact-string based (map(age_weight_map)), so '' 26-35'' or ''26-35 '' or
+        ''26 - 35'' or different case would be treated as invalid. Either ensure input
+        is normalized to these exact tokens or validate that the trimmed/raw strings
+        equal the allowed tokens. Example validations / normalization checks:
+
+        - Deequ (strict): .satisfies("CASE WHEN `AgeGroup` IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')
+        THEN 1 ELSE 0 END", "Exact-form AgeGroup", lambda x: x == 1.0)
+
+        - Great Expectations (normalize-then-check suggestion): apply a pre-check
+        that df[''AgeGroup''].str.strip() is in the set, or expect_column_values_to_be_in_set([list])
+        after trimming.'
+      sources:
+      - start_line: 36
+        end_line: 43
+        file: ''
+      uid: da6e1f1a-9f57-43b0-8dec-ea2da04bb720
+  Attrition:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Attrition` IS NOT NULL THEN 1 ELSE 0 END",
+        "Attrition completeness", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8a98954c-2657-45c9-9090-d37aa40e9ad7
+      source_assumptions:
+      - e8aa2351-8b00-43b6-8e5d-a604b978542d
+    - suggestion: '.satisfies("CASE WHEN `Attrition` IN (''Yes'',''No'') THEN 1 ELSE
+        0 END", "Attrition has expected categories", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f32a5f35-e274-44e7-a55e-25b7a7b12e54
+      source_assumptions:
+      - 9aed9d95-2fec-4533-a89a-08b376e2abb8
+    - suggestion: '.satisfies("CASE WHEN `Attrition` = ''Yes'' THEN 1 ELSE 0 END",
+        "Has at least one Yes", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9709d3b1-4dc0-40ab-877d-3e9c54bf8f18
+      source_assumptions:
+      - 92a93cb0-2a3d-4c88-85ab-b8357cd516aa
+    - suggestion: '.satisfies("CASE WHEN `Attrition` = ''No'' THEN 1 ELSE 0 END",
+        "Has at least one No", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2e2b869d-4451-4e38-8ddd-9f19299f822a
+      source_assumptions:
+      - 92a93cb0-2a3d-4c88-85ab-b8357cd516aa
+    - suggestion: '.hasDataType("Attrition", "String", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Attrition",
+        "String", lambda x: x == 1.0)'
+      level: warning
+      uid: 3f291f34-643b-43ae-ad49-91447be2abf4
+      source_assumptions:
+      - 9fc1b40c-7014-4847-af33-312d0d4cbe45
+    assumptions:
+    - text: 'The ''Attrition'' column is expected to be complete (no null/missing
+        values) in the input data because the code computes the overall positive rate
+        directly from df[''Attrition''] and uses it to set the model intercept. Represent
+        this as a validation like:
+
+        .satisfies("CASE WHEN `Attrition` IS NOT NULL THEN 1 ELSE 0 END", "Attrition
+        completeness", lambda x: x == 1.0)'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 64
+        end_line: 66
+        file: ''
+      uid: e8aa2351-8b00-43b6-8e5d-a604b978542d
+    - text: 'The ''Attrition'' column should use canonical, case-sensitive labels
+        ''Yes'' and ''No'' (no alternative spellings like ''yes'', ''Y'', ''Nope'',
+        or other categories). The code treats only the exact string ''Yes'' as the
+        positive class in (df[''Attrition''] == ''Yes''). Represent this as:
+
+        .satisfies("CASE WHEN `Attrition` IN (''Yes'',''No'') THEN 1 ELSE 0 END",
+        "Attrition has expected categories", lambda x: x == 1.0)'
+      sources:
+      - start_line: 64
+        end_line: 64
+        file: ''
+      uid: 9aed9d95-2fec-4533-a89a-08b376e2abb8
+    - text: 'There should be at least one row with Attrition == ''Yes'' and at least
+        one row with Attrition == ''No'' so that the computed prevalence (yes_rate)
+        is meaningful for the intercept calculation. Represent as two checks, e.g.:
+
+        .satisfies("CASE WHEN `Attrition` = ''Yes'' THEN 1 ELSE 0 END", "Has at least
+        one Yes", lambda x: x > 0)
+
+        and
+
+        .satisfies("CASE WHEN `Attrition` = ''No'' THEN 1 ELSE 0 END", "Has at least
+        one No", lambda x: x > 0)'
+      sources:
+      - start_line: 64
+        end_line: 66
+        file: ''
+      uid: 92a93cb0-2a3d-4c88-85ab-b8357cd516aa
+    - text: 'The ''Attrition'' column is expected to be a string/categorical field
+        (not numeric). If the input supplies numeric or boolean encodings, they should
+        be converted to the canonical ''Yes''/''No'' strings before running this script.
+        Example check (conceptual): ensure dtype is string-like or values are coercible
+        to strings and map to ''Yes''/''No''.'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 64
+        end_line: 64
+        file: ''
+      uid: 9fc1b40c-7014-4847-af33-312d0d4cbe45
+  ? '["AgeGroup","Attrition","AttritionRiskScore","DistanceFromHome","JobSatisfaction","OverTime","WorkLifeBalance","YearsAtCompany","YearsSinceLastPromotion","YearsWithCurrManager"]'
+  : code: []
+    assumptions:
+    - text: "PerformanceRating must be one of the keys used in rating_bonus_map (3\
+        \ or 4) and PercentSalaryHike must be present and numeric so that recommended_percent\
+        \ = PercentSalaryHike + rating_bonus is defined for every row. Actionable\
+        \ constraints: require PerformanceRating \u2208 {3,4} (or that rating_bonus\
+        \ is not null) and PercentSalaryHike is complete and numeric (e.g. Deequ:\
+        \ .isContainedIn('PerformanceRating', [3,4]) and .isComplete('PercentSalaryHike')\
+        \ and .hasDataType('PercentSalaryHike','Integral'/'Fractional') or .isComplete('recommended_percent'))."
+      sources:
+      - start_line: 18
+        end_line: 20
+        file: ''
+      uid: 67e410e0-a33b-434a-b45a-685fd1339658
+    - text: "SalarySlab must be one of the expected categories so cap_percent is defined,\
+        \ recommended_percent (from PercentSalaryHike + rating_bonus) must be numeric/non-null,\
+        \ and MonthlyIncome must be non-null numeric so approved_amount = MonthlyIncome\
+        \ * (approved_percent/100) can be computed. Actionable constraints: SalarySlab\
+        \ \u2208 {'Upto 5k','5k-10k','10k-15k','15k+'}, PercentSalaryHike and MonthlyIncome\
+        \ complete and numeric, or equivalently require approved_percent and approved_amount\
+        \ to be complete and numeric (e.g. Deequ: .isContainedIn('SalarySlab',[...])\
+        \ and .isComplete('MonthlyIncome') and .isComplete('approved_amount'))."
+      sources:
+      - start_line: 21
+        end_line: 24
+        file: ''
+      uid: fa46fcbe-ac91-4019-aff8-7d120658dff5
+    - text: "Each EmpID should map to a single Department (no EmpID appears with different\
+        \ Department values) so that Headcount per Department (counting EmpID) is\
+        \ meaningful. Actionable constraints: EmpID should be unique across the dataset\
+        \ or at minimum the pair (EmpID, Department) should have no duplicate EmpID\
+        \ with differing Department values (e.g. Deequ: .hasUniqueValue('EmpID') or\
+        \ assert uniqueness of EmpID\u2192Department mapping)."
+      sources:
+      - start_line: 26
+        end_line: 29
+        file: ''
+      uid: 89e90b9d-9f14-4aeb-ae83-2cdef6c7ffda
+    - text: 'YearsSinceLastPromotion must be numeric, non-negative, and less than
+        or equal to YearsAtCompany for every row so tenure_ratio = YearsSinceLastPromotion
+        / YearsAtCompany is meaningful (division-by-zero handled separately in code).
+        Actionable constraints: .isNonNegative(''YearsSinceLastPromotion''), .isNonNegative(''YearsAtCompany''),
+        and a row-level constraint YearsSinceLastPromotion <= YearsAtCompany (e.g.
+        Deequ: .satisfies(''YearsSinceLastPromotion <= YearsAtCompany'',''promotion_le_tenure'')).'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      uid: babd861f-0f6d-4ca3-8f8e-07dbc0f34dd2
+    - text: 'YearsWithCurrManager must be numeric, non-negative and logically <= YearsAtCompany
+        (an employee cannot have been with the current manager longer than their total
+        YearsAtCompany) so mgr_penalty calculation and comparisons (< 1.0) are valid.
+        Actionable constraints: .isNonNegative(''YearsWithCurrManager'') and row-level
+        constraint YearsWithCurrManager <= YearsAtCompany (e.g. Deequ: .satisfies(''YearsWithCurrManager
+        <= YearsAtCompany'',''mgr_tenure_le_total'')).'
+      sources:
+      - start_line: 62
+        end_line: 63
+        file: ''
+      uid: 9d30fa90-08a1-4be5-802e-8afc835969df
+  '["AgeGroup","Department","EmpID","JobRole","MonthlyIncome","SalarySlab"]':
+    code: []
+    assumptions:
+    - text: "PerformanceRating and PercentSalaryHike must together produce a numeric,\
+        \ non-null recommended_percent for every row. Concretely, PerformanceRating\
+        \ should be restricted to the mapping keys {3, 4} (so rating_bonus is not\
+        \ null) and PercentSalaryHike must be present and numeric for all rows. This\
+        \ ensures df['recommended_percent'] = PercentSalaryHike + rating_bonus is\
+        \ defined for every record. Example checks: PerformanceRating \u2208 {3,4}\
+        \ AND PercentSalaryHike is complete and numeric (so recommended_percent is\
+        \ complete)."
+      sources:
+      - start_line: 18
+        end_line: 20
+        file: ''
+      uid: f814b89f-2b1b-4291-a0a8-4199208309da
+    - text: SalarySlab and MonthlyIncome must allow computing approved_amount for
+        every row. Concretely, SalarySlab must be one of the cap map keys {'Upto 5k','5k-10k','10k-15k','15k+'}
+        (so cap_percent is not null) and MonthlyIncome must be present and numeric.
+        Combined with the recommended_percent requirement above, this guarantees df['approved_amount']
+        = MonthlyIncome * (approved_percent/100.0) is numeric and non-null.
+      sources:
+      - start_line: 21
+        end_line: 24
+        file: ''
+      uid: 56d46303-228f-4504-93f0-2207347871de
+    - text: "EmpID must be consistently assigned to a single Department: the same\
+        \ EmpID should not appear with different Department values. The department-level\
+        \ headcount is computed via df.groupby('Department').count(EmpID), so inconsistent\
+        \ EmpID\u2192Department mappings will corrupt headcounts. A precise constraint:\
+        \ for each EmpID, the set of Department values associated with that EmpID\
+        \ should have cardinality 1."
+      sources:
+      - start_line: 26
+        end_line: 30
+        file: ''
+      uid: 37eb39fc-5c89-4282-8cd1-a6f774bf1af2
+    - text: "YearsSinceLastPromotion and YearsAtCompany must be internally consistent:\
+        \ YearsSinceLastPromotion should be \u2264 YearsAtCompany for every record\
+        \ (and if YearsAtCompany == 0 then YearsSinceLastPromotion should be 0). This\
+        \ ensures the computed tenure_ratio = YearsSinceLastPromotion / YearsAtCompany\
+        \ (with zeros handled) is meaningful and not > 1 due to invalid data."
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      uid: 2002dd87-7db5-421a-be27-66be8d4c4097
+    - text: "JobRole should map consistently to Department (JobRole \u2192 Department\
+        \ is many-to-one). The code's department budget logic and the comment indicate\
+        \ an assumption that JobRole values belong to a single Department; verify\
+        \ that for each JobRole there is exactly one Department among rows with that\
+        \ JobRole."
+      sources:
+      - start_line: 26
+        end_line: 30
+        file: ''
+      uid: 7e33317b-a7fb-47ef-828e-f2d16b66e529
+    - text: JobSatisfaction and WorkLifeBalance must contain only the expected ordinal
+        values used by the penalty mappings (1, 2, 3, 4). Both columns must be present
+        and limited to {1,2,3,4} so job_penalty and wlb_penalty map to numeric values
+        for every row used in the risk score.
+      sources:
+      - start_line: 54
+        end_line: 57
+        file: ''
+      uid: ea22bb79-e8a4-41e1-9544-b4e5384e1ded
+  WorkLifeBalance:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `WorkLifeBalance` IN (1, 2, 3, 4) THEN 1
+        ELSE 0 END", "Valid WorkLifeBalance codes", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a44546d8-36de-4aa8-8f39-1282d64b9266
+      source_assumptions:
+      - 16603200-a3bc-41b0-8dcf-294346161743
+    - suggestion: .isComplete("WorkLifeBalance")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 32983842-c65c-47f3-a298-c51b109c7222
+      source_assumptions:
+      - f97f7a1e-6538-49cb-8a7d-8332f708e2df
+    - suggestion: '.hasDataType("WorkLifeBalance", "Integral", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("WorkLifeBalance",
+        "Integral", lambda x: x == 1.0)'
+      level: error
+      uid: 5f4796c7-5cae-40b5-a25a-382c225010b0
+      source_assumptions:
+      - 8ffc56a8-4065-4621-be2e-7e50d34e34e3
+    assumptions:
+    - text: 'The ''WorkLifeBalance'' column must contain only the categorical integer
+        codes 1, 2, 3, or 4 because the code maps these exact keys (wlb_map) and uses
+        the mapped penalty in the attrition risk calculation. We can express this
+        as a Deequ/GtExpectations-style check, for example:
+
+        .satisfies("CASE WHEN `WorkLifeBalance` IN (1, 2, 3, 4) THEN 1 ELSE 0 END",
+        "Valid WorkLifeBalance codes", lambda x: x == 1.0)
+
+        (or a tolerance like lambda x: x >= 0.99 if you want to allow rare unknowns).'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 76
+        file: ''
+      uid: 16603200-a3bc-41b0-8dcf-294346161743
+    - text: 'The ''WorkLifeBalance'' column should not contain null/missing values
+        because the code maps it and immediately converts the mapped result to float
+        and incorporates it into the raw_score calculation; missing inputs would produce
+        NaNs that propagate into AttritionRiskScore. Represent this as:
+
+        .satisfies("CASE WHEN `WorkLifeBalance` IS NOT NULL THEN 1 ELSE 0 END", "Non-null
+        WorkLifeBalance", lambda x: x == 1.0)
+
+        (or equivalently use isComplete on the column).'
+      sources:
+      - start_line: 57
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 76
+        file: ''
+      uid: f97f7a1e-6538-49cb-8a7d-8332f708e2df
+    - text: 'Values in ''WorkLifeBalance'' must be numeric/integral (or convertible
+        to numeric) because the code expects to map integer keys and then cast the
+        mapped penalties to float (.astype(float)). You can check convertibility and/or
+        integer-ness, for example:
+
+        .satisfies("CASE WHEN TRY_CAST(`WorkLifeBalance` AS DOUBLE) IS NOT NULL THEN
+        1 ELSE 0 END", "WorkLifeBalance numeric-convertible", lambda x: x == 1.0)
+
+        and optionally enforce integer range:
+
+        .satisfies("CASE WHEN `WorkLifeBalance` BETWEEN 1 AND 4 THEN 1 ELSE 0 END",
+        "WorkLifeBalance in [1,4]", lambda x: x == 1.0).'
+      sources:
+      - start_line: 57
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 76
+        file: ''
+      uid: 8ffc56a8-4065-4621-be2e-7e50d34e34e3
+  YearsWithCurrManager:
+    code:
+    - suggestion: '.hasCompleteness(''YearsWithCurrManager'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a0a0bb01-921c-4ff6-a9d3-f3eddcd5da41
+      source_assumptions:
+      - 9f6bf712-0c90-4cdd-b2bc-5ecbb3bb284b
+    - suggestion: '.satisfies("CASE WHEN `YearsWithCurrManager` IS NULL OR regexp_like(cast(`YearsWithCurrManager`
+        AS STRING), ''^-?[0-9]+(\.[0-9]+)?$'') THEN 1 ELSE 0 END", "Numeric YearsWithCurrManager",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 30951a41-d1b2-4c60-9961-e36ebcb81a57
+      source_assumptions:
+      - 81556d99-c18a-4121-aa8e-db6fd6e2cc33
+      - b953314d-61b3-4179-a6a0-5c6149f947d9
+    - suggestion: '.satisfies("CASE WHEN `YearsWithCurrManager` IS NULL OR (cast(`YearsWithCurrManager`
+        AS DOUBLE) >= 0 AND cast(`YearsWithCurrManager` AS DOUBLE) <= 40) THEN 1 ELSE
+        0 END", "YearsWithCurrManager range [0,40]", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d47b41ad-f0aa-4a6e-b6b1-9e65c72046c7
+      source_assumptions:
+      - 50b3b621-2744-4d22-bc36-f9a6275cfed1
+    assumptions:
+    - text: "The 'YearsWithCurrManager' column may contain missing values and the\
+        \ pipeline handles them by filling missing values with 0. However, the input\
+        \ should not be mostly missing \u2013 expect high completeness (e.g., >= 95%).\n\
+        Suggested validation (Deequ/GE): .satisfies(\"CASE WHEN `YearsWithCurrManager`\
+        \ IS NOT NULL THEN 1 ELSE 0 END\", \"Non-null YearsWithCurrManager fraction\"\
+        , lambda x: x >= 0.95)"
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 62
+        end_line: 62
+        file: ''
+      uid: 9f6bf712-0c90-4cdd-b2bc-5ecbb3bb284b
+    - text: 'All non-missing values in ''YearsWithCurrManager'' must be numeric (convertible
+        to float). The code calls .astype(float) which will raise on non-numeric strings,
+        so inputs should be numeric or NULL.
+
+        Suggested validation: .satisfies("CASE WHEN `YearsWithCurrManager` IS NULL
+        OR regexp_like(cast(`YearsWithCurrManager` AS STRING), ''^-?\\d+(\\.\\d+)?$'')
+        THEN 1 ELSE 0 END", "Numeric YearsWithCurrManager", lambda x: x == 1.0)'
+      sources:
+      - start_line: 62
+        end_line: 63
+        file: ''
+      uid: 81556d99-c18a-4121-aa8e-db6fd6e2cc33
+    - text: '''YearsWithCurrManager'' represents tenure in years and should be non-negative.
+        The code compares values to 1.0 to apply a penalty for tenure < 1 year, so
+        negative values are likely invalid and should be rejected. Optionally enforce
+        a reasonable upper bound (e.g., <= 40) to catch data errors.
+
+        Suggested validation: .satisfies("CASE WHEN `YearsWithCurrManager` IS NULL
+        OR (`YearsWithCurrManager` >= 0 AND `YearsWithCurrManager` <= 40) THEN 1 ELSE
+        0 END", "YearsWithCurrManager range", lambda x: x == 1.0)'
+      sources:
+      - start_line: 63
+        end_line: 63
+        file: ''
+      - start_line: 73
+        end_line: 75
+        file: ''
+      uid: 50b3b621-2744-4d22-bc36-f9a6275cfed1
+    - text: 'Fractional (decimal) values are allowed for ''YearsWithCurrManager''
+        because the code casts to float and treats the value as continuous (e.g.,
+        0.5 years is meaningful for the <1.0 check). Validate that values can include
+        decimals if present.
+
+        Suggested validation: .satisfies("CASE WHEN `YearsWithCurrManager` IS NULL
+        OR regexp_like(cast(`YearsWithCurrManager` AS STRING), ''^-?\\d+(\\.\\d+)?$'')
+        THEN 1 ELSE 0 END", "YearsWithCurrManager numeric/decimal", lambda x: x ==
+        1.0)'
+      sources:
+      - start_line: 62
+        end_line: 63
+        file: ''
+      uid: b953314d-61b3-4179-a6a0-5c6149f947d9
+  EmpID:
+    code:
+    - suggestion: .isComplete('EmpID')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e7146711-0235-4af8-abc2-99ee27bb07f5
+      source_assumptions:
+      - 2eb13b79-bb3e-40fb-a1ed-d962f74e0190
+    - suggestion: .isUnique('EmpID')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 485ab9c1-3d22-426e-81cf-b1449e79406f
+      source_assumptions:
+      - 71700735-dbf4-45d8-aaff-127a0596a85e
+    - suggestion: '.hasPattern(''EmpID'', ''.+'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0e2203c7-9f5f-43e1-a8e2-da5701c86f60
+      source_assumptions:
+      - 8436f3e3-59f7-4a44-a750-15a248a251a1
+    assumptions:
+    - text: 'All input rows must have a non-null EmpID. The code groups by Department
+        and counts EmpID to compute headcount and also writes EmpID out into result
+        CSVs, so missing EmpID values would break counting semantics and the output.
+        Example Deequ/GX style check: .satisfies("CASE WHEN EmpID IS NOT NULL THEN
+        1 ELSE 0 END", "Non-null EmpID", lambda x: x == 1.0) or Great Expectations:
+        expect_column_values_to_not_be_null(''EmpID'').'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 27
+        end_line: 29
+        file: ''
+      - start_line: 85
+        end_line: 92
+        file: ''
+      uid: 2eb13b79-bb3e-40fb-a1ed-d962f74e0190
+    - text: 'EmpID should uniquely identify each employee row (one row per EmpID).
+        The department headcount is computed via df.groupby(''Department'').agg(Headcount=(''EmpID'',''count'')),
+        which implicitly expects one record per employee; duplicates will make headcounts
+        inaccurate. Example Deequ/GX style check: ensure distinct_count(EmpID) ==
+        count(*) or as a ratio: .satisfies("CASE WHEN count_distinct(EmpID) / count(*)
+        = 1.0 THEN 1 ELSE 0 END", "Unique EmpID", lambda x: x == 1.0). In Great Expectations:
+        expect_column_values_to_be_unique(''EmpID'').'
+      sources:
+      - start_line: 27
+        end_line: 29
+        file: ''
+      - start_line: 85
+        end_line: 92
+        file: ''
+      uid: 71700735-dbf4-45d8-aaff-127a0596a85e
+    - text: 'EmpID values should be non-empty strings (no blank/zero-length values).
+        The dataset and later outputs treat EmpID as a string key included in CSVs;
+        blank strings may be treated like present values but are not valid identifiers.
+        Example Deequ/GX style check: .satisfies("CASE WHEN EmpID IS NOT NULL AND
+        trim(EmpID) <> '''' THEN 1 ELSE 0 END", "EmpID non-empty", lambda x: x ==
+        1.0) or Great Expectations: expect_column_values_to_not_be_null(''EmpID'')
+        combined with expect_column_values_to_match_regex(''EmpID'', ".+" ).'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 89
+        end_line: 92
+        file: ''
+      uid: 8436f3e3-59f7-4a44-a750-15a248a251a1
+  DistanceFromHome:
+    code:
+    - suggestion: '.hasDataType(''DistanceFromHome'', ''Numeric'', lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''DistanceFromHome'',
+        ''Numeric'', lambda x: x == 1)'
+      level: error
+      uid: f6bcd4b9-73e0-41f0-9c6c-e0ca3fc6b4f9
+      source_assumptions:
+      - bb1c98f5-63a3-42ab-8fc1-2a74bc589586
+    - suggestion: .isComplete('DistanceFromHome')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 94276da3-760a-43f4-bf15-3ddec75cb517
+      source_assumptions:
+      - ea30a58c-333b-4d74-93a6-5371e715fa03
+    - suggestion: '.isNonNegative(''DistanceFromHome'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 20134680-c906-4b23-ad15-1e7d36ec853c
+      source_assumptions:
+      - 1028cff3-740d-4191-85ce-fc4de993738b
+    - suggestion: '.hasMax(''DistanceFromHome'', lambda x: x <= 10000)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 31331c42-7980-4dfd-887f-84ffb6aaeac9
+      source_assumptions:
+      - f8570905-6a55-44b0-ba19-9126861d4777
+    - suggestion: '.hasDataType(''DistanceFromHome'', ''Integral'', lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''DistanceFromHome'',
+        ''Integral'', lambda x: x == 1)'
+      level: warning
+      uid: 3ef51c6c-a95b-4404-9e23-5671376ecd3b
+      source_assumptions:
+      - ee37845b-3e0a-49d7-9764-bbffb9cf942f
+    assumptions:
+    - text: 'DistanceFromHome must be numeric / convertible to float because the code
+        calls df[''DistanceFromHome''].max(), casts the column to float and divides
+        by the max (normalization). If values are non-numeric (e.g. ''unknown'' strings)
+        the conversion will produce NaNs and break downstream scoring. Suggested checks:
+        Great Expectations: expect_column_values_to_be_of_type(''DistanceFromHome'',
+        ''Integer'') or expect_column_values_to_match_regex(''DistanceFromHome'',
+        ''^[0-9]+$''); Deequ/SQL-style: .satisfies("CASE WHEN TRY_CAST(`DistanceFromHome`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", ''Distance numeric'', lambda x:
+        x == 1).'
+      sources:
+      - start_line: 59
+        end_line: 60
+        file: ''
+      - start_line: 74
+        end_line: 75
+        file: ''
+      uid: bb1c98f5-63a3-42ab-8fc1-2a74bc589586
+    - text: 'DistanceFromHome should not contain nulls (no missing values). The code
+        does not defensively fill or drop missing DistanceFromHome values before using
+        them in normalization and scoring, so nulls would propagate to dist_norm and
+        then to the final AttritionRiskScore. Suggested checks: Great Expectations:
+        expect_column_values_to_not_be_null(''DistanceFromHome''); Deequ: .satisfies("CASE
+        WHEN `DistanceFromHome` IS NOT NULL THEN 1 ELSE 0 END", ''Non-null DistanceFromHome'',
+        lambda x: x == 1).'
+      sources:
+      - start_line: 59
+        end_line: 60
+        file: ''
+      - start_line: 74
+        end_line: 75
+        file: ''
+      uid: ea30a58c-333b-4d74-93a6-5371e715fa03
+    - text: 'DistanceFromHome values should be non-negative (>= 0). Distances that
+        are negative are semantically invalid and would produce negative normalized
+        values which likely break the intended risk interpretation. Suggested checks:
+        Great Expectations: expect_column_values_to_be_between(''DistanceFromHome'',
+        min_value=0); Deequ/SQL-style: .satisfies("CASE WHEN `DistanceFromHome` >=
+        0 THEN 1 ELSE 0 END", ''Non-negative DistanceFromHome'', lambda x: x == 1).'
+      sources:
+      - start_line: 59
+        end_line: 60
+        file: ''
+      - start_line: 74
+        end_line: 75
+        file: ''
+      uid: 1028cff3-740d-4191-85ce-fc4de993738b
+    - text: 'DistanceFromHome values must be finite (no infinities) and within a reasonable
+        numeric range. The code converts to float and divides by the max; infinite
+        or extremely large values could lead to invalid or unstable normalized scores.
+        Suggested checks: Great Expectations: expect_column_values_to_not_be_null(''DistanceFromHome'')
+        combined with expect_column_values_to_be_between(''DistanceFromHome'', min_value=0,
+        max_value=10000) (adjust max_value for your business context). Deequ/SQL-style:
+        .satisfies("CASE WHEN `DistanceFromHome` IS NOT NULL AND `DistanceFromHome`
+        > -1e308 AND `DistanceFromHome` < 1e308 THEN 1 ELSE 0 END", ''Finite DistanceFromHome'',
+        lambda x: x == 1).'
+      sources:
+      - start_line: 59
+        end_line: 60
+        file: ''
+      uid: f8570905-6a55-44b0-ba19-9126861d4777
+    - text: 'DistanceFromHome is expected to be integral / whole-number values (no
+        fractional distances). The dataset metadata indicates integral type and the
+        code casts to float only for normalization, implying integer input. Suggested
+        checks: Great Expectations: expect_column_values_to_be_in_type_list(''DistanceFromHome'',
+        [''Integer'']) or expect_column_values_to_match_regex(''DistanceFromHome'',
+        ''^[0-9]+$'').'
+      sources:
+      - start_line: 60
+        end_line: 60
+        file: ''
+      uid: ee37845b-3e0a-49d7-9764-bbffb9cf942f
+  Department:
+    code:
+    - suggestion: .isComplete('Department')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 580820d1-2c26-4f76-8345-8316a6396be9
+      source_assumptions:
+      - 5ea215e0-9b5f-4f95-9a1a-1fc615916d7d
+    - suggestion: '.satisfies("CASE WHEN `Department` IN (''Sales'',''Research & Development'',''Human
+        Resources'') THEN 1 ELSE 0 END", "Valid Departments", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 00549684-9806-4582-bc1c-570b9b630ed1
+      source_assumptions:
+      - ca530fe7-bc14-45da-b496-62a31cdb6d59
+    - suggestion: '.satisfies("CASE WHEN TRIM(`Department`) IN (''Sales'',''Research
+        & Development'',''Human Resources'') THEN 1 ELSE 0 END", "Trimmed Departments
+        in set", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d01b7ae6-459d-48ec-96c7-f4e7f2ca4064
+      source_assumptions:
+      - e86b149a-47e6-4290-a180-e27f9cd17b5c
+    - suggestion: '.satisfies("CASE WHEN ((`JobRole` = ''Sales Executive'' AND `Department`
+        = ''Sales'') OR (`JobRole` = ''Sales Representative'' AND `Department` = ''Sales'')
+        OR (`JobRole` = ''Research Scientist'' AND `Department` = ''Research & Development'')
+        OR (`JobRole` = ''Laboratory Technician'' AND `Department` = ''Research &
+        Development'') OR (`JobRole` = ''Manufacturing Director'' AND `Department`
+        = ''Research & Development'') OR (`JobRole` = ''Research Director'' AND `Department`
+        = ''Research & Development'') OR (`JobRole` = ''Human Resources'' AND `Department`
+        = ''Human Resources'') OR (`JobRole` = ''Healthcare Representative'' AND `Department`
+        = ''Sales'') OR (`JobRole` = ''Manager'' AND `Department` IN (''Sales'',''Research
+        & Development'',''Human Resources'')) ) THEN 1 ELSE 0 END", "JobRole-Department
+        consistency", lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN ((`JobRole` = ''Sales
+        Executive'' AND `Department` = ''Sales'') OR (`JobRole` = ''Sales Representative''
+        AND `Department` = ''Sales'') OR (`JobRole` = ''Research Scientist'' AND `Department`
+        = ''Research & Development'') OR (`JobRole` = ''Laboratory Technician'' AND
+        `Department` = ''Research & Development'') OR (`JobRole` = ''Manufacturing
+        Director'' AND `Department` = ''Research & Development'') OR (`JobRole` =
+        ''Research Director'' AND `Department` = ''Research & Development'') OR (`JobRole`
+        = ''Human Resources'' AND `Department` = ''Human Resources'') OR (`JobRole`
+        = ''Healthcare Representative'' AND `Department` = ''Sales'') OR (`JobRole`
+        = ''Manager'' AND `Department` IN (''Sales'',''Research & Development'',''Human
+        Resources'')) ) THEN 1 ELSE 0 END", "JobRole-Department consistency", lambda
+        x: x >= 0.95)'' failed on data sample: Value: 0.9206349206349206 does not
+        meet the constraint requirement!'
+      level: warning
+      uid: 76011871-ec54-4998-b1f1-b8ebdf8bd910
+      source_assumptions:
+      - 69be5b82-3565-4846-b771-4e9f261b127b
+    assumptions:
+    - text: 'The ''Department'' column must not contain null/missing values because
+        the code groups by Department and writes Department out to the risk output.
+        Represent as a validation rule (Deequ/GX): .satisfies("CASE WHEN `Department`
+        IS NOT NULL THEN 1 ELSE 0 END", "Department not null", lambda x: x == 1.0).'
+      sources:
+      - start_line: 27
+        end_line: 33
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 5ea215e0-9b5f-4f95-9a1a-1fc615916d7d
+    - text: 'The ''Department'' column should contain only the expected categorical
+        values: ''Sales'', ''Research & Development'', and ''Human Resources''. The
+        code does not sanitize unexpected department names before grouping or output,
+        so input must already use these canonical values. Represent as a validation
+        rule: .satisfies("CASE WHEN `Department` IN (''Sales'',''Research & Development'',''Human
+        Resources'') THEN 1 ELSE 0 END", "Valid Departments", lambda x: x == 1.0).'
+      sources:
+      - start_line: 27
+        end_line: 30
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: ca530fe7-bc14-45da-b496-62a31cdb6d59
+    - text: 'Department values must be normalized (no leading/trailing whitespace
+        and consistent capitalization/spelling) because grouping/aggregation and downstream
+        outputs assume exact string matches. A practical check: trim whitespace and
+        assert exact membership in the canonical set. Example Deequ-style rule: .satisfies("CASE
+        WHEN TRIM(`Department`) IN (''Sales'',''Research & Development'',''Human Resources'')
+        THEN 1 ELSE 0 END", "Trimmed Departments in set", lambda x: x == 1.0).'
+      sources:
+      - start_line: 26
+        end_line: 30
+        file: ''
+      uid: e86b149a-47e6-4290-a180-e27f9cd17b5c
+    - text: 'Department should be consistent with JobRole (i.e., JobRole values should
+        map to departments in a predictable way). The code comment indicates reliance
+        on Department/JobRole consistency for departmental budgets; ensure there are
+        no widespread contradictions between Department and JobRole. Example check:
+        create a mapping of allowed (JobRole, Department) pairs and assert most rows
+        conform (e.g., >= 0.95).'
+      sources:
+      - start_line: 26
+        end_line: 29
+        file: ''
+      uid: 69be5b82-3565-4846-b771-4e9f261b127b
+  '["Department","JobRole"]':
+    code: []
+    assumptions:
+    - text: 'Each JobRole should deterministically map to a single Department (functional
+        dependency: JobRole -> Department). The code relies on Department-level aggregation
+        and then outputs Department and JobRole together, so JobRole values must not
+        be spread across multiple Departments. This can be enforced with a Deequ-style
+        constraint such as: .hasFunctionalDependency([''JobRole''], ''Department'')
+        (or assert that for every JobRole the number of distinct Department values
+        = 1).'
+      sources:
+      - start_line: 26
+        end_line: 30
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 85b719a6-b906-47b9-b111-45c82d127460
+    - text: 'Approved amounts must be computable for every row from the combination
+        of PerformanceRating, PercentSalaryHike, SalarySlab and MonthlyIncome. Concretely:
+        PerformanceRating must be within the mapped keys (3, 4), SalarySlab must be
+        one of {''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+''}, and PercentSalaryHike
+        and MonthlyIncome must be numeric/non-null so that approved_amount = MonthlyIncome
+        * (min(PercentSalaryHike + rating_bonus, cap_percent) / 100) is defined and
+        >= 0. Enforceable checks include: completeness of [''PerformanceRating'',''PercentSalaryHike'',''SalarySlab'',''MonthlyIncome''],
+        containment checks for SalarySlab and PerformanceRating, and that ''approved_amount''
+        is complete and non-negative.'
+      sources:
+      - start_line: 18
+        end_line: 24
+        file: ''
+      - start_line: 26
+        end_line: 30
+        file: ''
+      uid: 748c5d0a-d8a1-473f-887b-9bd3039ea72e
+    - text: 'Each EmpID should be associated with exactly one Department and one JobRole
+        (functional dependency: EmpID -> {Department, JobRole}). When exporting risk
+        results by EmpID the script assumes no conflicting Department/JobRole values
+        for the same EmpID. This can be enforced with Deequ by asserting EmpID uniqueness
+        and/or functional dependencies: .isUnique(''EmpID'') and .hasFunctionalDependency([''EmpID''],
+        ''Department'') and .hasFunctionalDependency([''EmpID''], ''JobRole'').'
+      sources:
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 678bbb36-d0cb-4c59-b41c-c292236d5363
+  PercentSalaryHike:
+    code:
+    - suggestion: .isComplete("PercentSalaryHike")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 43a7391c-0b33-431e-9d05-7677f788bfd8
+      source_assumptions:
+      - 0f7a31ea-3f3c-4263-8946-c1e2c7402cfc
+    - suggestion: .hasDataType("PercentSalaryHike", "Integral")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("PercentSalaryHike",
+        "Integral")'
+      level: error
+      uid: 65a4bb83-b722-4fe1-a9b8-fea390914bdb
+      source_assumptions:
+      - 3e1718af-60e9-4e56-b6ec-066187563b36
+    - suggestion: '.satisfies("CASE WHEN `PercentSalaryHike` >= 0 AND `PercentSalaryHike`
+        <= 100 THEN 1 ELSE 0 END", "PercentSalaryHike_in_0_100", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e4c5c97f-e866-4253-b190-8ac55fd87291
+      source_assumptions:
+      - d786f6f0-b10c-460f-ae0f-e064f731740c
+    - suggestion: '.satisfies("CASE WHEN `PercentSalaryHike` = CAST(`PercentSalaryHike`
+        AS BIGINT) THEN 1 ELSE 0 END", "PercentSalaryHike_is_integer", lambda x: x
+        == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 29f31f83-d720-478a-9762-a462666373b1
+      source_assumptions:
+      - 3e40c8da-e49b-4ee0-bc29-39af45d2e3aa
+    assumptions:
+    - text: 'The ''PercentSalaryHike'' column must be non-null in the input data because
+        the code reads the CSV and uses this column directly in arithmetic (addition,
+        min, and division) without any null-handling. A validation rule could be:
+        .satisfies("CASE WHEN `PercentSalaryHike` IS NOT NULL THEN 1 ELSE 0 END",
+        "PercentSalaryHike_not_null", lambda x: x == 1)'
+      sources:
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 23
+        end_line: 24
+        file: ''
+      uid: 0f7a31ea-3f3c-4263-8946-c1e2c7402cfc
+    - text: 'The ''PercentSalaryHike'' column must be numeric (integral) or safely
+        convertible to numeric because it is added to a float (rating_bonus) and used
+        in numeric comparisons and arithmetic to compute approved_percent and approved_amount.
+        A validation rule could be: .satisfies("CASE WHEN TRY_CAST(`PercentSalaryHike`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "PercentSalaryHike_is_numeric",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 20
+        end_line: 24
+        file: ''
+      uid: 3e1718af-60e9-4e56-b6ec-066187563b36
+    - text: 'The values in ''PercentSalaryHike'' should represent percentage points
+        (i.e., 10 means 10%), because the pipeline divides the approved percent by
+        100 when computing approved_amount. Validate that values are in a reasonable
+        percent range. A suggested constraint: .satisfies("CASE WHEN `PercentSalaryHike`
+        >= 0 AND `PercentSalaryHike` <= 100 THEN 1 ELSE 0 END", "PercentSalaryHike_in_0_100",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 21
+        end_line: 23
+        file: ''
+      uid: d786f6f0-b10c-460f-ae0f-e064f731740c
+    - text: 'The ''PercentSalaryHike'' values are expected to be whole numbers (integers)
+        because metadata indicates an integral type and downstream logic treats them
+        as discrete percentage points. A possible validation: .satisfies("CASE WHEN
+        `PercentSalaryHike` = CAST(`PercentSalaryHike` AS BIGINT) THEN 1 ELSE 0 END",
+        "PercentSalaryHike_is_integer", lambda x: x == 1)'
+      sources:
+      - start_line: 15
+        end_line: 20
+        file: ''
+      - start_line: 89
+        end_line: 92
+        file: ''
+      uid: 3e40c8da-e49b-4ee0-bc29-39af45d2e3aa
+  MonthlyIncome:
+    code:
+    - suggestion: .isComplete('MonthlyIncome')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1475f1f0-b830-4c15-a992-74b3a3a4dcdb
+      source_assumptions:
+      - 08b5f37a-e1a4-4e7c-bcad-711e190cee0e
+    - suggestion: '.satisfies(''CASE WHEN TRY_CAST(`MonthlyIncome` AS DOUBLE) IS NOT
+        NULL THEN 1 ELSE 0 END'', ''MonthlyIncome is numeric'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7c0b5e51-7271-495a-b55c-169ae62bff0c
+      source_assumptions:
+      - 329a68c9-9fc5-4255-9d0d-40ef2aaa10a7
+    - suggestion: '.isNonNegative(''MonthlyIncome'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 858b2687-61e1-4cd9-af97-2655ca33f741
+      source_assumptions:
+      - 507358c5-83e3-4d55-9e27-d9d562e6416f
+    - suggestion: '.hasApproxQuantile(''MonthlyIncome'', 0.5, lambda q: q <= 100000)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 6e695921-3801-447e-945e-d36fba1a7a9f
+      source_assumptions:
+      - 3b34b426-b717-4d67-a88d-9900972265d9
+    - suggestion: '.hasMax(''MonthlyIncome'', lambda x: x <= 1000000)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5d2d4fbe-aa0f-49c1-9edd-9d55d57a05fe
+      source_assumptions:
+      - 3b34b426-b717-4d67-a88d-9900972265d9
+    assumptions:
+    - text: 'The ''MonthlyIncome'' column must be present and contain no missing values
+        (no NULL/NaN) in the input data because the script reads the CSV and directly
+        uses MonthlyIncome in arithmetic to compute approved_amount and writes it
+        out. Practical check (Deequ/GX style): require fraction of non-null MonthlyIncome
+        == 1.0, e.g. Deequ: .satisfies("CASE WHEN `MonthlyIncome` IS NOT NULL THEN
+        1 ELSE 0 END", "Non-null MonthlyIncome", lambda x: x == 1.0) or Great Expectations:
+        expect_column_values_to_not_be_null(''MonthlyIncome'').'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 89
+        end_line: 92
+        file: ''
+      uid: 08b5f37a-e1a4-4e7c-bcad-711e190cee0e
+    - text: 'All values in ''MonthlyIncome'' must be numeric/convertible to numeric
+        (integral or float) and finite (no Inf/NaN) because the code multiplies it
+        by approved_percent and aggregates the result for budgets. Practical check:
+        ensure all rows pass numeric conversion and are finite, e.g. Deequ: .satisfies("CASE
+        WHEN TRY_CAST(`MonthlyIncome` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "MonthlyIncome
+        is numeric", lambda x: x == 1.0) or Great Expectations: expect_column_values_to_be_of_type(''MonthlyIncome'',
+        ''int64/float64'') or expect_column_values_to_be_between with allow_cross_type=True.'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 27
+        end_line: 29
+        file: ''
+      uid: 329a68c9-9fc5-4255-9d0d-40ef2aaa10a7
+    - text: 'MonthlyIncome values should be non-negative (>= 0). Negative salaries
+        would produce negative approved_amounts and distort department merit budgets.
+        Practical check: require minimum MonthlyIncome >= 0, e.g. Deequ: .satisfies("CASE
+        WHEN `MonthlyIncome` >= 0 THEN 1 ELSE 0 END", "Non-negative MonthlyIncome",
+        lambda x: x == 1.0) or Great Expectations: expect_column_values_to_be_between(''MonthlyIncome'',
+        min_value=0).'
+      sources:
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 27
+        end_line: 29
+        file: ''
+      uid: 507358c5-83e3-4d55-9e27-d9d562e6416f
+    - text: 'MonthlyIncome should be expressed in a consistent monthly currency unit
+        across all rows (i.e., not a mixture of monthly and annual figures or different
+        currencies), since approved_amount and department merit aggregates assume
+        consistent units. Practical check suggestions: compare percentiles for multimodality
+        (e.g., check that median*12 is not roughly equal to a large subset''s values)
+        or assert that values fall within an expected realistic range for this organization
+        (e.g., between 0 and an upper bound). Example (Great Expectations style):
+        expect_column_quantile_values_to_be_between or expect_column_values_to_be_between(''MonthlyIncome'',
+        min_value=0, max_value=1000000).'
+      sources:
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 27
+        end_line: 29
+        file: ''
+      - start_line: 89
+        end_line: 92
+        file: ''
+      uid: 3b34b426-b717-4d67-a88d-9900972265d9
+  JobRole:
+    code:
+    - suggestion: .isComplete('JobRole')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5de605cc-8e77-4265-b660-02550a59a8f5
+      source_assumptions:
+      - 19042a1a-dd62-42c8-914f-15d1eae8abd4
+    - suggestion: '.isContainedIn(''JobRole'', [''Research Director'',''Sales Representative'',''Research
+        Scientist'',''Manufacturing Director'',''Healthcare Representative'',''Sales
+        Executive'',''Manager'',''Human Resources'',''Laboratory Technician''], lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 56b05d23-199b-4fdf-9679-be536cc07468
+      source_assumptions:
+      - 91df5968-a470-4f30-b723-cd28839170d1
+    - suggestion: '.satisfies(''CASE WHEN `JobRole` = TRIM(`JobRole`) THEN 1 ELSE
+        0 END'', ''JobRole trimmed'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 64defc3a-86f1-4ea5-a2a2-756ce456690c
+      source_assumptions:
+      - 9aa2e98c-733c-4cf3-ba0a-2997fc6e3898
+    - suggestion: '.satisfies("CASE WHEN ((`Department` = ''Sales'' AND `JobRole`
+        IN (''Sales Executive'',''Sales Representative'',''Healthcare Representative'',''Manager''))
+        OR (`Department` = ''Research & Development'' AND `JobRole` IN (''Research
+        Scientist'',''Laboratory Technician'',''Research Director'',''Manufacturing
+        Director'',''Manager'')) OR (`Department` = ''Human Resources'' AND `JobRole`
+        IN (''Human Resources'',''Manager''))) THEN 1 ELSE 0 END", ''Dept-JobRole
+        consistency'', lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN ((`Department` = ''Sales''
+        AND `JobRole` IN (''Sales Executive'',''Sales Representative'',''Healthcare
+        Representative'',''Manager'')) OR (`Department` = ''Research & Development''
+        AND `JobRole` IN (''Research Scientist'',''Laboratory Technician'',''Research
+        Director'',''Manufacturing Director'',''Manager'')) OR (`Department` = ''Human
+        Resources'' AND `JobRole` IN (''Human Resources'',''Manager''))) THEN 1 ELSE
+        0 END", ''Dept-JobRole consistency'', lambda x: x >= 0.95)'' failed on data
+        sample: Value: 0.9206349206349206 does not meet the constraint requirement!'
+      level: warning
+      uid: 95e3ea65-a38b-4ef7-9955-b47c7fbbd888
+      source_assumptions:
+      - d55565b0-bf9a-4791-9384-06a6c0816272
+    assumptions:
+    - text: 'The ''JobRole'' column must be non-null in the input data because the
+        script reads the dataframe and writes JobRole to downstream outputs (risk_scores.csv)
+        and relies on stable JobRole values for reporting. You can represent this
+        as a Deequ/Greatexpectations style check such as: .satisfies("CASE WHEN `JobRole`
+        IS NOT NULL THEN 1 ELSE 0 END", "Non-null JobRole", lambda x: x == 1).'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      - start_line: 26
+        end_line: 30
+        file: ''
+      uid: 19042a1a-dd62-42c8-914f-15d1eae8abd4
+    - text: 'The ''JobRole'' column should contain only the expected categorical values.
+        Based on the dataset these are: ''Research Director'', ''Sales Representative'',
+        ''Research Scientist'', ''Manufacturing Director'', ''Healthcare Representative'',
+        ''Sales Executive'', ''Manager'', ''Human Resources'', ''Laboratory Technician''.
+        You can represent this as: .satisfies("CASE WHEN `JobRole` IN (''Research
+        Director'',''Sales Representative'',''Research Scientist'',''Manufacturing
+        Director'',''Healthcare Representative'',''Sales Executive'',''Manager'',''Human
+        Resources'',''Laboratory Technician'') THEN 1 ELSE 0 END", "Valid JobRole",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 91df5968-a470-4f30-b723-cd28839170d1
+    - text: 'JobRole values must be canonical strings (no unexpected leading/trailing
+        whitespace and consistent casing) because the code uses exact string values
+        in outputs and downstream grouping/reporting. A check could be: .satisfies("CASE
+        WHEN `JobRole` = TRIM(`JobRole`) THEN 1 ELSE 0 END", "JobRole trimmed", lambda
+        x: x == 1) and rely on the allowed-values check above to enforce canonical
+        casing.'
+      sources:
+      - start_line: 85
+        end_line: 87
+        file: ''
+      - start_line: 26
+        end_line: 30
+        file: ''
+      uid: 9aa2e98c-733c-4cf3-ba0a-2997fc6e3898
+    - text: 'There should be a stable / consistent relationship between Department
+        and JobRole (i.e., only expected Department-JobRole combinations appear).
+        The comment in the code implies department budgets rely on Department/JobRole
+        consistency; unexpected Department-JobRole pairs should be rare (for example,
+        <= 5% of rows) or ideally absent. This can be expressed as: .satisfies("CASE
+        WHEN (`Department`,`JobRole`) IN (<whitelist of allowed pairs>) THEN 1 ELSE
+        0 END", "Dept-JobRole consistency", lambda x: x >= 0.95). Replace <whitelist
+        of allowed pairs> with the known valid combinations for your org.'
+      sources:
+      - start_line: 26
+        end_line: 30
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: d55565b0-bf9a-4791-9384-06a6c0816272
+  JobSatisfaction:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN `JobSatisfaction` IN (1,2,3,4) THEN 1 ELSE
+        0 END'', ''JobSatisfaction in {1,2,3,4}'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f3ebed3c-62e0-489d-9e3e-a68d0b681c7c
+      source_assumptions:
+      - f9143daf-7654-4df2-b461-ff99f5360eda
+    - suggestion: .isComplete('JobSatisfaction')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e6173fcb-b63e-4a5f-b2ee-f3abeee0b697
+      source_assumptions:
+      - 32109b05-ddc4-479f-9ef8-badcafe90f6e
+    - suggestion: '.hasDataType(''JobSatisfaction'', ''Integral'', lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''JobSatisfaction'',
+        ''Integral'', lambda x: x == 1)'
+      level: error
+      uid: 337774ea-bf97-4cac-968a-2cdc95b0530d
+      source_assumptions:
+      - f9143daf-7654-4df2-b461-ff99f5360eda
+    assumptions:
+    - text: 'JobSatisfaction must contain only the expected ordinal categories 1,
+        2, 3, or 4. The code maps these integer values to numeric penalties via job_sat_map
+        = {1:0.4, 2:0.2, 3:-0.1, 4:-0.2}; any value outside this set (including strings
+        like ''1'' if mapping keys are ints) will result in an unmapped (NaN) penalty
+        and will break/propagate NaNs into the AttritionRiskScore calculation. Example
+        validation (Deequ-like): .satisfies("CASE WHEN `JobSatisfaction` IN (1,2,3,4)
+        THEN 1 ELSE 0 END", "JobSatisfaction in {1,2,3,4}", lambda x: x == 1)'
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      - start_line: 69
+        end_line: 71
+        file: ''
+      uid: f9143daf-7654-4df2-b461-ff99f5360eda
+    - text: 'JobSatisfaction must not be null / missing in the input. The code does
+        not fill or handle missing JobSatisfaction values before using the mapped
+        penalty in arithmetic (job_penalty is multiplied into raw_score), so missing
+        input values will produce NaNs and corrupt AttritionRiskScore. Example validation:
+        .satisfies("CASE WHEN `JobSatisfaction` IS NOT NULL THEN 1 ELSE 0 END", "JobSatisfaction
+        non-null", lambda x: x == 1)'
+      sources:
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 67
+        end_line: 76
+        file: ''
+      uid: 32109b05-ddc4-479f-9ef8-badcafe90f6e
+  YearsSinceLastPromotion:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `YearsSinceLastPromotion` RLIKE ''^[0-9]+$''
+        THEN 1 ELSE 0 END", "NumericYearsSinceLastPromotion", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a8591e2b-6c8a-4cc7-b6ed-b4bd2fec25fe
+      source_assumptions:
+      - 127b0722-6721-4c82-baa1-1d5bf43128e3
+    - suggestion: '.isNonNegative(''YearsSinceLastPromotion'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a355e143-349d-4bb4-94c6-3f15cd3f73d0
+      source_assumptions:
+      - c87cfb72-eb3b-4d13-a5c3-a48e768db5db
+    - suggestion: '.satisfies("CASE WHEN `YearsSinceLastPromotion` <= `YearsAtCompany`
+        THEN 1 ELSE 0 END", "YSP_le_YearsAtCompany", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0a9e719e-cd8b-422d-a0a0-e28192a2ec57
+      source_assumptions:
+      - d9439566-9bc0-4f62-9e03-3ed4f47ca80f
+    - suggestion: '.satisfies("`YearsSinceLastPromotion` IS NOT NULL", "NonNullYearsSinceLastPromotion",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5af35548-7ba0-4397-9c00-499a534e8b77
+      source_assumptions:
+      - 8573b3a4-4d35-47d2-978d-b287bfeb3c41
+    assumptions:
+    - text: 'The ''YearsSinceLastPromotion'' column should be numeric / integer-convertible
+        (no freeform text). The code calls pd.to_numeric(..., errors=''coerce'') and
+        then fills coerced NaNs with 0, so non-numeric values will be turned into
+        0 implicitly which is likely unintended. Validate that most values parse as
+        numbers (preferably all). Example Deequ-style constraint: .satisfies("CASE
+        WHEN `YearsSinceLastPromotion` RLIKE ''^[0-9]+$'' THEN 1 ELSE 0 END", "NumericYearsSinceLastPromotion",
+        lambda x: x >= 0.95)'
+      sources:
+      - start_line: 45
+        end_line: 49
+        file: ''
+      uid: 127b0722-6721-4c82-baa1-1d5bf43128e3
+    - text: 'The ''YearsSinceLastPromotion'' values should be non-negative integers
+        (>= 0). The code treats NaNs as 0 and then divides by YearsAtCompany to compute
+        a tenure ratio, so negative values would produce misleading ratios. Example
+        Deequ-style constraint: .satisfies("CASE WHEN `YearsSinceLastPromotion` >=
+        0 THEN 1 ELSE 0 END", "NonNegativeYearsSinceLastPromotion", lambda x: x ==
+        1)'
+      sources:
+      - start_line: 49
+        end_line: 51
+        file: ''
+      uid: c87cfb72-eb3b-4d13-a5c3-a48e768db5db
+    - text: 'Each ''YearsSinceLastPromotion'' should be less than or equal to the
+        employee''s ''YearsAtCompany'' (YearsSinceLastPromotion <= YearsAtCompany).
+        The code computes tenure_ratio = YearsSinceLastPromotion / YearsAtCompany,
+        which assumes promotions occurred during the employee''s tenure. Example Deequ-style
+        constraint: .satisfies("CASE WHEN `YearsSinceLastPromotion` <= `YearsAtCompany`
+        THEN 1 ELSE 0 END", "YSP_le_YearsAtCompany", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      uid: d9439566-9bc0-4f62-9e03-3ed4f47ca80f
+    - text: 'The input should contain ''YearsSinceLastPromotion'' values (completeness).
+        Although the dataset metadata indicates completeness=1.0, the code still coerces
+        non-numeric values to NaN and then fills with 0; ensure the column is present
+        and not nullable so the implicit fill does not mask missing data. Example
+        Deequ-style constraint: .satisfies("CASE WHEN `YearsSinceLastPromotion` IS
+        NOT NULL THEN 1 ELSE 0 END", "NonNullYearsSinceLastPromotion", lambda x: x
+        == 1)'
+      sources:
+      - start_line: 15
+        end_line: 16
+        file: ''
+      - start_line: 45
+        end_line: 49
+        file: ''
+      uid: 8573b3a4-4d35-47d2-978d-b287bfeb3c41
+  '["MonthlyIncome","PercentSalaryHike","PerformanceRating","SalarySlab"]':
+    code: []
+    assumptions:
+    - text: 'PerformanceRating contains only the mapped keys (3 and 4) and PercentSalaryHike
+        is numeric and non-null, so recommended_percent = PercentSalaryHike + rating_bonus
+        is defined for every row. Example Deequ-style checks: .isContainedIn(''PerformanceRating'',
+        [3, 4]) ; .hasNoNulls([''PercentSalaryHike'']) ; .satisfies(''recommended_percent
+        == PercentSalaryHike + rating_bonus'', ''recommended_percent_calc_check'')'
+      sources:
+      - start_line: 18
+        end_line: 20
+        file: ''
+      uid: c8f2aa80-d4a4-4552-a374-a1ca1c2a792d
+    - text: 'SalarySlab contains only the expected slab labels used by the cap_map
+        (''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+'') so cap_percent is defined
+        for every row. Example Deequ constraint: .isContainedIn(''SalarySlab'', [''Upto
+        5k'', ''5k-10k'', ''10k-15k'', ''15k+'']) ; .hasNoNulls([''cap_percent''])'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      uid: f0b05e72-2651-4300-aadd-fe77c1d10840
+    - text: 'approved_percent is computed as the minimum of recommended_percent and
+        cap_percent and therefore should be numeric and fall within the valid percentage
+        range [0.0, 20.0] (20.0 is the maximum cap_percent from cap_map). Example
+        Deequ constraints: .hasNoNulls([''recommended_percent'',''cap_percent'',''approved_percent''])
+        ; .isNonNegative(''approved_percent'') ; .isLessThanOrEqual(''approved_percent'',
+        20.0)'
+      sources:
+      - start_line: 20
+        end_line: 23
+        file: ''
+      uid: bc1e2612-ac73-4e09-8190-32ccf7698df3
+    - text: "approved_amount must equal MonthlyIncome * (approved_percent / 100) for\
+        \ each row; consequently MonthlyIncome must be numeric/non-negative and approved_amount\
+        \ must be non-null and \u2264 MonthlyIncome * 0.20 (given the max approved_percent).\
+        \ Example Deequ-style checks: .hasNoNulls(['MonthlyIncome','approved_percent','approved_amount'])\
+        \ ; .satisfies('approved_amount == MonthlyIncome * (approved_percent / 100)',\
+        \ 'approved_amount_calc_check') ; .satisfies('approved_amount <= MonthlyIncome\
+        \ * 0.20', 'approved_amount_cap_check')"
+      sources:
+      - start_line: 23
+        end_line: 24
+        file: ''
+      uid: d33c9cf1-be47-47a0-82dc-a29681714857
+    - text: 'Department-level aggregation relies on EmpID being present for headcount
+        and approved_amount being numeric so MeritBudget sums are meaningful. Example
+        Deequ constraints: .hasNoNulls([''Department'',''EmpID'',''approved_amount''])
+        ; .isNumeric(''approved_amount'')'
+      sources:
+      - start_line: 26
+        end_line: 30
+        file: ''
+      uid: 7dd98ecd-5bda-42c6-a39b-7f49de0c9a42
+  '["MonthlyIncome","SalarySlab"]':
+    code:
+    - suggestion: '.satisfies("SalarySlab != ''Upto 5k'' OR MonthlyIncome <= 5000",
+        "slab_upto_5k_range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0d66ceab-b9ca-4c40-8ae5-a8cecd3002f7
+      source_assumptions:
+      - 49dd0ca2-9e7c-42ab-8cb3-84e925d85e13
+    - suggestion: '.satisfies("SalarySlab != ''5k-10k'' OR (MonthlyIncome > 5000 AND
+        MonthlyIncome <= 10000)", "slab_5k_10k_range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 372e9e50-a2d7-42a4-ab33-b791d4a8bdd9
+      source_assumptions:
+      - 49dd0ca2-9e7c-42ab-8cb3-84e925d85e13
+    - suggestion: '.satisfies("SalarySlab != ''10k-15k'' OR (MonthlyIncome > 10000
+        AND MonthlyIncome <= 15000)", "slab_10k_15k_range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 76a9704a-055c-4638-b555-b536938327e8
+      source_assumptions:
+      - 49dd0ca2-9e7c-42ab-8cb3-84e925d85e13
+    - suggestion: '.satisfies("SalarySlab != ''15k+'' OR MonthlyIncome > 15000", "slab_15k_plus_range",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b0abee0f-acad-4ba7-a8ab-388d5ad1b7cf
+      source_assumptions:
+      - 49dd0ca2-9e7c-42ab-8cb3-84e925d85e13
+    - suggestion: '.satisfies("abs(approved_percent - least(recommended_percent, cap_percent))
+        < 1e-6", "approved_percent_min_relationship", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("abs(approved_percent - least(recommended_percent,
+        cap_percent)) < 1e-6", "approved_percent_min_relationship", lambda x: x ==
+        1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `approved_percent` cannot be resolved.
+        Did you mean one of the following? [`Department`, `EmployeeCount`, `EmployeeNumber`,
+        `Gender`, `JobInvolvement`].; line 1 pos 4;
+
+        ''Aggregate [sum(cast((''abs((''approved_percent - ''least(''recommended_percent,
+        ''cap_percent))) < 1.0E-6) as int)) AS sum(CAST((abs((approved_percent - least(recommended_percent,
+        cap_percent))) < 1.0E-6) AS INT))#1287831, count(1) AS count(1)#1287832L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: e0d2220f-fba1-4675-882f-01f52ca1452d
+      source_assumptions:
+      - e46a7de1-f626-4b3b-bed1-8748eac0ce38
+    - suggestion: '.satisfies("abs(approved_amount - (MonthlyIncome * (approved_percent
+        / 100.0))) < 1e-4", "approved_amount_calculation", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("abs(approved_amount - (MonthlyIncome
+        * (approved_percent / 100.0))) < 1e-4", "approved_amount_calculation", lambda
+        x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `approved_amount` cannot be resolved. Did you mean one of the following? [`EmployeeCount`,
+        `AgeGroup`, `EmployeeNumber`, `OverTime`, `Attrition`].; line 1 pos 4;
+
+        ''Aggregate [sum(cast((''abs((''approved_amount - (MonthlyIncome#411L * (''approved_percent
+        / 100.0)))) < 1.0E-4) as int)) AS sum(CAST((abs((approved_amount - (MonthlyIncome
+        * (approved_percent / 100.0)))) < 1.0E-4) AS INT))#1287878, count(1) AS count(1)#1287879L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: d23b0ddb-3bd4-4585-8ad2-4b90b708c75b
+      source_assumptions:
+      - e46a7de1-f626-4b3b-bed1-8748eac0ce38
+    assumptions:
+    - text: 'MonthlyIncome values are consistent with the SalarySlab category labels.
+        Concretely:
+
+        - If SalarySlab == ''Upto 5k'' then MonthlyIncome <= 5000
+
+        - If SalarySlab == ''5k-10k'' then MonthlyIncome > 5000 and MonthlyIncome
+        <= 10000
+
+        - If SalarySlab == ''10k-15k'' then MonthlyIncome > 10000 and MonthlyIncome
+        <= 15000
+
+        - If SalarySlab == ''15k+'' then MonthlyIncome > 15000
+
+        This can be enforced as row-level constraints (for Deequ / Spark SQL use .satisfies
+        with boolean expressions or four separate predicates). Example Deequ-like
+        predicates:
+
+        .satisfies("SalarySlab != ''Upto 5k'' OR MonthlyIncome <= 5000", "slab_upto_5k_range")
+
+        .satisfies("SalarySlab != ''5k-10k'' OR (MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000)", "slab_5k_10k_range")
+
+        .satisfies("SalarySlab != ''10k-15k'' OR (MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000)", "slab_10k_15k_range")
+
+        .satisfies("SalarySlab != ''15k+'' OR MonthlyIncome > 15000", "slab_15k_plus_range")'
+      sources:
+      - start_line: 21
+        end_line: 24
+        file: ''
+      uid: 49dd0ca2-9e7c-42ab-8cb3-84e925d85e13
+    - text: 'The approved percent and approved amount follow the exact numeric relationships
+        used in the script:
+
+        - approved_percent == least(recommended_percent, cap_percent)
+
+        - approved_amount == MonthlyIncome * (approved_percent / 100.0)
+
+        Enforce these as row-level equality constraints (use a small tolerance for
+        floating-point comparisons). Example Deequ-like predicates:
+
+        .satisfies("abs(approved_percent - least(recommended_percent, cap_percent))
+        < 1e-6", "approved_percent_min_relationship")
+
+        .satisfies("abs(approved_amount - (MonthlyIncome * (approved_percent / 100.0)))
+        < 1e-4", "approved_amount_calculation")'
+      sources:
+      - start_line: 18
+        end_line: 24
+        file: ''
+      uid: e46a7de1-f626-4b3b-bed1-8748eac0ce38
+  OverTime:
+    code:
+    - suggestion: '.satisfies("`OverTime` is not NULL", "OverTime not null", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 69c92ab1-1bef-4b7a-830b-d863a2d38958
+      source_assumptions:
+      - 8a8628c6-cb6a-4399-9dfd-b6f8ea1ae592
+    - suggestion: '.satisfies("CASE WHEN `OverTime` IN (''Yes'',''No'') THEN 1 ELSE
+        0 END", "OverTime in {''Yes'',''No''}", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b6f708f3-306a-43fb-9ea8-e72d81cfc1fe
+      source_assumptions:
+      - 29818586-52e0-41cd-b280-80cba4faa89d
+    - suggestion: '.hasNumberOfDistinctValues("OverTime", lambda x: x <= 2)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("OverTime",
+        lambda x: x <= 2)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 97124355-6641-43ce-8a70-de4b0258182d
+      source_assumptions:
+      - 657c41da-daa1-4f03-a127-41b4b330f4fa
+    assumptions:
+    - text: 'The ''OverTime'' column must not contain nulls in the input data because
+        the code directly compares values to the string ''Yes'' without a null-safe
+        guard; missing values would become False/0 but could indicate unexpected/malformed
+        data. Represent as a validation rule (Deequ / Great Expectations style): .satisfies("CASE
+        WHEN `OverTime` IS NOT NULL THEN 1 ELSE 0 END", "OverTime not null", lambda
+        x: x == 1)'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 8a8628c6-cb6a-4399-9dfd-b6f8ea1ae592
+    - text: 'The ''OverTime'' column is expected to contain only the categorical values
+        ''Yes'' and ''No'' (exact strings, case-sensitive). The code uses (df[''OverTime'']
+        == ''Yes'') to create a numeric flag, so any other values will be treated
+        as non-Yes and may indicate bad input. Represent as a validation rule: .satisfies("CASE
+        WHEN `OverTime` IN (''Yes'',''No'') THEN 1 ELSE 0 END", "OverTime in {''Yes'',''No''}",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 29818586-52e0-41cd-b280-80cba4faa89d
+    - text: 'The ''OverTime'' column should be binary (at most two distinct categories).
+        The downstream code expects a binary indicator (Yes vs not-Yes) so the input
+        should not contain many different labels. Represent as a validation rule (conceptual):
+        ensure COUNT(DISTINCT OverTime) <= 2, or .satisfies("CASE WHEN `OverTime`
+        IN (''Yes'',''No'') THEN 1 ELSE 0 END", "OverTime binary", lambda x: x ==
+        1).'
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 657c41da-daa1-4f03-a127-41b4b330f4fa
+  PerformanceRating:
+    code:
+    - suggestion: .isComplete("PerformanceRating")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fea41c4f-bc5c-4af2-94da-26199e47b81b
+      source_assumptions:
+      - 164cfd48-92ca-4dd3-b5d3-68ca9983a9ea
+    - suggestion: '.satisfies("CASE WHEN toDouble(`PerformanceRating`) IN (3.0, 4.0)
+        THEN 1 ELSE 0 END", "PerformanceRating convertible to 3/4", lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN toDouble(`PerformanceRating`)
+        IN (3.0, 4.0) THEN 1 ELSE 0 END", "PerformanceRating convertible to 3/4",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_ROUTINE] Cannot resolve function `toDouble` on search path [`system`.`builtin`,
+        `system`.`session`, `spark_catalog`.`default`].; line 1 pos 10'
+      level: error
+      uid: e9c46fcc-f018-4e76-b2be-91865155c805
+      source_assumptions:
+      - b86688e2-86b7-4ff5-8083-9aab914d3379
+      - ab0f6e05-5b25-4099-9dd5-ee1120501d5d
+    assumptions:
+    - text: 'The ''PerformanceRating'' column must be complete (no null/missing values).
+        The code reads the CSV and immediately maps PerformanceRating to a bonus;
+        if PerformanceRating is null, the mapping will produce NaN for ''rating_bonus''
+        and that will propagate into numeric computations (recommended_percent, approved_amount)
+        and aggregations. Represent as Deequ/GE rules e.g.: .isComplete("PerformanceRating")
+        or .satisfies("CASE WHEN `PerformanceRating` IS NOT NULL THEN 1 ELSE 0 END",
+        "PerformanceRating not null", lambda x: x == 1).'
+      sources:
+      - start_line: 15
+        end_line: 19
+        file: ''
+      uid: 164cfd48-92ca-4dd3-b5d3-68ca9983a9ea
+    - text: 'All values of ''PerformanceRating'' must be one of the keys used by the
+        mapping (3 or 4). The mapping rating_bonus_map = {3:0.0, 4:2.0} only defines
+        bonuses for 3 and 4; any other value will yield NaN rating_bonus and break
+        downstream numeric calculations and department merit budget sums. Represent
+        as a constraint e.g.: .satisfies("CASE WHEN `PerformanceRating` IN (3, 4)
+        THEN 1 ELSE 0 END", "Valid PerformanceRating", lambda x: x == 1).'
+      sources:
+      - start_line: 19
+        end_line: 20
+        file: ''
+      - start_line: 23
+        end_line: 24
+        file: ''
+      - start_line: 27
+        end_line: 30
+        file: ''
+      - start_line: 89
+        end_line: 92
+        file: ''
+      uid: b86688e2-86b7-4ff5-8083-9aab914d3379
+    - text: 'The values in ''PerformanceRating'' should be numeric (integer-like)
+        or at least convertible to integers 3 and 4 so that mapping with integer keys
+        works as intended. If the column contains string representations that do not
+        match the integer keys (e.g., ''3'' vs 3), mapping may fail; either ensure
+        numeric dtype or include a preprocessing cast. Possible check: .satisfies("CASE
+        WHEN toDouble(`PerformanceRating`) IN (3.0, 4.0) THEN 1 ELSE 0 END", "PerformanceRating
+        convertible to 3/4", lambda x: x == 1).'
+      sources:
+      - start_line: 15
+        end_line: 19
+        file: ''
+      uid: ab0f6e05-5b25-4099-9dd5-ee1120501d5d
+  '["PercentSalaryHike","PerformanceRating","SalarySlab","approved_percent"]':
+    code: []
+    assumptions:
+    - text: 'Every PerformanceRating in the data must map to a defined rating_bonus
+        (the code expects keys {3, 4}). Practically: PerformanceRating values should
+        be a subset of {3, 4} so that df[''rating_bonus''] is non-null for all rows.
+        Example Deequ-like checks: .isContainedIn(''PerformanceRating'', [3, 4]) or
+        assert that after mapping df[''rating_bonus''].isNotNull().all().'
+      sources:
+      - start_line: 18
+        end_line: 19
+        file: ''
+      uid: c7def59a-2e1d-4bbb-ac0a-5ac969b3746e
+    - text: 'PercentSalaryHike must be numeric and non-null so that recommended_percent
+        = PercentSalaryHike + rating_bonus is defined and numeric for every row. Actionable
+        checks: .isComplete(''PercentSalaryHike'') and .isNumeric(''PercentSalaryHike'');
+        and a derived-row check that recommended_percent == PercentSalaryHike + rating_bonus
+        (within a small float tolerance).'
+      sources:
+      - start_line: 19
+        end_line: 20
+        file: ''
+      uid: fa1d1b27-2f96-46c8-9a2b-10702349c31a
+    - text: 'SalarySlab must be one of the expected slab categories used by the cap_map
+        (''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+'') so that cap_percent is defined
+        for every row. Actionable checks: .isContainedIn(''SalarySlab'', [''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''])
+        or verify df[''cap_percent''].notnull().all().'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      uid: 6315a49e-6d16-4609-bfcc-e9b99ae90c20
+    - text: 'approved_percent must equal the minimum of recommended_percent and cap_percent.
+        Equivalently enforce (a) approved_percent <= recommended_percent, (b) approved_percent
+        <= cap_percent, and (c) approved_percent equals either recommended_percent
+        or cap_percent for every row (allowing for floating-point tolerance). Actionable
+        checks: .satisfies(''approved_percent <= recommended_percent'') and .satisfies(''approved_percent
+        <= cap_percent'') and a row-wise equality check approved_percent in {recommended_percent,
+        cap_percent}.'
+      sources:
+      - start_line: 20
+        end_line: 23
+        file: ''
+      uid: 7f560702-661c-4b5f-a323-5b102e454acf
+    - text: 'approved_amount must be computed from MonthlyIncome and approved_percent
+        as approved_amount == MonthlyIncome * (approved_percent / 100). Also require
+        MonthlyIncome to be numeric and non-null. Actionable checks: .isComplete(''MonthlyIncome'')
+        and .isNumeric(''MonthlyIncome''); and a row-wise constraint that approved_amount
+        equals MonthlyIncome * (approved_percent/100) within tolerance.'
+      sources:
+      - start_line: 23
+        end_line: 24
+        file: ''
+      uid: 59291854-9f60-41d7-a27c-c461283c6db6
+    - text: 'approved_percent should be a valid percentage (non-negative and reasonably
+        bounded). At minimum enforce 0 <= approved_percent <= 100, and (optionally)
+        approved_percent <= max cap value (20.0) given the configured cap_map. Actionable
+        checks: .satisfies(''approved_percent >= 0'') and .satisfies(''approved_percent
+        <= 100'') and/or .satisfies(''approved_percent <= 20.0'').'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      uid: e8a9250f-f55e-4053-a453-53286f6e7686
+  '["PerformanceRating","rating_bonus"]':
+    code:
+    - suggestion: '.satisfies("`PerformanceRating` IN (3, 4) AND `rating_bonus` IS
+        NOT NULL", "rating_bonus_mapping_covered", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`PerformanceRating` IN (3, 4) AND
+        `rating_bonus` IS NOT NULL", "rating_bonus_mapping_covered", lambda x: x ==
+        1)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `rating_bonus` cannot be resolved.
+        Did you mean one of the following? [`Attrition`, `Education`, `Age`, `AgeGroup`,
+        `DailyRate`].; line 1 pos 34;
+
+        ''Aggregate [sum(cast((cast(PerformanceRating#418L as bigint) IN (cast(3 as
+        bigint),cast(4 as bigint)) AND isnotnull(''rating_bonus)) as int)) AS sum(CAST(((PerformanceRating
+        IN (3, 4)) AND (rating_bonus IS NOT NULL)) AS INT))#1288657, count(1) AS count(1)#1288658L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 7e9e00d2-d60b-430d-9cc1-d8955cce7bb2
+      source_assumptions:
+      - f5273084-7897-4e2a-9985-29fab813bd7c
+    - suggestion: '.satisfies("`PercentSalaryHike` IS NOT NULL AND cast(`PercentSalaryHike`
+        AS double) IS NOT NULL AND `rating_bonus` IS NOT NULL", "recommended_percent_numeric_nonnull",
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`PercentSalaryHike` IS NOT NULL
+        AND cast(`PercentSalaryHike` AS double) IS NOT NULL AND `rating_bonus` IS
+        NOT NULL", "recommended_percent_numeric_nonnull", lambda x: x == 1)'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `rating_bonus` cannot be resolved.
+        Did you mean one of the following? [`Attrition`, `Education`, `Age`, `AgeGroup`,
+        `DailyRate`].; line 1 pos 88;
+
+        ''Aggregate [sum(cast(((isnotnull(PercentSalaryHike#417L) AND isnotnull(cast(PercentSalaryHike#417L
+        as double))) AND isnotnull(''rating_bonus)) as int)) AS sum(CAST((((PercentSalaryHike
+        IS NOT NULL) AND (CAST(PercentSalaryHike AS DOUBLE) IS NOT NULL)) AND (rating_bonus
+        IS NOT NULL)) AS INT))#1288616, count(1) AS count(1)#1288617L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 4d4f38ce-c7f5-48c4-90e8-fad6574e8bd6
+      source_assumptions:
+      - 37a2aec0-7d5f-440d-9a0e-a5d9e01cf965
+      - f5273084-7897-4e2a-9985-29fab813bd7c
+    - suggestion: '.satisfies("`SalarySlab` IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'')
+        AND `cap_percent` IS NOT NULL", "salary_slab_in_allowed_set", lambda x: x
+        == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`SalarySlab` IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'')
+        AND `cap_percent` IS NOT NULL", "salary_slab_in_allowed_set", lambda x: x
+        == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `cap_percent` cannot be resolved.
+        Did you mean one of the following? [`Department`, `Gender`, `JobLevel`, `Over18`,
+        `Age`].; line 1 pos 58;
+
+        ''Aggregate [sum(cast((SalarySlab#412 IN (Upto 5k,5k-10k,10k-15k,15k+) AND
+        isnotnull(''cap_percent)) as int)) AS sum(CAST(((SalarySlab IN (Upto 5k, 5k-10k,
+        10k-15k, 15k+)) AND (cap_percent IS NOT NULL)) AS INT))#1288947, count(1)
+        AS count(1)#1288948L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 0a284310-0812-4ba5-8e3a-c6497e8edc94
+      source_assumptions:
+      - 9ab2a2ef-4052-4904-b191-67d92184f2e6
+    - suggestion: '.satisfies("`recommended_percent` IS NOT NULL AND cast(`recommended_percent`
+        AS double) IS NOT NULL AND `cap_percent` IS NOT NULL AND cast(`cap_percent`
+        AS double) IS NOT NULL", "approved_percent_inputs_valid", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`recommended_percent` IS NOT NULL
+        AND cast(`recommended_percent` AS double) IS NOT NULL AND `cap_percent` IS
+        NOT NULL AND cast(`cap_percent` AS double) IS NOT NULL", "approved_percent_inputs_valid",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `recommended_percent` cannot be resolved. Did you mean one of the following?
+        [`Gender`, `JobInvolvement`, `Department`, `EmployeeCount`, `NumCompaniesWorked`].;
+        line 1 pos 0;
+
+        ''Aggregate [sum(cast(((isnotnull(''recommended_percent) AND isnotnull(cast(''recommended_percent
+        as double))) AND (isnotnull(''cap_percent) AND isnotnull(cast(''cap_percent
+        as double)))) as int)) AS sum(CAST((((recommended_percent IS NOT NULL) AND
+        (CAST(recommended_percent AS DOUBLE) IS NOT NULL)) AND ((cap_percent IS NOT
+        NULL) AND (CAST(cap_percent AS DOUBLE) IS NOT NULL))) AS INT))#1288902, count(1)
+        AS count(1)#1288903L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 3accc9ec-2b84-4e09-887b-04bebe6d0b17
+      source_assumptions:
+      - 6ba15d88-dc7d-4f2b-8b05-12a12fa56391
+    - suggestion: '.satisfies("`MonthlyIncome` IS NOT NULL AND cast(`MonthlyIncome`
+        AS double) >= 0 AND `approved_percent` IS NOT NULL AND cast(`approved_percent`
+        AS double) IS NOT NULL", "approved_amount_inputs_valid", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`MonthlyIncome` IS NOT NULL AND
+        cast(`MonthlyIncome` AS double) >= 0 AND `approved_percent` IS NOT NULL AND
+        cast(`approved_percent` AS double) IS NOT NULL", "approved_amount_inputs_valid",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `approved_percent` cannot be resolved. Did you mean one of the following?
+        [`Department`, `EmployeeCount`, `EmployeeNumber`, `Gender`, `JobInvolvement`].;
+        line 1 pos 73;
+
+        ''Aggregate [sum(cast(((isnotnull(MonthlyIncome#411L) AND (cast(MonthlyIncome#411L
+        as double) >= cast(0 as double))) AND (isnotnull(''approved_percent) AND isnotnull(cast(''approved_percent
+        as double)))) as int)) AS sum(CAST((((MonthlyIncome IS NOT NULL) AND (CAST(MonthlyIncome
+        AS DOUBLE) >= 0)) AND ((approved_percent IS NOT NULL) AND (CAST(approved_percent
+        AS DOUBLE) IS NOT NULL))) AS INT))#1288757, count(1) AS count(1)#1288758L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: eb0bb6d5-1fec-4966-abef-c864ab6ee82c
+      source_assumptions:
+      - 9760cb07-5339-4791-a5cd-94c70bbec364
+    - suggestion: '.satisfies("`Department` IS NOT NULL", "department_non_null", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2944f65f-b9da-4437-a95d-b6097aa08dad
+      source_assumptions:
+      - 3b9e771b-5887-4ae9-8a12-e3ef08954695
+    - suggestion: '.hasUniqueness(columns=[''Department'',''EmpID''], assertion=lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7a18e55d-e7a9-4d9b-bee4-530921033c5f
+      source_assumptions:
+      - 3b9e771b-5887-4ae9-8a12-e3ef08954695
+    - suggestion: '.satisfies("`approved_amount` IS NOT NULL AND cast(`approved_amount`
+        AS double) IS NOT NULL", "approved_amount_numeric_nonnull", lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`approved_amount` IS NOT NULL AND
+        cast(`approved_amount` AS double) IS NOT NULL", "approved_amount_numeric_nonnull",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `approved_amount` cannot be resolved. Did you mean one of the following? [`EmployeeCount`,
+        `AgeGroup`, `EmployeeNumber`, `OverTime`, `Attrition`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((isnotnull(''approved_amount) AND isnotnull(cast(''approved_amount
+        as double))) as int)) AS sum(CAST(((approved_amount IS NOT NULL) AND (CAST(approved_amount
+        AS DOUBLE) IS NOT NULL)) AS INT))#1288755, count(1) AS count(1)#1288756L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 30e2af51-8ff6-452e-8d3e-62f504c80d0e
+      source_assumptions:
+      - 3b9e771b-5887-4ae9-8a12-e3ef08954695
+    - suggestion: '.satisfies("cast(`PercentSalaryHike` AS double) BETWEEN -100 AND
+        100 AND cast(`rating_bonus` AS double) BETWEEN -100 AND 100 AND cast(`cap_percent`
+        AS double) BETWEEN -100 AND 100", "percentage_scale_consistency", lambda x:
+        x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("cast(`PercentSalaryHike` AS double)
+        BETWEEN -100 AND 100 AND cast(`rating_bonus` AS double) BETWEEN -100 AND 100
+        AND cast(`cap_percent` AS double) BETWEEN -100 AND 100", "percentage_scale_consistency",
+        lambda x: x >= 0.99)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `rating_bonus` cannot be resolved. Did you mean one of the following? [`Attrition`,
+        `Education`, `Age`, `AgeGroup`, `DailyRate`].; line 1 pos 66;
+
+        ''Aggregate [sum(cast(((((cast(PercentSalaryHike#417L as double) >= cast(-100
+        as double)) AND (cast(PercentSalaryHike#417L as double) <= cast(100 as double)))
+        AND ((cast(''rating_bonus as double) >= -100) AND (cast(''rating_bonus as
+        double) <= 100))) AND ((cast(''cap_percent as double) >= -100) AND (cast(''cap_percent
+        as double) <= 100))) as int)) AS sum(CAST(((((CAST(PercentSalaryHike AS DOUBLE)
+        >= -100) AND (CAST(PercentSalaryHike AS DOUBLE) <= 100)) AND ((CAST(rating_bonus
+        AS DOUBLE) >= -100) AND (CAST(rating_bonus AS DOUBLE) <= 100))) AND ((CAST(cap_percent
+        AS DOUBLE) >= -100) AND (CAST(cap_percent AS DOUBLE) <= 100))) AS INT))#1288898,
+        count(1) AS count(1)#1288899L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: 1d4cfa69-9237-4b8a-af15-7f250f1301ce
+      source_assumptions:
+      - 1f318da6-b9d2-49bd-8121-79c76f1bcae0
+    assumptions:
+    - text: 'The mapping from ''PerformanceRating'' to ''rating_bonus'' covers every
+        value present in the dataset, so ''rating_bonus'' is non-null for all rows.
+        Concretely: every row''s PerformanceRating should be one of the keys in rating_bonus_map
+        (e.g., {3, 4}) and df[''rating_bonus''] should have no nulls.'
+      sources:
+      - start_line: 18
+        end_line: 19
+        file: ''
+      - start_line: 20
+        end_line: 20
+        file: ''
+      uid: f5273084-7897-4e2a-9985-29fab813bd7c
+    - text: 'The combination of ''PercentSalaryHike'' and ''rating_bonus'' must be
+        numeric and non-null so that ''recommended_percent'' = PercentSalaryHike +
+        rating_bonus yields a valid numeric (non-null) percent for every row. In practice:
+        PercentSalaryHike must be numeric and not null for rows where a recommended_percent
+        is expected.'
+      sources:
+      - start_line: 19
+        end_line: 20
+        file: ''
+      uid: 37a2aec0-7d5f-440d-9a0e-a5d9e01cf965
+    - text: 'The ''SalarySlab'' values must be contained in the keys of cap_map so
+        that ''cap_percent'' is assigned (non-null) for every row. Concretely: SalarySlab
+        should only take values from {''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+''}
+        (or else cap_percent will be null).'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      - start_line: 23
+        end_line: 23
+        file: ''
+      uid: 9ab2a2ef-4052-4904-b191-67d92184f2e6
+    - text: Both 'recommended_percent' (computed from PercentSalaryHike + rating_bonus)
+        and 'cap_percent' must be numeric and non-null for a row to produce a valid
+        'approved_percent' via np.minimum. In other words, for rows where an approved_percent
+        is expected, neither recommended_percent nor cap_percent should be null and
+        both should be finite numeric percentages on the same scale.
+      sources:
+      - start_line: 20
+        end_line: 23
+        file: ''
+      uid: 6ba15d88-dc7d-4f2b-8b05-12a12fa56391
+    - text: 'The calculation of ''approved_amount'' requires both ''MonthlyIncome''
+        and ''approved_percent'' to be numeric and non-null. Therefore, for every
+        row where an approved_amount is expected: MonthlyIncome should be numeric
+        (preferably >= 0) and approved_percent should be numeric and non-null so that
+        approved_amount = MonthlyIncome * (approved_percent / 100.0) yields a finite
+        non-negative value.'
+      sources:
+      - start_line: 23
+        end_line: 24
+        file: ''
+      uid: 9760cb07-5339-4791-a5cd-94c70bbec364
+    - text: Department-level aggregations assume that 'Department' is non-null and
+        that 'EmpID' identifies distinct employees (i.e., no duplicated EmpID within
+        the same Department). This ensures Headcount = count(EmpID) approximates distinct
+        headcount per Department. Additionally, 'approved_amount' must be numeric/finite
+        so MeritBudget = sum(approved_amount) is meaningful.
+      sources:
+      - start_line: 26
+        end_line: 29
+        file: ''
+      - start_line: 32
+        end_line: 33
+        file: ''
+      uid: 3b9e771b-5887-4ae9-8a12-e3ef08954695
+    - text: 'Because approved_percent is used both to compute approved_amount and
+        to compare against cap_percent, the scale and units of PercentSalaryHike,
+        rating_bonus, and cap_percent must be consistent (all are percentage points).
+        Concretely: PercentSalaryHike and rating_bonus should be on the same percentage
+        scale as cap_percent so comparisons and multiplication are valid.'
+      sources:
+      - start_line: 19
+        end_line: 24
+        file: ''
+      uid: 1f318da6-b9d2-49bd-8121-79c76f1bcae0
+  SalarySlab:
+    code:
+    - suggestion: '.isContainedIn(''SalarySlab'', [''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''],
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: aca2a69d-99ab-4a81-8e1e-5d5f43d3fbcb
+      source_assumptions:
+      - 9cc9a34f-0c6b-4498-93a6-d361cce89cc4
+    - suggestion: .isComplete('SalarySlab')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dc2347da-23d2-4246-98de-d889ee8d1284
+      source_assumptions:
+      - 2c9ca86f-ef50-4c1e-b57f-ddaf5d756e18
+    - suggestion: '.satisfies("CASE WHEN TRIM(`SalarySlab`) IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'')
+        AND `SalarySlab` = TRIM(`SalarySlab`) THEN 1 ELSE 0 END", "SalarySlab exact-match
+        & trimmed", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 52983674-708e-41d5-89bd-c539ae097ac1
+      source_assumptions:
+      - 854e5f30-8265-46d8-824b-9c269182c7fc
+    - suggestion: '.hasNumberOfDistinctValues(''SalarySlab'', lambda x: x <= 4)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''SalarySlab'',
+        lambda x: x <= 4)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 1887171c-7c88-4d22-acf4-a8ee5b3f7354
+      source_assumptions:
+      - 7073ce4d-1927-4275-938b-df0d09d137f0
+    assumptions:
+    - text: 'The ''SalarySlab'' column must contain only the expected categorical
+        values that the code maps to cap percentages: ''Upto 5k'', ''5k-10k'', ''10k-15k'',
+        or ''15k+''. If any other value appears, df[''SalarySlab''].map(cap_map) will
+        produce missing (NaN) cap_percent and break downstream numeric computations
+        (approved_percent, approved_amount, department merit budgets, and the merit
+        output file).
+
+        Example enforcement (Deequ-like): .satisfies("CASE WHEN `SalarySlab` IN (''Upto
+        5k'',''5k-10k'',''10k-15k'',''15k+'') THEN 1 ELSE 0 END", "SalarySlab in expected
+        set", lambda x: x == 1.0)
+
+        (Or as a Great Expectations expectation: expect_column_values_to_be_in_set(column=''SalarySlab'',
+        value_set=[...]).'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 89
+        end_line: 92
+        file: ''
+      uid: 9cc9a34f-0c6b-4498-93a6-d361cce89cc4
+    - text: 'The ''SalarySlab'' column must not contain null / missing values for
+        any input row. The code maps SalarySlab to cap_percent and then uses cap_percent
+        in numeric operations; null SalarySlab would lead to null cap_percent and
+        propagate to approved_amount and aggregated MeritBudget.
+
+        Example enforcement: .satisfies("CASE WHEN `SalarySlab` IS NOT NULL THEN 1
+        ELSE 0 END", "SalarySlab not null", lambda x: x == 1.0)
+
+        (Or Great Expectations: expect_column_values_to_not_be_null(''SalarySlab'')).'
+      sources:
+      - start_line: 22
+        end_line: 24
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: 2c9ca86f-ef50-4c1e-b57f-ddaf5d756e18
+    - text: 'Values in ''SalarySlab'' must match the mapping keys exactly (case-sensitive,
+        no extra leading/trailing whitespace). The mapping uses exact string keys,
+        so differences in casing or surrounding spaces will cause map misses and produce
+        null cap_percent.
+
+        Example enforcement: .satisfies("CASE WHEN TRIM(`SalarySlab`) IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'')
+        AND `SalarySlab` = TRIM(`SalarySlab`) THEN 1 ELSE 0 END", "SalarySlab exact-match
+        & trimmed", lambda x: x == 1.0)
+
+        (Or Great Expectations: expect_column_values_to_be_in_set with preprocessing
+        or an additional expectation to check no leading/trailing whitespace).'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      uid: 854e5f30-8265-46d8-824b-9c269182c7fc
+    - text: 'The number of distinct categories in ''SalarySlab'' should be small and
+        limited to the expected set (i.e., distinct_count <= 4 and ideally equal to
+        4 if all categories are expected). This ensures cap_map covers all observed
+        categories.
+
+        Example enforcement: .satisfies("CASE WHEN cardinality(collect_set(`SalarySlab`))
+        <= 4 THEN 1 ELSE 0 END", "SalarySlab distinct count <= 4", lambda x: x ==
+        1.0)
+
+        (Or Great Expectations: expect_column_unique_value_count_to_be_between(column=''SalarySlab'',
+        min_value=1, max_value=4)).'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      uid: 7073ce4d-1927-4275-938b-df0d09d137f0
+  '["SalarySlab","cap_percent"]':
+    code: []
+    assumptions:
+    - text: 'SalarySlab must only contain the categories the script maps to cap_percent:
+        [''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+'']. This ensures the mapping
+        df[''cap_percent''] = df[''SalarySlab''].map(cap_map) produces non-null values.
+        Example constraints: SalarySlab.isContainedIn({''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''})
+        and cap_percent.isNotNull().'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      uid: ae05a923-1f2c-4d6c-9cca-2e1f58b5278e
+    - text: 'cap_percent is completely determined by SalarySlab (functional dependency
+        SalarySlab -> cap_percent) and must take only the numeric values defined in
+        the cap_map (20.0, 15.0, 12.0, 10.0). Example constraints: hasFunctionalDependency([''SalarySlab''],
+        ''cap_percent''); cap_percent.isContainedIn({10.0,12.0,15.0,20.0}).'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      uid: c39309dd-cda2-4ca9-b6ff-a7cf42b8cfb8
+    - text: 'recommended_percent must be numeric and computable for every row: PercentSalaryHike
+        must be numeric/non-null and PerformanceRating must be in the keys of rating_bonus_map
+        (3 or 4) so that rating_bonus is defined. Example constraints: PercentSalaryHike.isNumeric().isNotNull();
+        PerformanceRating.isContainedIn({3,4}); recommended_percent.isNotNull().'
+      sources:
+      - start_line: 18
+        end_line: 20
+        file: ''
+      uid: de031ba4-99ac-4b40-b480-6bf937f2e664
+    - text: 'approved_percent must equal the row-wise minimum of recommended_percent
+        and cap_percent. Equivalently, for every row approved_percent == min(recommended_percent,
+        cap_percent) (or at least approved_percent <= recommended_percent and approved_percent
+        <= cap_percent). Example constraints: satisfies("approved_percent == least(recommended_percent,
+        cap_percent)") or (approved_percent <= recommended_percent AND approved_percent
+        <= cap_percent).'
+      sources:
+      - start_line: 20
+        end_line: 23
+        file: ''
+      uid: 6f020f11-4a2c-48e7-a1b2-3280685ab55b
+    - text: 'approved_amount must equal MonthlyIncome * (approved_percent / 100.0)
+        and be non-negative. This requires MonthlyIncome to be numeric and non-null
+        and approved_percent numeric/non-null. Example constraints: approved_amount.isNotNull();
+        approved_amount.satisfies(''approved_amount == MonthlyIncome * (approved_percent/100)'');
+        MonthlyIncome.isNumeric().isNotNull().'
+      sources:
+      - start_line: 23
+        end_line: 24
+        file: ''
+      uid: 9f457a72-436e-4c87-a2b1-4ddf90d19418
+    - text: 'When aggregating department budgets, EmpID should be consistently associated
+        with a single Department (no EmpID appearing in multiple Departments) or EmpID
+        must be unique per record. This prevents inflated Headcount when doing dept-level
+        groupby counts. Example constraints: hasFunctionalDependency([''EmpID''],
+        ''Department'') OR EmpID.isUnique().'
+      sources:
+      - start_line: 26
+        end_line: 29
+        file: ''
+      uid: 45455748-ff51-4736-8b61-95a70ad482f1
+  '["YearsAtCompany","YearsSinceLastPromotion"]':
+    code: []
+    assumptions:
+    - text: 'For every record, YearsSinceLastPromotion must be less than or equal
+        to YearsAtCompany (you cannot have more years since last promotion than total
+        years at the company). A Deequ-style constraint example:
+
+        .satisfies(''YearsSinceLastPromotion <= YearsAtCompany'', ''promo_not_exceed_tenure'')'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      uid: 031fbae5-6a8b-460b-aa1f-b97af66d8569
+    - text: 'Both YearsAtCompany and YearsSinceLastPromotion should be non-negative
+        numeric values (>= 0). A Deequ-style constraint example:
+
+        .satisfies(''YearsAtCompany >= 0 AND YearsSinceLastPromotion >= 0'', ''non_negative_years'')
+
+        (or separate numeric checks / type checks per column)'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      uid: 9cf6ee4f-b781-454b-b02c-58df47657735
+    - text: 'If YearsAtCompany is zero, then YearsSinceLastPromotion must also be
+        zero (no promotion years when total tenure is zero). A Deequ-style constraint
+        example:
+
+        .satisfies(''YearsAtCompany != 0 OR YearsSinceLastPromotion == 0'', ''zero_tenure_implies_zero_promo'')'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      uid: 2732bb07-70a9-445f-96d6-ca24e98a2be3
+    - text: 'Both YearsAtCompany and YearsSinceLastPromotion should be present (no
+        nulls) together for records used in tenure_ratio computation. A Deequ-style
+        constraint example:
+
+        .isComplete(["YearsAtCompany", "YearsSinceLastPromotion"])
+
+        (or .satisfies(''YearsAtCompany IS NOT NULL AND YearsSinceLastPromotion IS
+        NOT NULL'', ''both_years_present''))'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      uid: a24466e3-72b7-47cc-b36d-88d65587bfa1
+  '["YearsAtCompany","YearsWithCurrManager"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN YearsSinceLastPromotion IS NULL OR YearsSinceLastPromotion
+        >= 0 THEN 1 ELSE 0 END", "ysp_non_negative", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7d44608c-6720-47bb-9c54-7e6394462fe1
+      source_assumptions:
+      - a3a1b00d-ae65-4b04-a277-6e9202cc5460
+    - suggestion: '.satisfies("CASE WHEN YearsAtCompany = 0 OR YearsSinceLastPromotion
+        IS NULL OR YearsSinceLastPromotion <= YearsAtCompany THEN 1 ELSE 0 END", "ysp_le_yac_or_zero_yac",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b40be6b6-6c66-46cd-9eae-5ab42cb2af70
+      source_assumptions:
+      - a3a1b00d-ae65-4b04-a277-6e9202cc5460
+    - suggestion: '.satisfies("CASE WHEN YearsWithCurrManager IS NULL OR YearsWithCurrManager
+        >= 0 THEN 1 ELSE 0 END", "mgr_non_negative", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: db13b496-3cca-4f45-9e95-1034fb1fe12f
+      source_assumptions:
+      - 42fef374-c79b-474b-8fcf-c7e49cedf8bf
+    - suggestion: '.satisfies("CASE WHEN YearsAtCompany IS NULL OR coalesce(YearsWithCurrManager,
+        0) <= YearsAtCompany THEN 1 ELSE 0 END", "mgr_le_yac", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a09e304d-0b4a-45f8-81fa-25e3b0749d5c
+      source_assumptions:
+      - 42fef374-c79b-474b-8fcf-c7e49cedf8bf
+    - suggestion: '.satisfies("CASE WHEN YearsAtCompany != 0 OR coalesce(YearsWithCurrManager,
+        0) = 0 THEN 1 ELSE 0 END", "zero_yac_implies_zero_mgr_coalesced", lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c24b79dd-fa5a-42bf-9052-eb17d7db7081
+      source_assumptions:
+      - 11d6ccb6-254b-4689-a287-86fc9275b973
+    assumptions:
+    - text: 'For each record, YearsSinceLastPromotion should be numeric, non-negative,
+        and less than or equal to YearsAtCompany. The code computes tenure_ratio =
+        YearsSinceLastPromotion / YearsAtCompany, so it assumes YearsSinceLastPromotion
+        <= YearsAtCompany when YearsAtCompany > 0. Actionable constraint (Deequ-style):
+
+        .satisfies("YearsSinceLastPromotion >= 0", "ysp_non_negative")
+
+        .satisfies("YearsAtCompany > 0 AND YearsSinceLastPromotion <= YearsAtCompany
+        OR YearsAtCompany = 0", "ysp_le_yac_or_zero_yac")
+
+        (Or equivalently) .satisfies("YearsSinceLastPromotion <= YearsAtCompany",
+        "ysp_le_yac") for rows where YearsAtCompany IS NOT NULL and > 0.'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      uid: a3a1b00d-ae65-4b04-a277-6e9202cc5460
+    - text: 'YearsWithCurrManager should be numeric, non-negative, and not exceed
+        YearsAtCompany for the same employee (YearsWithCurrManager <= YearsAtCompany).
+        The code fills missing YearsWithCurrManager with 0 before applying a threshold
+        (< 1.0), so a safe, enforceable rule is coalesce(YearsWithCurrManager, 0)
+        <= YearsAtCompany. Actionable constraint examples:
+
+        .satisfies("coalesce(YearsWithCurrManager, 0) >= 0", "mgr_non_negative")
+
+        .satisfies("coalesce(YearsWithCurrManager, 0) <= YearsAtCompany", "mgr_le_yac")'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      - start_line: 62
+        end_line: 63
+        file: ''
+      uid: 42fef374-c79b-474b-8fcf-c7e49cedf8bf
+    - text: 'If YearsAtCompany == 0 then YearsWithCurrManager must be null or 0 (i.e.,
+        cannot be positive). The code treats missing YearsWithCurrManager as 0, so
+        logically when YearsAtCompany is zero there should be no positive manager-tenure.
+        Actionable constraint (Deequ-style):
+
+        .satisfies("YearsAtCompany != 0 OR YearsWithCurrManager = 0 OR YearsWithCurrManager
+        IS NULL", "zero_yac_implies_zero_mgr")
+
+        (or using coalesce) .satisfies("YearsAtCompany != 0 OR coalesce(YearsWithCurrManager,
+        0) = 0", "zero_yac_implies_zero_mgr_coalesced")'
+      sources:
+      - start_line: 45
+        end_line: 51
+        file: ''
+      - start_line: 62
+        end_line: 63
+        file: ''
+      uid: 11d6ccb6-254b-4689-a287-86fc9275b973
+column_data_flow_locations:
+  '["MonthlyIncome","PercentSalaryHike","PerformanceRating","SalarySlab"]':
+  - start_line: 12
+    end_line: 24
+    file: ''
+  - start_line: 26
+    end_line: 33
+    file: ''
+  - start_line: 89
+    end_line: 92
+    file: ''
+  '["MonthlyIncome","SalarySlab"]': []
+  '["PerformanceRating","rating_bonus"]': []
+  '["SalarySlab","cap_percent"]':
+  - start_line: 12
+    end_line: 15
+    file: ''
+  - start_line: 17
+    end_line: 24
+    file: ''
+  - start_line: 26
+    end_line: 30
+    file: ''
+  - start_line: 32
+    end_line: 33
+    file: ''
+  - start_line: 89
+    end_line: 92
+    file: ''
+  '["PercentSalaryHike","PerformanceRating","SalarySlab","approved_percent"]': []
+  '["Department","JobRole"]':
+  - start_line: 7
+    end_line: 15
+    file: ''
+  - start_line: 18
+    end_line: 24
+    file: ''
+  - start_line: 26
+    end_line: 33
+    file: ''
+  - start_line: 85
+    end_line: 87
+    file: ''
+  '["YearsAtCompany","YearsSinceLastPromotion"]': []
+  '["YearsAtCompany","YearsWithCurrManager"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 45
+    end_line: 51
+    file: ''
+  - start_line: 62
+    end_line: 66
+    file: ''
+  - start_line: 67
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 87
+    file: ''
+  ? '["AgeGroup","Attrition","AttritionRiskScore","DistanceFromHome","JobSatisfaction","OverTime","WorkLifeBalance","YearsAtCompany","YearsSinceLastPromotion","YearsWithCurrManager"]'
+  : - start_line: 15
+      end_line: 15
+      file: ''
+    - start_line: 36
+      end_line: 92
+      file: ''
+  '["AgeGroup","Department","EmpID","JobRole","MonthlyIncome","SalarySlab"]':
+  - start_line: 4
+    end_line: 5
+    file: ''
+  - start_line: 12
+    end_line: 15
+    file: ''
+  - start_line: 17
+    end_line: 24
+    file: ''
+  - start_line: 27
+    end_line: 33
+    file: ''
+  - start_line: 36
+    end_line: 43
+    file: ''
+  - start_line: 45
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 92
+    file: ''
+  PerformanceRating:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 19
+    end_line: 19
+    file: ''
+  - start_line: 89
+    end_line: 89
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  PercentSalaryHike:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 20
+    end_line: 20
+    file: ''
+  - start_line: 23
+    end_line: 24
+    file: ''
+  - start_line: 27
+    end_line: 30
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 89
+    end_line: 90
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  SalarySlab:
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 89
+    end_line: 90
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  MonthlyIncome:
+  - start_line: 15
+    end_line: 24
+    file: ''
+  - start_line: 27
+    end_line: 33
+    file: ''
+  - start_line: 89
+    end_line: 92
+    file: ''
+  Department:
+  - start_line: 27
+    end_line: 30
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  EmpID:
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 89
+    end_line: 89
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  AgeGroup:
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 67
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 87
+    file: ''
+  YearsAtCompany:
+  - start_line: 45
+    end_line: 45
+    file: ''
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 50
+    end_line: 51
+    file: ''
+  - start_line: 67
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 79
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  YearsSinceLastPromotion:
+  - start_line: 46
+    end_line: 87
+    file: ''
+  OverTime:
+  - start_line: 53
+    end_line: 53
+    file: ''
+  JobSatisfaction:
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  WorkLifeBalance:
+  - start_line: 57
+    end_line: 57
+    file: ''
+  - start_line: 67
+    end_line: 87
+    file: ''
+  DistanceFromHome:
+  - start_line: 59
+    end_line: 60
+    file: ''
+  - start_line: 67
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 87
+    file: ''
+  YearsWithCurrManager:
+  - start_line: 62
+    end_line: 63
+    file: ''
+  - start_line: 67
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 87
+    file: ''
+  Attrition:
+  - start_line: 64
+    end_line: 92
+    file: ''
+  JobRole:
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.0048135
+    total_tokens: 10728
+    prompt_tokens: 9510
+    completion_tokens: 1218
+  data_flow_inspection:
+    cost: 0.0610685
+    total_tokens: 58973
+    prompt_tokens: 31514
+    completion_tokens: 27459
+  column_correlation_discovery:
+    cost: 0.0071217500000000005
+    total_tokens: 6451
+    prompt_tokens: 3303
+    completion_tokens: 3148
+  multi_column_data_flow_inspection:
+    cost: 0.03926525
+    total_tokens: 36675
+    prompt_tokens: 19477
+    completion_tokens: 17198
+  multi_column_assumption_generation:
+    cost: 0.06437
+    total_tokens: 54081
+    prompt_tokens: 25024
+    completion_tokens: 29057
+  multi_column_code_generation:
+    cost: 0.07021875
+    total_tokens: 73119
+    prompt_tokens: 42699
+    completion_tokens: 30420
+  single_column_assumption_generation:
+    cost: 0.08285175000000002
+    total_tokens: 81206
+    prompt_tokens: 45463
+    completion_tokens: 35743
+  single_column_code_generation:
+    cost: 0.0850299
+    total_tokens: 130138
+    prompt_tokens: 95006
+    completion_tokens: 35132

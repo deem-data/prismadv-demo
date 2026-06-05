@@ -1,0 +1,997 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  team1:
+    code:
+    - suggestion: .hasDataType('team1', 'String')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''team1'', ''String'')'
+      level: warning
+      uid: 083cef60-11b4-41be-8c71-8e320f6725f7
+      source_assumptions: []
+    - suggestion: .satisfies("trim(`team1`) <> ''", "team1 not blank")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e95ef796-6b1e-44da-ba8b-1fa88599263f
+      source_assumptions: []
+    - suggestion: .satisfies("lower(trim(`team1`)) <> lower(trim(`team2`))", "teams
+        are distinct per match")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e7d4eaf2-eb1d-4b9c-9d9d-9f9e58cbca53
+      source_assumptions: []
+    - suggestion: .satisfies("NOT(lower(trim(`result`)) IN ('runs','wickets')) OR
+        lower(trim(`winner`)) IN (lower(trim(`team1`)), lower(trim(`team2`)))", "winner
+        must be one of the teams when match decided")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7058c0e9-93b3-4733-aefd-1294ebf9e9e9
+      source_assumptions: []
+    assumptions: []
+  team2:
+    code:
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) IN (''runs'',''wickets'')
+        THEN (`winner` = `team1` OR `winner` = `team2`) ELSE TRUE END", "winner_in_teams_when_decided",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 45616fe7-2eb3-4a98-9464-688795091214
+      source_assumptions: []
+    - suggestion: '.satisfies("`team2` IS NOT NULL AND `team1` IS NOT NULL AND `team2`
+        <> `team1`", "two_distinct_teams_per_match", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 49137044-b9a1-4a73-a86c-bc4c82c39d82
+      source_assumptions: []
+    - suggestion: .isComplete("team2")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ce8f73a2-f0a3-48d4-a7d7-3451c7519c26
+      source_assumptions: []
+    - suggestion: '.satisfies("`team2` IS NOT NULL AND LENGTH(TRIM(`team2`)) > 0 AND
+        TRIM(`team2`) = `team2`", "team2_trimmed_nonempty", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a014f446-a8da-4aec-b6a9-42995e7e6508
+      source_assumptions: []
+    assumptions: []
+  match_type:
+    code:
+    - suggestion: '.isContainedIn("match_type", ["League", "Final", "Qualifier 1",
+        "Qualifier 2", "Eliminator", "Elimination Final", "Semi Final"], lambda x:
+        x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1972385b-fb71-44c2-9a3e-48e3fd0b527d
+      source_assumptions: []
+    - suggestion: '.satisfies("`match_type` IS NOT NULL AND LENGTH(TRIM(`match_type`))
+        > 0", "match_type_non_empty", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1e20841f-0395-4880-b99d-5fd6b5052932
+      source_assumptions: []
+    - suggestion: '.hasNumberOfDistinctValues("match_type", lambda x: x >= 5 and x
+        <= 10)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("match_type",
+        lambda x: x >= 5 and x <= 10)'': Check.hasNumberOfDistinctValues() missing
+        2 required positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 18e095df-a45c-4c16-a926-e9ae4fca4d50
+      source_assumptions: []
+    - suggestion: '.hasDataType("match_type", "String", lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("match_type",
+        "String", lambda x: x >= 0.99)'
+      level: warning
+      uid: 885412a6-e03e-4272-a663-9eaaaf011a0a
+      source_assumptions: []
+    assumptions: []
+  result_margin:
+    code:
+    - suggestion: '.satisfies("NOT (lower(result) IN (''runs'',''wickets'')) OR result_margin
+        IS NOT NULL", "result_margin_present_for_decided", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b9087593-2fcc-4875-8daa-09041f6aad40
+      source_assumptions: []
+    - suggestion: '.satisfies("NOT (lower(result) = ''wickets'') OR (result_margin
+        BETWEEN 1 AND 10)", "wickets_margin_between_1_10", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4303ddb4-03d2-4853-be0e-4202cb38c130
+      source_assumptions: []
+    - suggestion: '.satisfies("NOT (lower(result) = ''runs'') OR (result_margin >=
+        1)", "runs_margin_positive", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3de8da20-069a-463c-81ec-cd7d9e0b6470
+      source_assumptions: []
+    - suggestion: '.hasCompleteness("result_margin", lambda c: c >= 0.98)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ea53b476-0177-4655-8054-acefe391f32f
+      source_assumptions: []
+    - suggestion: '.satisfies("NOT (lower(result) IN (''tie'',''no result'')) OR result_margin
+        IS NULL", "no_margin_for_tie_or_no_result", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 298b849a-056d-4c8c-a8f8-568694a2d25b
+      source_assumptions: []
+    assumptions: []
+  super_over:
+    code:
+    - suggestion: .isComplete('super_over')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4ac67f42-8618-46c3-a2d3-c14473ed54cb
+      source_assumptions: []
+    - suggestion: '.satisfies("(upper(super_over) = ''Y'' AND lower(result) = ''tie'')
+        OR (upper(super_over) = ''N'' AND lower(result) <> ''tie'')", "super_over
+        consistent with result", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ae05c19d-950d-457e-b7f2-a3dcdff71ca7
+      source_assumptions: []
+    assumptions: []
+  date:
+    code:
+    - suggestion: '.satisfies("to_timestamp(`date`) <= current_timestamp()", "date_not_in_future",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3ba91ddc-5614-4cab-b0ee-b3d21d3f73c7
+      source_assumptions: []
+    assumptions: []
+  season:
+    code:
+    - suggestion: '.hasDataType(''season'', ConstrainableDataTypes.Integral, lambda
+        f: f == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''season'',
+        ConstrainableDataTypes.Integral, lambda f: f == 1.0)'
+      level: error
+      uid: dcf6ecab-6c42-40bb-9761-65ab8f2b2cff
+      source_assumptions: []
+    - suggestion: .isComplete('season')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 41085db8-5fda-423d-9c46-5d340f5795c2
+      source_assumptions: []
+    - suggestion: .satisfies('season BETWEEN 2000 AND 2100', 'season_plausible_range')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ddb82ba8-58eb-477a-a58b-edfbe913d25c
+      source_assumptions: []
+    assumptions: []
+  id:
+    code:
+    - suggestion: '.hasDataType(''id'', ConstrainableDataTypes.Integral, lambda v:
+        v == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''id'', ConstrainableDataTypes.Integral,
+        lambda v: v == 1.0)'
+      level: error
+      uid: 7685f714-37fb-4654-bcef-8549929427a4
+      source_assumptions: []
+    - suggestion: .isComplete('id')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a21a75ca-cc9b-4312-8399-a1e84b1d2c4a
+      source_assumptions: []
+    - suggestion: .isUnique('id')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: aa761570-5e38-47cc-a77d-4111d3baf9a0
+      source_assumptions: []
+    - suggestion: .isNonNegative('id')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 20395db8-852c-4a2c-96cb-99b16187645e
+      source_assumptions: []
+    assumptions: []
+  '["date","id","match_type","result","result_margin","season","super_over","team1","team2","winner"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) IN (''runs'',''wickets'')
+        THEN `result_margin` IS NOT NULL ELSE TRUE END", "result_margin present for
+        decided matches", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 20f70fea-9151-4cca-8574-e5efa317f569
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) = ''wickets'' THEN (`result_margin`
+        >= 1 AND `result_margin` <= 10) ELSE TRUE END", "wicket margin between 1 and
+        10", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 321d8244-8ab8-448b-96e9-5799cba33d9f
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) = ''runs'' THEN (`result_margin`
+        >= 1) ELSE TRUE END", "run margin >= 1", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: aed48a41-de47-4761-8417-8ed4df860e18
+      source_assumptions: []
+    - suggestion: '.isContainedIn(''result'', [''runs'', ''wickets'', ''tie'', ''no
+        result''], lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 8092d385-cea2-45e8-9954-fce034ce1370
+      source_assumptions: []
+    - suggestion: '.isContainedIn(''super_over'', [''Y'', ''N''], lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1d6e9913-6e05-4dee-9205-d66063db5ce4
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) = ''tie'' THEN upper(`super_over`)
+        = ''Y'' ELSE TRUE END", "tie implies super_over = ''Y''", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9940a30c-f949-4cf4-a81c-a8120b00a881
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) IN (''runs'',''wickets'')
+        THEN (`winner` IS NOT NULL AND (`winner` = `team1` OR `winner` = `team2`))
+        ELSE TRUE END", "winner must be one of the teams for decided matches", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c2008cf7-52e6-4fa2-a01a-0ab2b16d23b1
+      source_assumptions: []
+    - suggestion: '.satisfies("to_timestamp(`date`) IS NOT NULL", "date must be parseable
+        to timestamp", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3ff0a78a-b8ad-45ae-8f7a-7f499348eb2c
+      source_assumptions: []
+    assumptions: []
+  '["date","season"]':
+    code:
+    - suggestion: .areComplete(["season", "date"])
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1ca5e959-1451-4669-bbdb-7479859d6ff6
+      source_assumptions: []
+    - suggestion: '.hasDataType("season", ConstrainableDataTypes.Integral, lambda
+        f: f >= 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("season", ConstrainableDataTypes.Integral,
+        lambda f: f >= 1.0)'
+      level: warning
+      uid: 7049be29-e4eb-424a-84e5-cbb6a0450354
+      source_assumptions: []
+    - suggestion: '.satisfies("to_date(`date`, ''yyyy-MM-dd'') IS NOT NULL", "date_parseable_iso",
+        lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 8d00234e-c93d-4e59-9d6e-13600d3523d0
+      source_assumptions: []
+    - suggestion: '.satisfies("year(to_date(`date`, ''yyyy-MM-dd'')) = `season`",
+        "season_matches_date_year", lambda x: x >= 0.98)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 77e20036-ccc8-45fc-b356-073f88a8140b
+      source_assumptions: []
+    assumptions: []
+  winner:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `result` IN (''runs'',''wickets'') THEN (`winner`
+        IS NOT NULL AND (`winner` = `team1` OR `winner` = `team2`)) ELSE TRUE END",
+        "winner_in_teams_if_decided", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7dfc89f1-fba7-4f54-ae67-4277839e62c9
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN `result` IN (''tie'',''no result'') THEN
+        `winner` IS NULL ELSE TRUE END", "winner_null_when_tie_or_no_result", lambda
+        x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 111c9e27-1fa7-40d0-b8e4-4e97c14ebdcb
+      source_assumptions: []
+    - suggestion: '.satisfies("(`winner` IS NULL) OR (`winner` = `team1` OR `winner`
+        = `team2`)", "winner_value_belongs_to_teams", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: dd695a45-9b3f-438f-8464-b87f92a43821
+      source_assumptions: []
+    assumptions: []
+  result:
+    code:
+    - suggestion: '.satisfies("CASE WHEN lower(trim(`result`)) IN (''runs'',''wickets'')
+        THEN CAST(`result_margin` AS INT) > 0 ELSE TRUE END", "result_margin_required_for_decided_results",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 57b8032d-914e-44e0-8480-bd40464bc7fe
+      source_assumptions: []
+    - suggestion: '.satisfies("lower(trim(`result`)) IN (''runs'',''wickets'',''tie'',''no
+        result'')", "result_allowed_values_normalized", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e03a91fc-b339-459b-b72d-b611dce14ed6
+      source_assumptions: []
+    - suggestion: .isComplete("result")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 226382a8-bea2-4458-ac5b-d9b2478ab4c5
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(trim(`result`)) = ''wickets'' THEN
+        CAST(`result_margin` AS INT) BETWEEN 1 AND 10 ELSE TRUE END", "wkts_margin_in_valid_range",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 70b9fa47-b9ac-4b5e-ba83-81bac2fce669
+      source_assumptions: []
+    assumptions: []
+  '["result","result_margin"]':
+    code:
+    - suggestion: '.satisfies("(`result` NOT IN (''runs'',''wickets'')) OR (`result_margin`
+        IS NOT NULL)", "margin_present_for_decided", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 66e1d333-f5ce-4e12-9eb5-5fa62a23ee84
+      source_assumptions: []
+    - suggestion: '.isContainedIn("result", ["runs", "wickets", "tie", "no result"],
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 17174551-58af-44b1-9d98-b24884817a3c
+      source_assumptions: []
+    - suggestion: '.satisfies("(`result` != ''wickets'') OR (`result_margin` BETWEEN
+        1 AND 10 AND `result_margin` = CAST(`result_margin` AS INT))", "wkts_margin_1_to_10_integer",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9c513980-3e13-41cb-b50a-e4ce5c5253e1
+      source_assumptions: []
+    - suggestion: '.satisfies("(`result` != ''runs'') OR (`result_margin` >= 1 AND
+        `result_margin` = CAST(`result_margin` AS INT))", "runs_margin_positive_integer",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 08099c34-22b6-4169-b49d-6240f5c37cf6
+      source_assumptions: []
+    - suggestion: '.satisfies("(`result` NOT IN (''tie'',''no result'')) OR (`result_margin`
+        IS NULL)", "no_margin_for_tie_or_nr", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 61af91b8-43e2-4069-a562-6c25a2655e66
+      source_assumptions: []
+    assumptions: []
+  '["result","result_margin","winner"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) IN (''runs'',''wickets'')
+        THEN (`result_margin` IS NOT NULL AND NOT isnan(`result_margin`)) ELSE TRUE
+        END", "decided_matches_have_margin", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 63eebf7b-e40e-4077-88e5-19908aa93052
+      source_assumptions: []
+    - suggestion: '.isContainedIn(''result'', [''runs'', ''wickets'', ''tie'', ''no
+        result''], lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1c090d42-165b-40cc-adb3-dba7c4613fb8
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) = ''runs'' THEN (`result_margin`
+        >= 1 AND `result_margin` <= 200) ELSE TRUE END", "runs_margin_in_reasonable_range",
+        lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5222c475-2225-454d-9d6b-db6f0ab3d72b
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) = ''wickets'' THEN (`result_margin`
+        BETWEEN 1 AND 10) ELSE TRUE END", "wickets_margin_between_1_and_10", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9c2919f7-69e9-4ba1-ae66-f99b4d2cced8
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) IN (''runs'',''wickets'')
+        THEN (`winner` IS NOT NULL AND (`winner` = `team1` OR `winner` = `team2`))
+        ELSE TRUE END", "winner_must_be_one_of_the_sides_for_decided_matches", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 6e3fa098-9424-4859-9a4b-e19325467f7c
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) IN (''tie'',''no result'')
+        THEN (`winner` IS NULL) ELSE TRUE END", "no_winner_expected_for_tie_or_no_result",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 03a0d58f-ad7b-464b-995c-265352a12b6f
+      source_assumptions: []
+    - suggestion: .isComplete('result')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 30923813-85ea-4622-a0f5-977d455d29b4
+      source_assumptions: []
+    assumptions: []
+  '["result","super_over"]':
+    code:
+    - suggestion: '.satisfies("`result` IN (''runs'',''wickets'',''tie'',''no result'')",
+        "result in expected categories", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2e656e9a-a5ec-45b2-92c1-6762c719ab0e
+      source_assumptions: []
+    - suggestion: '.satisfies("((`result` = ''tie'' AND `super_over` = ''Y'') OR (`result`
+        <> ''tie'' AND `super_over` = ''N''))", "tie-super_over consistency", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9f14cab3-130d-4749-a2da-f54f3252933d
+      source_assumptions: []
+    assumptions: []
+  '["result","team1","team2","winner"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN result IN (''runs'',''wickets'') THEN CAST(result_margin
+        AS INT) IS NOT NULL ELSE TRUE END", "decided_have_int_margin", lambda x: x
+        == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9e7b5363-7e97-4666-936d-4c8569aafd03
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN result IN (''runs'',''wickets'') THEN winner
+        IS NOT NULL AND (winner = team1 OR winner = team2) ELSE TRUE END", "winner_is_one_of_teams_when_decided",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3f6540ab-3732-4354-8830-c55d4ccafccf
+      source_assumptions: []
+    - suggestion: '.isContainedIn(''result'', [''runs'', ''wickets'', ''tie'', ''no
+        result''], lambda f: f >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b6f9562b-9d7c-4ed3-bbbd-8fa1ad3a233a
+      source_assumptions: []
+    - suggestion: '.satisfies("team1 IS NOT NULL AND team2 IS NOT NULL AND team1 <>
+        team2", "teams_are_distinct", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2c3f6a6e-f701-4d4c-ab56-d80a0fd64731
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN result = ''wickets'' THEN CAST(result_margin
+        AS INT) BETWEEN 1 AND 10 ELSE TRUE END", "wickets_margin_between_1_and_10",
+        lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9c8ea93c-9575-4026-b439-911e32a26a92
+      source_assumptions: []
+    assumptions: []
+  '["result","winner"]':
+    code:
+    - suggestion: '.satisfies(''(`result` IN (\''runs\'', \''wickets\'') AND `winner`
+        IS NOT NULL AND (`winner` = `team1` OR `winner` = `team2`)) OR (`result` IN
+        (\''tie\'', \''no result\''))'', ''winner_present_and_valid_when_decided'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ed98030d-38e6-44a2-b71b-94399a99bd31
+      source_assumptions: []
+    - suggestion: '.satisfies(''CASE WHEN `result` = \''wickets\'' THEN (`result_margin`
+        IS NOT NULL AND CAST(`result_margin` AS INT) BETWEEN 1 AND 10) ELSE TRUE END'',
+        ''wickets_margin_between_1_and_10_when_wickets'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6204ffd9-948c-4024-9a2a-e940b4d8b6df
+      source_assumptions: []
+    - suggestion: '.satisfies(''CASE WHEN `result` = \''runs\'' THEN (`result_margin`
+        IS NOT NULL AND CAST(`result_margin` AS INT) >= 1) ELSE TRUE END'', ''runs_margin_positive_when_runs'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 83d9d8c4-c426-481e-a595-322fe236dcd7
+      source_assumptions: []
+    - suggestion: '.satisfies(''lower(`result`) IN (\''runs\'', \''wickets\'', \''tie\'',
+        \''no result\'')'', ''valid_result_values'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 45e98236-c0fc-4e86-8c91-c1dae089b17d
+      source_assumptions: []
+    assumptions: []
+  '["team1","team2"]':
+    code:
+    - suggestion: '.satisfies("`team1` <> `team2`", "distinct_opponents", lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b2595f65-280b-4b19-ac0c-34bd673d1501
+      source_assumptions: []
+    - suggestion: '.satisfies("`team1` IS NOT NULL AND TRIM(`team1`) <> '''' AND `team2`
+        IS NOT NULL AND TRIM(`team2`) <> ''''", "teams_present_and_non_empty", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 06d07e1c-471e-441b-a1ca-b18ee4c7faf7
+      source_assumptions: []
+    - suggestion: '.satisfies("`team1` = TRIM(`team1`) AND `team2` = TRIM(`team2`)",
+        "no_outer_whitespace_in_team_names", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: de35230c-9fd3-44e3-a4b8-1ebcda4d39ec
+      source_assumptions: []
+    - suggestion: .hasDataType('team1', 'String')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''team1'', ''String'')'
+      level: warning
+      uid: 79fe6f23-9f75-4d4b-9251-e043f64a5f44
+      source_assumptions: []
+    - suggestion: .hasDataType('team2', 'String')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''team2'', ''String'')'
+      level: warning
+      uid: f8bee691-19b2-4d2d-afee-ff14ea7bef17
+      source_assumptions: []
+    assumptions: []
+  '["team1","team2","winner"]':
+    code:
+    - suggestion: .isComplete('team1')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3c9226f3-33f4-41f8-b219-3894a57011eb
+      source_assumptions: []
+    - suggestion: .isComplete('team2')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6f09c0ce-b445-486c-9662-fdfd421e4a83
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) IN (''runs'',''wickets'')
+        THEN (`winner` IS NOT NULL AND (`winner` = `team1` OR `winner` = `team2`))
+        ELSE TRUE END", "winner_valid_when_decided", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6aa1c2fa-0eae-4dda-8626-1c24a11919cc
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN lower(`result`) IN (''tie'',''no result'')
+        THEN (`winner` IS NULL) ELSE TRUE END", "winner_null_for_tie_or_nr", lambda
+        x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ffb34f9d-18e4-4ccb-87af-e1125cc16064
+      source_assumptions: []
+    - suggestion: '.satisfies("CASE WHEN `winner` IS NULL THEN TRUE ELSE (`winner`
+        = `team1` OR `winner` = `team2`) END", "winner_belongs_to_teams_if_present",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3ae1fbcb-3101-47d1-8256-32cb8f898956
+      source_assumptions: []
+    - suggestion: '.satisfies("`team1` <> `team2`", "teams_are_distinct", lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 24018423-7290-4bc4-a8b9-2649f683c1ba
+      source_assumptions: []
+    assumptions: []
+column_data_flow_locations:
+  result:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 20
+    end_line: 20
+    file: ''
+  - start_line: 26
+    end_line: 29
+    file: ''
+  - start_line: 166
+    end_line: 168
+    file: ''
+  super_over:
+  - start_line: 21
+    end_line: 21
+    file: ''
+  - start_line: 166
+    end_line: 182
+    file: ''
+  result_margin:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 37
+    end_line: 37
+    file: ''
+  - start_line: 52
+    end_line: 52
+    file: ''
+  - start_line: 60
+    end_line: 60
+    file: ''
+  - start_line: 167
+    end_line: 167
+    file: ''
+  - start_line: 182
+    end_line: 182
+    file: ''
+  date:
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  - start_line: 95
+    end_line: 95
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 104
+    end_line: 104
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 118
+    file: ''
+  - start_line: 123
+    end_line: 123
+    file: ''
+  - start_line: 129
+    end_line: 129
+    file: ''
+  - start_line: 136
+    end_line: 137
+    file: ''
+  - start_line: 141
+    end_line: 141
+    file: ''
+  - start_line: 167
+    end_line: 167
+    file: ''
+  - start_line: 179
+    end_line: 179
+    file: ''
+  winner:
+  - start_line: 40
+    end_line: 41
+    file: ''
+  - start_line: 50
+    end_line: 50
+    file: ''
+  - start_line: 58
+    end_line: 58
+    file: ''
+  - start_line: 87
+    end_line: 88
+    file: ''
+  - start_line: 167
+    end_line: 167
+    file: ''
+  - start_line: 174
+    end_line: 175
+    file: ''
+  team1:
+  - start_line: 40
+    end_line: 41
+    file: ''
+  - start_line: 66
+    end_line: 66
+    file: ''
+  - start_line: 104
+    end_line: 105
+    file: ''
+  - start_line: 123
+    end_line: 124
+    file: ''
+  - start_line: 167
+    end_line: 167
+    file: ''
+  - start_line: 174
+    end_line: 174
+    file: ''
+  team2:
+  - start_line: 40
+    end_line: 41
+    file: ''
+  - start_line: 68
+    end_line: 68
+    file: ''
+  - start_line: 110
+    end_line: 111
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  - start_line: 167
+    end_line: 167
+    file: ''
+  - start_line: 175
+    end_line: 175
+    file: ''
+  id:
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  - start_line: 95
+    end_line: 95
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 104
+    end_line: 104
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 118
+    file: ''
+  - start_line: 123
+    end_line: 123
+    file: ''
+  - start_line: 129
+    end_line: 129
+    file: ''
+  - start_line: 136
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 142
+    file: ''
+  - start_line: 146
+    end_line: 154
+    file: ''
+  - start_line: 166
+    end_line: 168
+    file: ''
+  - start_line: 179
+    end_line: 179
+    file: ''
+  season:
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  - start_line: 95
+    end_line: 95
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 104
+    end_line: 104
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 118
+    file: ''
+  - start_line: 123
+    end_line: 123
+    file: ''
+  - start_line: 129
+    end_line: 129
+    file: ''
+  - start_line: 136
+    end_line: 137
+    file: ''
+  - start_line: 141
+    end_line: 141
+    file: ''
+  - start_line: 146
+    end_line: 146
+    file: ''
+  - start_line: 162
+    end_line: 162
+    file: ''
+  - start_line: 167
+    end_line: 167
+    file: ''
+  - start_line: 179
+    end_line: 180
+    file: ''
+  match_type:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 166
+    end_line: 168
+    file: ''
+  - start_line: 172
+    end_line: 175
+    file: ''
+  - start_line: 177
+    end_line: 177
+    file: ''
+  - start_line: 179
+    end_line: 179
+    file: ''
+  - start_line: 182
+    end_line: 182
+    file: ''
+fixing_results:
+  id:
+    20395db8-852c-4a2c-96cb-99b16187645e: .isNonNegative('id')
+  winner:
+    111c9e27-1fa7-40d0-b8e4-4e97c14ebdcb: '.satisfies("CASE WHEN `result` IN (''tie'',''no
+      result'') THEN `winner` IS NULL ELSE TRUE END", "winner_null_when_tie_or_no_result",
+      lambda x: x >= 0.99)'
+  '["team1","team2","winner"]':
+    ffb34f9d-18e4-4ccb-87af-e1125cc16064: '.satisfies("CASE WHEN lower(`result`) IN
+      (''tie'',''no result'') THEN (`winner` IS NULL) ELSE TRUE END", "winner_null_for_tie_or_nr",
+      lambda x: x >= 0.99)'
+consolidation_results:
+  team1:
+  - idx_to_remove: ff892239-6aa2-42f0-ad4a-9d2557bd83cc
+    redundant_with:
+    - e95ef796-6b1e-44da-ba8b-1fa88599263f
+  super_over:
+  - idx_to_remove: e0b5ac0e-da1b-4552-9e34-a0086af907da
+    redundant_with:
+    - ae05c19d-950d-457e-b7f2-a3dcdff71ca7
+  date:
+  - idx_to_remove: bdfa8613-88f4-41ea-97f5-abf32dec379d
+    redundant_with:
+    - 281198c3-0e22-4d3e-b804-157beddc301e
+    - 3ba91ddc-5614-4cab-b0ee-b3d21d3f73c7
+  - idx_to_remove: 281198c3-0e22-4d3e-b804-157beddc301e
+    redundant_with:
+    - 3ba91ddc-5614-4cab-b0ee-b3d21d3f73c7
+  season:
+  - idx_to_remove: a60382c6-5bf7-4ce7-af4a-ef497c28953f
+    redundant_with:
+    - ddb82ba8-58eb-477a-a58b-edfbe913d25c
+  '["date","season"]':
+  - idx_to_remove: 9d8920f9-ebef-4e5f-8fa4-e0d116fe91ce
+    redundant_with:
+    - 1ca5e959-1451-4669-bbdb-7479859d6ff6
+  '["result","super_over"]':
+  - idx_to_remove: ca4d338f-decd-4002-8a38-f3a817bcc17e
+    redundant_with:
+    - 9f14cab3-130d-4749-a2da-f54f3252933d
+  - idx_to_remove: 83a949df-521a-47a9-9383-25c99a6d8fd7
+    redundant_with:
+    - 9f14cab3-130d-4749-a2da-f54f3252933d
+  '["result","team1","team2","winner"]':
+  - idx_to_remove: 0b3ea152-e31f-4638-82ad-6105169db988
+    redundant_with:
+    - 2c3f6a6e-f701-4d4c-ab56-d80a0fd64731
+  '["result","winner"]':
+  - idx_to_remove: d29376d7-7b80-4dc3-93a0-b17bd50f66e1
+    redundant_with:
+    - 45e98236-c0fc-4e86-8c91-c1dae089b17d
+cost_summary:
+  column_access_detection:
+    cost: 0.012734500000000001
+    total_tokens: 6688
+    prompt_tokens: 5826
+    completion_tokens: 862
+  data_flow_inspection:
+    cost: 0.43028924999999996
+    total_tokens: 75481
+    prompt_tokens: 33665
+    completion_tokens: 41816
+  column_correlation_discovery:
+    cost: 0.049194999999999996
+    total_tokens: 8087
+    prompt_tokens: 3620
+    completion_tokens: 4467
+  multi_column_data_flow_inspection:
+    cost: 0.45488124999999996
+    total_tokens: 73472
+    prompt_tokens: 31817
+    completion_tokens: 41655
+  multi_column_code_generation:
+    cost: 0.5870474999999999
+    total_tokens: 130015
+    prompt_tokens: 77054
+    completion_tokens: 52961
+  single_column_code_generation:
+    cost: 0.47248500000000004
+    total_tokens: 123035
+    prompt_tokens: 81676
+    completion_tokens: 41359
+  code_fixing:
+    cost: 0.0416125
+    total_tokens: 6571
+    prompt_tokens: 2754
+    completion_tokens: 3817
+  consolidate_constraints:
+    cost: 0.3777975
+    total_tokens: 53262
+    prompt_tokens: 17694
+    completion_tokens: 35568

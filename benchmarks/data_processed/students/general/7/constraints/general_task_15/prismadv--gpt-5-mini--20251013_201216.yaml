@@ -1,0 +1,4242 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-mini
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  Curricular units 1st sem (without evaluations):
+    code:
+    - suggestion: .isComplete("Curricular units 1st sem (without evaluations)")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ce7469d4-f5c4-4354-8265-2f93612b4b23
+      source_assumptions:
+      - 50160635-24a4-44b2-ba7e-88ded4916a8e
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 1st sem (without evaluations)`
+        IS NOT NULL AND `Curricular units 1st sem (without evaluations)` >= 0 AND
+        floor(`Curricular units 1st sem (without evaluations)`) = `Curricular units
+        1st sem (without evaluations)` THEN 1 ELSE 0 END", "s1_noeval_non_negative_integer",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fd72328c-d890-48ce-9372-1b69d0b42172
+      source_assumptions:
+      - 90fc5f03-0b23-479b-ab0d-428bf239ae0d
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 1st sem (enrolled)` > 0
+        THEN CASE WHEN `Curricular units 1st sem (without evaluations)` <= `Curricular
+        units 1st sem (enrolled)` THEN 1 ELSE 0 END ELSE 1 END", "s1_noeval_le_enrolled_when_enrolled_positive",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b8b67bd6-e84d-4a81-8168-6a171131a6d8
+      source_assumptions:
+      - 5c178460-aa9e-4794-a834-3e86700227ff
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 1st sem (without evaluations)`
+        IS NOT NULL AND `Curricular units 1st sem (without evaluations)` <= 10 THEN
+        1 ELSE 0 END", "s1_noeval_max_10", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2ca9cd57-deec-4d49-a795-003931e62b05
+      source_assumptions:
+      - 6cef72a6-a0b8-4865-a41f-9251934a5d1a
+    assumptions:
+    - text: 'The ''Curricular units 1st sem (without evaluations)'' column must contain
+        no missing/null values. The code reads this column directly into numeric computations
+        (safe_divide and feature assembly) without any fillna or null-handling, so
+        nulls in the input will cause NaNs or unexpected behavior downstream.
+
+        Example validation (Deequ-style):
+
+        .satisfies("CASE WHEN `Curricular units 1st sem (without evaluations)` IS
+        NOT NULL THEN 1 ELSE 0 END", "No nulls in s1_noeval", lambda x: x == 1)
+
+        (Or Great Expectations: expect_column_values_to_not_be_null(''Curricular units
+        1st sem (without evaluations)''))'
+      sources:
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 64
+        end_line: 64
+        file: ''
+      - start_line: 91
+        end_line: 92
+        file: ''
+      uid: 50160635-24a4-44b2-ba7e-88ded4916a8e
+    - text: 'Values in ''Curricular units 1st sem (without evaluations)'' must be
+        numeric (convertible to float) and are expected to be integral and non-negative.
+        The code uses numeric comparisons and arithmetic (den > 0 checks and division),
+        and later the feature matrix is scaled and passed to a numeric model, so non-numeric
+        strings or negative values would break assumptions.
+
+        Example validation (Deequ-style):
+
+        .satisfies("CASE WHEN `Curricular units 1st sem (without evaluations)` IS
+        NOT NULL AND `Curricular units 1st sem (without evaluations)` >= 0 THEN 1
+        ELSE 0 END", "s1_noeval_non_negative_and_numeric", lambda x: x == 1)
+
+        (Plus an optional check that values are integers: expect_column_values_to_be_in_set
+        or check that value = floor(value)).'
+      sources:
+      - start_line: 64
+        end_line: 64
+        file: ''
+      - start_line: 121
+        end_line: 122
+        file: ''
+      uid: 90fc5f03-0b23-479b-ab0d-428bf239ae0d
+    - text: 'For rows where ''Curricular units 1st sem (enrolled)'' > 0, the ''without
+        evaluations'' count should be <= the ''enrolled'' count. This ensures first_sem_engagement
+        = 1 - (noeval / enrolled) stays in the expected [0,1] range and prevents negative
+        engagement values.
+
+        Example validation (Deequ-style):
+
+        .satisfies("CASE WHEN `Curricular units 1st sem (enrolled)` > 0 THEN CASE
+        WHEN `Curricular units 1st sem (without evaluations)` <= `Curricular units
+        1st sem (enrolled)` THEN 1 ELSE 0 END ELSE 1 END", "s1_noeval_le_enrolled_when_enrolled_positive",
+        lambda x: x == 1)
+
+        (Or Great Expectations: expect_row_conditions_to_be_true for the same condition.)'
+      sources:
+      - start_line: 63
+        end_line: 64
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      uid: 5c178460-aa9e-4794-a834-3e86700227ff
+    - text: 'The ''Curricular units 1st sem (without evaluations)'' values are expected
+        to lie in a small bounded integer domain (observed max = 10 in the provided
+        data). It is reasonable to validate a practical upper bound (e.g. <= 10) to
+        catch garbage/erroneous large counts that would distort feature scaling and
+        model behavior.
+
+        Example validation (Deequ-style):
+
+        .satisfies("CASE WHEN `Curricular units 1st sem (without evaluations)` <=
+        10 THEN 1 ELSE 0 END", "s1_noeval_max_10", lambda x: x >= 0.99)
+
+        (Or use a strict max if appropriate: expect_column_mean/expect_column_max
+        <= 10.)'
+      sources:
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 64
+        end_line: 64
+        file: ''
+      uid: 6cef72a6-a0b8-4865-a41f-9251934a5d1a
+  Curricular units 2nd sem (without evaluations):
+    code:
+    - suggestion: .isComplete("Curricular units 2nd sem (without evaluations)")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 05f05a8b-78d3-4b98-ab9d-f3419b39f0b5
+      source_assumptions:
+      - 7fef95d9-beea-4d68-a5a8-391c8bf28f11
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 2nd sem (without evaluations)`
+        >= 0 AND floor(`Curricular units 2nd sem (without evaluations)`) = `Curricular
+        units 2nd sem (without evaluations)` THEN 1 ELSE 0 END", "Non-negative integers",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 381ffaa4-c8ef-4ad0-96c8-59f6d0fd117d
+      source_assumptions:
+      - 00da4e24-0575-4212-8465-e1d75624dfb8
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 2nd sem (without evaluations)`
+        <= `Curricular units 2nd sem (enrolled)` THEN 1 ELSE 0 END", "Noeval_le_enrolled",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 744fd669-4905-4fb6-b0e7-bb88c544943a
+      source_assumptions:
+      - 9eb9453a-d9e7-4250-aff9-3ae072a13457
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 2nd sem (without evaluations)`
+        BETWEEN 0 AND 8 THEN 1 ELSE 0 END", "Range_0_8", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ae9985cd-d0cc-4e69-ac8a-c26a6fbab8d6
+      source_assumptions:
+      - a5cd954d-16d3-433c-aebf-52c7c53bb46a
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 2nd sem (without evaluations)`
+        = 0 THEN 1 ELSE 0 END", "MostlyZeros", lambda x: x >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1fa3234f-f515-4c86-bb09-836bdb6804ec
+      source_assumptions:
+      - 8d2ef9dd-6e17-49cf-aba2-9cc887d55125
+    assumptions:
+    - text: 'The ''Curricular units 2nd sem (without evaluations)'' column must not
+        contain NULLs (no missing values). This column is used directly in numeric
+        calculations and placed into model features without any imputation, so the
+        input must provide values for every row. (Deequ example: .satisfies("CASE
+        WHEN `Curricular units 2nd sem (without evaluations)` IS NOT NULL THEN 1 ELSE
+        0 END", "No nulls", lambda x: x == 1) / Great Expectations: expect_column_values_to_not_be_null.'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 68
+        end_line: 68
+        file: ''
+      - start_line: 94
+        end_line: 94
+        file: ''
+      uid: 7fef95d9-beea-4d68-a5a8-391c8bf28f11
+    - text: 'Values in ''Curricular units 2nd sem (without evaluations)'' should be
+        non-negative integers (whole numbers >= 0). The code treats the column as
+        an integral numeric count (used in division and engagement calculations),
+        so negative or non-integer values would violate expectations. (Deequ example:
+        .satisfies("CASE WHEN `Curricular units 2nd sem (without evaluations)` >=
+        0 AND floor(`Curricular units 2nd sem (without evaluations)`) = `Curricular
+        units 2nd sem (without evaluations)` THEN 1 ELSE 0 END", "Non-negative integers",
+        lambda x: x == 1) / Great Expectations: expect_column_values_to_be_of_type(''int'')
+        and expect_column_min_to_be_between(min_value=0).'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 68
+        end_line: 68
+        file: ''
+      uid: 00da4e24-0575-4212-8465-e1d75624dfb8
+    - text: 'For each row, ''Curricular units 2nd sem (without evaluations)'' must
+        be less than or equal to ''Curricular units 2nd sem (enrolled)''. The engagement
+        calculation assumes the count without evaluations is a subset of enrolled
+        units, so numerator should not exceed denominator. (Deequ example: .satisfies("CASE
+        WHEN `Curricular units 2nd sem (without evaluations)` <= `Curricular units
+        2nd sem (enrolled)` THEN 1 ELSE 0 END", "Noeval_le_enrolled", lambda x: x
+        == 1) / Great Expectations: expect_column_pair_values_A_to_be_less_than_or_equal_to_B.'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      - start_line: 55
+        end_line: 57
+        file: ''
+      uid: 9eb9453a-d9e7-4250-aff9-3ae072a13457
+    - text: 'The values should lie within a small, bounded integer range consistent
+        with historical data (observed max = 8). Validate that values are within [0,
+        8] (or at least within a small upper bound such as 0..20 if you want a looser
+        rule). (Deequ example strict: .satisfies("CASE WHEN `Curricular units 2nd
+        sem (without evaluations)` BETWEEN 0 AND 8 THEN 1 ELSE 0 END", "Range_0_8",
+        lambda x: x == 1)).'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 68
+        end_line: 68
+        file: ''
+      uid: a5cd954d-16d3-433c-aebf-52c7c53bb46a
+    - text: 'The column is expected to be mostly zeros (a very large fraction of rows
+        have value 0). Enforce that the fraction of rows with value 0 is high (e.g.,
+        >= 0.90) so derived engagement metrics behave as expected. (Deequ example:
+        .satisfies("CASE WHEN `Curricular units 2nd sem (without evaluations)` = 0
+        THEN 1 ELSE 0 END", "MostlyZeros", lambda x: x >= 0.9)).'
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 68
+        end_line: 68
+        file: ''
+      uid: 8d2ef9dd-6e17-49cf-aba2-9cc887d55125
+  Curricular units 1st sem (evaluations):
+    code:
+    - suggestion: .isComplete("Curricular units 1st sem (evaluations)")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bfa561f3-b6db-4220-8dfe-35f88c1450a8
+      source_assumptions:
+      - faf8379d-4abc-490c-bc7f-ed40a4a3b74b
+    - suggestion: '.hasDataType("Curricular units 1st sem (evaluations)", "Integral",
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Curricular
+        units 1st sem (evaluations)", "Integral", lambda x: x == 1)'
+      level: error
+      uid: f185ef4e-a345-469e-ad38-beb303dff69f
+      source_assumptions:
+      - 9f70bb93-0f76-4829-84df-3210b0ed8986
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 1st sem (evaluations)`
+        >= 0 AND `Curricular units 1st sem (evaluations)` <= `Curricular units 1st
+        sem (enrolled)` THEN 1 ELSE 0 END", "evals_within_enrolled", lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `Curricular units 1st
+        sem (evaluations)` >= 0 AND `Curricular units 1st sem (evaluations)` <= `Curricular
+        units 1st sem (enrolled)` THEN 1 ELSE 0 END", "evals_within_enrolled", lambda
+        x: x == 1)'' failed on data sample: Value: 0.364630467571644 does not meet
+        the constraint requirement!'
+      level: error
+      uid: c6f54b35-6b27-450c-9a77-23ff1e202cce
+      source_assumptions:
+      - 2ad52da0-9e8c-4f66-9f02-fdde4d57b4da
+    - suggestion: '.satisfies("CASE WHEN `Curricular units 1st sem (enrolled)` = 0
+        THEN CASE WHEN `Curricular units 1st sem (evaluations)` = 0 THEN 1 ELSE 0
+        END ELSE 1 END", "evals_zero_if_enrolled_zero", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c2417649-fc3c-4085-b9be-d8aa181c7217
+      source_assumptions:
+      - 3af41e81-cdce-420f-8ff9-c935ab65ba8c
+    assumptions:
+    - text: 'The ''Curricular units 1st sem (evaluations)'' column must contain no
+        NULL / missing values. The code reads this column directly (to_numpy) and
+        includes it in the model feature frame without any fillna, so the input should
+        be complete. Example Deequ/GX style check: .satisfies("CASE WHEN `Curricular
+        units 1st sem (evaluations)` IS NOT NULL THEN 1 ELSE 0 END", "no_nulls", lambda
+        x: x == 1).'
+      sources:
+      - start_line: 42
+        end_line: 42
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: faf8379d-4abc-490c-bc7f-ed40a4a3b74b
+    - text: 'Values in ''Curricular units 1st sem (evaluations)'' must be numeric/integral
+        (no non-numeric strings or fractional values). The code performs numeric division
+        on this column and later standardizes the derived feature, so inputs must
+        be parseable to numbers (ideally integers). Example check: .satisfies("CASE
+        WHEN FLOOR(`Curricular units 1st sem (evaluations)`) = `Curricular units 1st
+        sem (evaluations)` THEN 1 ELSE 0 END", "is_integer", lambda x: x == 1) or
+        assert that the column can be cast to a numeric type without errors.'
+      sources:
+      - start_line: 42
+        end_line: 42
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: 9f70bb93-0f76-4829-84df-3210b0ed8986
+    - text: 'Each row''s ''Curricular units 1st sem (evaluations)'' should be non-negative
+        and should not exceed the corresponding ''Curricular units 1st sem (enrolled)''.
+        The code computes first_sem_eval_load = s1_evals / s1_enrolled and expects
+        the numerator to be logically bounded by the denominator (evaluations cannot
+        exceed enrolled units). Example Deequ check: .satisfies("CASE WHEN `Curricular
+        units 1st sem (evaluations)` >= 0 AND `Curricular units 1st sem (evaluations)`
+        <= `Curricular units 1st sem (enrolled)` THEN 1 ELSE 0 END", "evals_within_enrolled",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 63
+        end_line: 65
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: 2ad52da0-9e8c-4f66-9f02-fdde4d57b4da
+    - text: 'When ''Curricular units 1st sem (enrolled)'' equals 0, the ''Curricular
+        units 1st sem (evaluations)'' value should be 0 as well. If enrolled is zero
+        but evaluations are positive, the derived feature will be masked by safe_divide
+        (returns 0) and hide inconsistent input. Example check: .satisfies("CASE WHEN
+        `Curricular units 1st sem (enrolled)` = 0 THEN CASE WHEN `Curricular units
+        1st sem (evaluations)` = 0 THEN 1 ELSE 0 END ELSE 1 END", "evals_zero_if_enrolled_zero",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 63
+        end_line: 66
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      uid: 3af41e81-cdce-420f-8ff9-c935ab65ba8c
+  Curricular units 1st sem (approved):
+    code:
+    - suggestion: .isComplete('Curricular units 1st sem (approved)')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dc84be9f-c437-41d3-88f0-bf4f450a6388
+      source_assumptions:
+      - cc03c0bf-7a53-4edf-b74a-c49f883b9222
+    - suggestion: .hasDataType('Curricular units 1st sem (approved)', 'Integral')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Curricular
+        units 1st sem (approved)'', ''Integral'')'
+      level: error
+      uid: ead88e6d-ed70-4507-a0eb-f1a9050126b6
+      source_assumptions:
+      - 361887df-f230-43a2-b7eb-e5df81673f67
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 1st sem (approved)` >=
+        0 AND `Curricular units 1st sem (approved)` = CAST(`Curricular units 1st sem
+        (approved)` AS INT) THEN 1 ELSE 0 END'', ''approved_non_negative_integer'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d585a2ca-6478-4d67-8bff-f453d22bcd40
+      source_assumptions:
+      - 1b635f36-49da-4782-90d7-9cb338a4dedf
+    - suggestion: .isLessThanOrEqualTo('Curricular units 1st sem (approved)', 'Curricular
+        units 1st sem (enrolled)')
+      validity: false
+      reason_if_invalid: "Constraint '.isLessThanOrEqualTo('Curricular units 1st sem\
+        \ (approved)', 'Curricular units 1st sem (enrolled)')' failed on data sample:\
+        \ org.apache.spark.sql.catalyst.parser.ParseException: \n[PARSE_SYNTAX_ERROR]\
+        \ Syntax error at or near '1st'.(line 1, pos 17)\n\n== SQL ==\nCurricular\
+        \ units 1st sem (approved) <= Curricular units 1st sem (enrolled)\n-----------------^^^\n"
+      level: error
+      uid: 3724b88d-644b-4e46-a9d2-d690e025dfd0
+      source_assumptions:
+      - 6b3ad952-5314-4aa0-a2ec-45cf9708e86a
+    - suggestion: '.hasNumberOfDistinctValues(''Curricular units 1st sem (approved)'',
+        lambda x: x <= 100)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Curricular
+        units 1st sem (approved)'', lambda x: x <= 100)'': Check.hasNumberOfDistinctValues()
+        missing 2 required positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 8156eea4-d98a-4de4-9b6e-7886585416d8
+      source_assumptions:
+      - 898c79a0-8197-4af3-a57b-d06923fcba2d
+    - suggestion: '.hasMax(''Curricular units 1st sem (approved)'', lambda x: x <=
+        100)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: adfea65a-5d3e-47a4-91e5-32f1d82fe38a
+      source_assumptions:
+      - 898c79a0-8197-4af3-a57b-d06923fcba2d
+    assumptions:
+    - text: 'The ''Curricular units 1st sem (approved)'' column must have no missing
+        (NULL/NaN) values in the input data. The code uses this column in numeric
+        computations (division and feature assembly) and does not guard against NaNs
+        in the numerator, so NaNs would propagate into features and break model training/scoring.
+        Example Deequ/GtExpectations style check: .satisfies("CASE WHEN `Curricular
+        units 1st sem (approved)` IS NOT NULL THEN 1 ELSE 0 END", "approved_not_null",
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 63
+        end_line: 63
+        file: ''
+      - start_line: 90
+        end_line: 92
+        file: ''
+      uid: cc03c0bf-7a53-4edf-b74a-c49f883b9222
+    - text: 'The column must be numeric / integral (or safely castable to numeric).
+        The code performs arithmetic with this column (to_numpy and division) and
+        expects numeric arrays rather than strings or categorical values. Example
+        check: .satisfies("CASE WHEN TRY_CAST(`Curricular units 1st sem (approved)`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "approved_is_numeric", lambda x:
+        x == 1.0)'
+      sources:
+      - start_line: 39
+        end_line: 44
+        file: ''
+      - start_line: 63
+        end_line: 63
+        file: ''
+      - start_line: 90
+        end_line: 92
+        file: ''
+      uid: 361887df-f230-43a2-b7eb-e5df81673f67
+    - text: 'Values must be non-negative integers (counts of approved curricular units).
+        Negative values would produce invalid pass rates and are semantically incorrect.
+        Example check: .satisfies("CASE WHEN `Curricular units 1st sem (approved)`
+        >= 0 AND `Curricular units 1st sem (approved)` = CAST(`Curricular units 1st
+        sem (approved)` AS INT) THEN 1 ELSE 0 END", "approved_non_negative_integer",
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 63
+        end_line: 63
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      - start_line: 90
+        end_line: 92
+        file: ''
+      uid: 1b635f36-49da-4782-90d7-9cb338a4dedf
+    - text: 'Row-level consistency: ''Curricular units 1st sem (approved)'' should
+        be less than or equal to ''Curricular units 1st sem (enrolled)'' for each
+        row (you cannot approve more units than were enrolled). The code computes
+        approved/enrolled to derive a pass rate, so this relationship is expected.
+        Example check: .satisfies("CASE WHEN `Curricular units 1st sem (approved)`
+        <= `Curricular units 1st sem (enrolled)` THEN 1 ELSE 0 END", "approved_le_enrolled",
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 52
+        end_line: 63
+        file: ''
+      - start_line: 90
+        end_line: 92
+        file: ''
+      uid: 6b3ad952-5314-4aa0-a2ec-45cf9708e86a
+    - text: 'Cardinality / value-range expectation: the column represents a small
+        set of discrete counts (metadata indicates about 24 distinct integer values).
+        As a sanity check, the number of distinct values should stay small (e.g. <<
+        100) and values should lie within a realistic upper bound (you may choose
+        a domain-specific upper bound; as a conservative automated check use distinct_count
+        <= 100 and max <= 100). Example checks: .satisfies("CASE WHEN size(array_distinct(collect_list(`Curricular
+        units 1st sem (approved)`))) <= 100 THEN 1 ELSE 0 END", "approved_distinct_reasonable",
+        lambda x: x == 1.0") and .satisfies("CASE WHEN max(`Curricular units 1st sem
+        (approved)`) <= 100 THEN 1 ELSE 0 END", "approved_max_reasonable", lambda
+        x: x == 1.0)'
+      sources:
+      - start_line: 39
+        end_line: 44
+        file: ''
+      - start_line: 90
+        end_line: 92
+        file: ''
+      uid: 898c79a0-8197-4af3-a57b-d06923fcba2d
+  Curricular units 1st sem (enrolled):
+    code:
+    - suggestion: .isComplete('Curricular units 1st sem (enrolled)')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5c37f89f-850d-43e0-b2a2-fb29f82c1d24
+      source_assumptions:
+      - 4e9bbd47-2c2f-4809-83eb-1e6b7ec53c10
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 1st sem (enrolled)` =
+        CAST(`Curricular units 1st sem (enrolled)` AS INT) THEN 1 ELSE 0 END'', ''Enrolled
+        is integer'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a3235d12-9382-458a-bb1b-02e9168a66ea
+      source_assumptions:
+      - 1ce02ec5-f1fd-41bc-b964-a69ebc4d5c04
+    - suggestion: '.isNonNegative(''Curricular units 1st sem (enrolled)'', lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.isNonNegative('Curricular units 1st sem (enrolled)',\
+        \ lambda x: x == 1)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '('.(line 1, pos 13)\n\n\
+        == SQL ==\nCOALESCE(CAST(Curricular units 1st sem (enrolled) AS DECIMAL(20,10)),\
+        \ 0.0) >= 0\n-------------^^^\n"
+      level: error
+      uid: 6942bb46-a29a-4ec3-9126-0deb0b30957a
+      source_assumptions:
+      - 8c72e17d-f2fc-41ec-af2c-f8ac406538e8
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 1st sem (approved)` <=
+        `Curricular units 1st sem (enrolled)` THEN 1 ELSE 0 END'', ''Approved <= Enrolled'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f3d071d9-46cc-482c-b478-7f30adb56aea
+      source_assumptions:
+      - 52b718e0-048e-48f7-adbd-4129667f3603
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 1st sem (without evaluations)`
+        <= `Curricular units 1st sem (enrolled)` THEN 1 ELSE 0 END'', ''No-eval <=
+        Enrolled'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 891a1bf3-8a02-4d1a-bd7e-812cacc7dabd
+      source_assumptions:
+      - 52b718e0-048e-48f7-adbd-4129667f3603
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 1st sem (evaluations)`
+        <= `Curricular units 1st sem (enrolled)` THEN 1 ELSE 0 END'', ''Evals <= Enrolled'',
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CASE WHEN `Curricular units 1st
+        sem (evaluations)` <= `Curricular units 1st sem (enrolled)` THEN 1 ELSE 0
+        END'', ''Evals <= Enrolled'', lambda x: x == 1)'' failed on data sample: Value:
+        0.364630467571644 does not meet the constraint requirement!'
+      level: error
+      uid: e6fa1c49-c311-47e0-82ee-4bb9e293e40f
+      source_assumptions:
+      - 52b718e0-048e-48f7-adbd-4129667f3603
+    - suggestion: '.isNonNegative(''Curricular units 1st sem (approved)'', lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.isNonNegative('Curricular units 1st sem (approved)',\
+        \ lambda x: x == 1)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '('.(line 1, pos 13)\n\n\
+        == SQL ==\nCOALESCE(CAST(Curricular units 1st sem (approved) AS DECIMAL(20,10)),\
+        \ 0.0) >= 0\n-------------^^^\n"
+      level: error
+      uid: 90e6525c-fe30-453b-af1d-ac294c06f9fc
+      source_assumptions:
+      - 52b718e0-048e-48f7-adbd-4129667f3603
+    - suggestion: '.isNonNegative(''Curricular units 1st sem (without evaluations)'',
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.isNonNegative('Curricular units 1st sem (without\
+        \ evaluations)', lambda x: x == 1)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '('.(line 1, pos 13)\n\n\
+        == SQL ==\nCOALESCE(CAST(Curricular units 1st sem (without evaluations) AS\
+        \ DECIMAL(20,10)), 0.0) >= 0\n-------------^^^\n"
+      level: error
+      uid: f3495e59-68cb-40bf-a98e-f397d0f0da2d
+      source_assumptions:
+      - 52b718e0-048e-48f7-adbd-4129667f3603
+    - suggestion: '.isNonNegative(''Curricular units 1st sem (evaluations)'', lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.isNonNegative('Curricular units 1st sem (evaluations)',\
+        \ lambda x: x == 1)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '('.(line 1, pos 13)\n\n\
+        == SQL ==\nCOALESCE(CAST(Curricular units 1st sem (evaluations) AS DECIMAL(20,10)),\
+        \ 0.0) >= 0\n-------------^^^\n"
+      level: error
+      uid: 1a401e80-c11a-4f44-888c-ca8b1003b9bd
+      source_assumptions:
+      - 52b718e0-048e-48f7-adbd-4129667f3603
+    - suggestion: '.satisfies(''`Curricular units 1st sem (enrolled)` > 0'', ''Some
+        positive enrolled'', lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 82b3970d-409c-41f4-b0cb-33edfdf5a966
+      source_assumptions:
+      - 4e79e2e4-a7ef-473e-930c-f46d938e980b
+    assumptions:
+    - text: 'The ''Curricular units 1st sem (enrolled)'' column must contain no NULL
+        values. The code reads the csv and then uses this column directly to compute
+        ratios (division), so missing values in the input would break or change the
+        intended feature calculations.
+
+        We could represent this assumption as a Deequ/Greatexpressions-style constraint
+        like this:
+
+        .satisfies(''CASE WHEN `Curricular units 1st sem (enrolled)` IS NOT NULL THEN
+        1 ELSE 0 END'', ''Non-null enrolled'', lambda x: x == 1)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 39
+        end_line: 39
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 4e9bbd47-2c2f-4809-83eb-1e6b7ec53c10
+    - text: 'Values in ''Curricular units 1st sem (enrolled)'' are expected to be
+        numeric whole counts (integral values). The column is used as a denominator
+        in arithmetic operations and should not contain fractional values.
+
+        Deequ-like constraint example:
+
+        .satisfies(''CASE WHEN `Curricular units 1st sem (enrolled)` = CAST(`Curricular
+        units 1st sem (enrolled)` AS INT) THEN 1 ELSE 0 END'', ''Enrolled is integer'',
+        lambda x: x == 1)'
+      sources:
+      - start_line: 39
+        end_line: 39
+        file: ''
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 1ce02ec5-f1fd-41bc-b964-a69ebc4d5c04
+    - text: 'The ''Curricular units 1st sem (enrolled)'' values must be non-negative
+        (>= 0). It represents a count and is used with a check den > 0 in the safe_divide
+        helper, so negative denominators would be invalid/unexpected.
+
+        Deequ-like constraint example:
+
+        .satisfies(''CASE WHEN `Curricular units 1st sem (enrolled)` >= 0 THEN 1 ELSE
+        0 END'', ''Enrolled non-negative'', lambda x: x == 1)'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 8c72e17d-f2fc-41ec-af2c-f8ac406538e8
+    - text: 'For the computed rates to be meaningful, the semester-level numerators
+        used with this column should not exceed it. Concretely: ''Curricular units
+        1st sem (approved)'', ''Curricular units 1st sem (without evaluations)'',
+        and ''Curricular units 1st sem (evaluations)'' should each be <= ''Curricular
+        units 1st sem (enrolled)'' on a per-row basis (and also be >= 0).
+
+        Deequ-like constraints examples:
+
+        .satisfies(''CASE WHEN `Curricular units 1st sem (approved)` <= `Curricular
+        units 1st sem (enrolled)` THEN 1 ELSE 0 END'', ''Approved <= Enrolled'', lambda
+        x: x == 1)
+
+        .satisfies(''CASE WHEN `Curricular units 1st sem (without evaluations)` <=
+        `Curricular units 1st sem (enrolled)` THEN 1 ELSE 0 END'', ''No-eval <= Enrolled'',
+        lambda x: x == 1)
+
+        .satisfies(''CASE WHEN `Curricular units 1st sem (evaluations)` <= `Curricular
+        units 1st sem (enrolled)` THEN 1 ELSE 0 END'', ''Evals <= Enrolled'', lambda
+        x: x == 1)'
+      sources:
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 52b718e0-048e-48f7-adbd-4129667f3603
+    - text: 'Not all rows should have enrolled == 0. The safe_divide helper returns
+        0 when the denominator is <= 0, which would collapse pass rate / engagement
+        / eval load features to 0 if every enrolled value is zero. At least some rows
+        must have enrolled > 0 so the ratios are computable for a subset of the dataset.
+
+        Deequ-like constraint example:
+
+        .satisfies(''CASE WHEN `Curricular units 1st sem (enrolled)` > 0 THEN 1 ELSE
+        0 END'', ''Some positive enrolled'', lambda x: x > 0)'
+      sources:
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 4e79e2e4-a7ef-473e-930c-f46d938e980b
+  Curricular units 2nd sem (evaluations):
+    code:
+    - suggestion: .isComplete('Curricular units 2nd sem (evaluations)')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9e22f239-35b7-4d7a-b9e3-6b4d789b3802
+      source_assumptions:
+      - e83fe392-e3e6-4e8e-b508-881969b47831
+    - suggestion: .hasDataType('Curricular units 2nd sem (evaluations)', 'Numeric')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Curricular
+        units 2nd sem (evaluations)'', ''Numeric'')'
+      level: error
+      uid: eba71949-9219-40a4-bc0d-bb792b02e0b2
+      source_assumptions:
+      - f3658e64-fa23-42c8-a3bc-54b9c4164329
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 2nd sem (evaluations)`
+        = floor(`Curricular units 2nd sem (evaluations)`) THEN 1 ELSE 0 END'', ''Integer-like
+        evaluations'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 55044642-a627-4420-be5b-7b5a177ac161
+      source_assumptions:
+      - f3658e64-fa23-42c8-a3bc-54b9c4164329
+    - suggestion: .isNonNegative('Curricular units 2nd sem (evaluations)')
+      validity: false
+      reason_if_invalid: "Constraint '.isNonNegative('Curricular units 2nd sem (evaluations)')'\
+        \ failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '('.(line 1, pos 13)\n\n\
+        == SQL ==\nCOALESCE(CAST(Curricular units 2nd sem (evaluations) AS DECIMAL(20,10)),\
+        \ 0.0) >= 0\n-------------^^^\n"
+      level: error
+      uid: 8e1e7fc1-1088-4895-a8bd-727bbe3049e1
+      source_assumptions:
+      - 5cf91d04-51db-4f6a-9ffd-d20c831dae32
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 2nd sem (evaluations)`
+        <= `Curricular units 2nd sem (enrolled)` THEN 1 ELSE 0 END'', ''Evaluations
+        <= Enrolled'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CASE WHEN `Curricular units 2nd
+        sem (evaluations)` <= `Curricular units 2nd sem (enrolled)` THEN 1 ELSE 0
+        END'', ''Evaluations <= Enrolled'', lambda x: x == 1)'' failed on data sample:
+        Value: 0.4095022624434389 does not meet the constraint requirement!'
+      level: error
+      uid: 923fd913-0862-4ec1-93df-b1fa80011e7f
+      source_assumptions:
+      - 34a4d01f-aff0-4c0d-8c67-b47bb9010405
+    - suggestion: '.hasNumberOfDistinctValues(''Curricular units 2nd sem (evaluations)'',
+        lambda x: x <= 50)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Curricular
+        units 2nd sem (evaluations)'', lambda x: x <= 50)'': Check.hasNumberOfDistinctValues()
+        missing 2 required positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: f1c83e0a-368a-4f19-b1d0-82bf2997dc98
+      source_assumptions:
+      - 8b4dc987-07d4-4ec0-a074-e043a8e65d1e
+    assumptions:
+    - text: '''Curricular units 2nd sem (evaluations)'' contains no missing values
+        in the input data. The code reads this column and uses it directly to compute
+        ratios and to build model features without any imputation, so the pipeline
+        expects the column to be complete. Example validation (Deequ/GE-like): .satisfies("CASE
+        WHEN `Curricular units 2nd sem (evaluations)` IS NOT NULL THEN 1 ELSE 0 END",
+        ''Non-null evaluations'', lambda x: x == 1)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: e83fe392-e3e6-4e8e-b508-881969b47831
+    - text: '''Curricular units 2nd sem (evaluations)'' must be numeric (integral)
+        or convertible to numeric. The value is used in arithmetic (division to compute
+        an evaluation load) and later scaled and passed to a StandardScaler and a
+        model, so non-numeric text would break processing. Suggested check: .satisfies(''CASE
+        WHEN `Curricular units 2nd sem (evaluations)` = floor(`Curricular units 2nd
+        sem (evaluations)`) THEN 1 ELSE 0 END'', ''Integer-like evaluations'', lambda
+        x: x == 1)'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 121
+        end_line: 121
+        file: ''
+      uid: f3658e64-fa23-42c8-a3bc-54b9c4164329
+    - text: '''Curricular units 2nd sem (evaluations)'' should be non-negative (>=
+        0). Counts of evaluations cannot be negative and negative values would produce
+        invalid ratios/features. Validation example: .satisfies(''CASE WHEN `Curricular
+        units 2nd sem (evaluations)` >= 0 THEN 1 ELSE 0 END'', ''Non-negative evaluations'',
+        lambda x: x == 1)'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      uid: 5cf91d04-51db-4f6a-9ffd-d20c831dae32
+    - text: '''Curricular units 2nd sem (evaluations)'' must be less than or equal
+        to ''Curricular units 2nd sem (enrolled)''. The code computes an evaluation
+        load as evaluations / enrolled and expects a proportion (<= 1). If evaluations
+        > enrolled, the derived feature will be >1 which is semantically invalid.
+        Example validation: .satisfies(''CASE WHEN `Curricular units 2nd sem (evaluations)`
+        <= `Curricular units 2nd sem (enrolled)` THEN 1 ELSE 0 END'', ''Evaluations
+        <= Enrolled'', lambda x: x == 1)'
+      sources:
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: 34a4d01f-aff0-4c0d-8c67-b47bb9010405
+    - text: '''Curricular units 2nd sem (evaluations)'' is expected to have limited
+        cardinality (a small set of integer counts). The dataset metadata shows a
+        modest number of distinct values (~27), so a sanity check that distinct count
+        is not extremely large is useful. Example validation: .satisfies(''CASE WHEN
+        COUNT(DISTINCT `Curricular units 2nd sem (evaluations)`) <= 50 THEN 1 ELSE
+        0 END'', ''Limited distinct evaluation counts'', lambda x: x == 1)'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: 8b4dc987-07d4-4ec0-a074-e043a8e65d1e
+  Curricular units 2nd sem (approved):
+    code:
+    - suggestion: .isComplete('Curricular units 2nd sem (approved)')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a09265ac-f9d4-43d3-ad81-956cd15ef356
+      source_assumptions:
+      - 8b934ba5-36f2-4923-8aef-7c51298ad9c3
+    - suggestion: '.hasDataType(''Curricular units 2nd sem (approved)'', ''Integral'',
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Curricular
+        units 2nd sem (approved)'', ''Integral'', lambda x: x == 1)'
+      level: error
+      uid: 686909ec-9582-42e5-983d-e66c4cb8880e
+      source_assumptions:
+      - a78480f4-920e-4853-81a8-e17aebbb191d
+    - suggestion: '.isNonNegative(''Curricular units 2nd sem (approved)'', lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.isNonNegative('Curricular units 2nd sem (approved)',\
+        \ lambda x: x == 1)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '('.(line 1, pos 13)\n\n\
+        == SQL ==\nCOALESCE(CAST(Curricular units 2nd sem (approved) AS DECIMAL(20,10)),\
+        \ 0.0) >= 0\n-------------^^^\n"
+      level: error
+      uid: 77294099-ac15-46bb-ab96-d5a17e5139a7
+      source_assumptions:
+      - 9a9b2cbf-6f52-4b0a-833b-1812fd4f3aed
+    - suggestion: '.isLessThanOrEqualTo(''Curricular units 2nd sem (approved)'', ''Curricular
+        units 2nd sem (enrolled)'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.isLessThanOrEqualTo('Curricular units 2nd sem\
+        \ (approved)', 'Curricular units 2nd sem (enrolled)', lambda x: x == 1)' failed\
+        \ on data sample: org.apache.spark.sql.catalyst.parser.ParseException: \n\
+        [PARSE_SYNTAX_ERROR] Syntax error at or near '2nd'.(line 1, pos 17)\n\n==\
+        \ SQL ==\nCurricular units 2nd sem (approved) <= Curricular units 2nd sem\
+        \ (enrolled)\n-----------------^^^\n"
+      level: error
+      uid: 3dd5767f-6602-495b-9bad-2ff62e2328ec
+      source_assumptions:
+      - 9a9b2cbf-6f52-4b0a-833b-1812fd4f3aed
+    - suggestion: '.satisfies(''CASE WHEN NOT (`Curricular units 2nd sem (enrolled)`
+        = 0 AND `Curricular units 2nd sem (approved)` != 0) THEN 1 ELSE 0 END'', ''No
+        approved units when enrolled is zero'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fd2d4547-23f7-4e34-9292-9c40a0d4a7a8
+      source_assumptions:
+      - fdeb1015-df96-4321-83d6-397cc0efcc41
+    assumptions:
+    - text: 'The ''Curricular units 2nd sem (approved)'' column must contain no NULLs.
+        The code reads this column directly into numeric arrays and includes it as
+        a model feature without any imputation, so the pipeline expects values for
+        every row. Example validation (Deequ/Greatexpectations style):
+
+        .satisfies("CASE WHEN `Curricular units 2nd sem (approved)` IS NOT NULL THEN
+        1 ELSE 0 END", "No nulls in 2nd sem approved", lambda x: x == 1)
+
+        (or Great Expectations: expect_column_values_to_not_be_null).'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      - start_line: 86
+        end_line: 96
+        file: ''
+      uid: 8b934ba5-36f2-4923-8aef-7c51298ad9c3
+    - text: 'The ''Curricular units 2nd sem (approved)'' column must be integral (whole
+        numbers). The code treats the column as a numeric count of approved curricular
+        units and uses it in arithmetic (pass-rate) calculations and scaling. Example
+        validation:
+
+        .satisfies("CASE WHEN `Curricular units 2nd sem (approved)` = CAST(`Curricular
+        units 2nd sem (approved)` AS BIGINT) THEN 1 ELSE 0 END", "Integral approved
+        units", lambda x: x == 1)
+
+        (or Great Expectations: expect_column_values_to_be_in_type_list / expect_column_values_to_be_of_type
+        with integer checks).'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      - start_line: 86
+        end_line: 96
+        file: ''
+      uid: a78480f4-920e-4853-81a8-e17aebbb191d
+    - text: 'Values in ''Curricular units 2nd sem (approved)'' should be non-negative
+        and logically bounded by the corresponding ''Curricular units 2nd sem (enrolled)''
+        value (approved <= enrolled). The code computes second_sem_pass_rate = approved
+        / enrolled, so approved > enrolled or negative approved values would be inconsistent
+        and produce invalid rates. Example validation:
+
+        .satisfies("CASE WHEN `Curricular units 2nd sem (approved)` >= 0 THEN 1 ELSE
+        0 END", "Non-negative approved units", lambda x: x == 1)
+
+        .satisfies("CASE WHEN `Curricular units 2nd sem (approved)` <= `Curricular
+        units 2nd sem (enrolled)` THEN 1 ELSE 0 END", "Approved <= Enrolled", lambda
+        x: x == 1)'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 46
+        end_line: 46
+        file: ''
+      uid: 9a9b2cbf-6f52-4b0a-833b-1812fd4f3aed
+    - text: 'When ''Curricular units 2nd sem (enrolled)'' is zero, ''Curricular units
+        2nd sem (approved)'' should also be zero. The safe_divide helper treats zero
+        or negative denominators specially (producing 0.0 pass rate), and domain logic
+        implies there cannot be approved units if none are enrolled. Example validation:
+
+        .satisfies("CASE WHEN `Curricular units 2nd sem (enrolled)` = 0 AND `Curricular
+        units 2nd sem (approved)` != 0 THEN 1 ELSE 0 END", "Approved when none enrolled",
+        lambda x: x == 0)
+
+        (or Great Expectations: expect that no rows violate enrolled==0 & approved!=0).'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: fdeb1015-df96-4321-83d6-397cc0efcc41
+  Curricular units 2nd sem (enrolled):
+    code:
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 2nd sem (enrolled)` IS
+        NOT NULL THEN 1 ELSE 0 END'', ''no_nulls_curricular_units_2nd_sem_enrolled'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ca136e9a-1b1b-42e5-b033-526fb7d285e3
+      source_assumptions:
+      - cece0666-4355-41c3-acf3-e699c513e136
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 2nd sem (enrolled)` =
+        floor(`Curricular units 2nd sem (enrolled)`) THEN 1 ELSE 0 END'', ''integer_values_curricular_units_2nd_sem_enrolled'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a93ea562-1a68-41f1-89b2-de4c53c0250d
+      source_assumptions:
+      - ee93022c-5a5a-4e55-8cd5-5c4c5d24ef1e
+    - suggestion: '.satisfies(''CASE WHEN `Curricular units 2nd sem (enrolled)` >=
+        0 THEN 1 ELSE 0 END'', ''non_negative_curricular_units_2nd_sem_enrolled'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 03d6bd0e-402c-47c3-8a3f-4fdba586881a
+      source_assumptions:
+      - 4e6cd59d-600b-44b7-aaef-374b6997194a
+    - suggestion: '.satisfies(''CASE WHEN SUM(CASE WHEN `Curricular units 2nd sem
+        (enrolled)` > 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END'', ''at_least_one_positive_curricular_units_2nd_sem_enrolled'',
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies('CASE WHEN SUM(CASE WHEN `Curricular\
+        \ units 2nd sem (enrolled)` > 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END',\
+        \ 'at_least_one_positive_curricular_units_2nd_sem_enrolled', lambda x: x ==\
+        \ 1)' failed on data sample: org.apache.spark.sql.AnalysisException: [NESTED_AGGREGATE_FUNCTION]\
+        \ It is not allowed to use an aggregate function in the argument of another\
+        \ aggregate function. Please use the inner aggregate function in a sub-query.;\
+        \ line 1 pos 10;\nAggregate [sum(cast(CASE WHEN (sum(CASE WHEN (Curricular\
+        \ units 2nd sem (enrolled)#409L > cast(0 as bigint)) THEN 1 ELSE 0 END) >\
+        \ cast(0 as bigint)) THEN 1 ELSE 0 END as int)) AS sum(CAST(CASE WHEN (SUM(CASE\
+        \ WHEN (Curricular units 2nd sem (enrolled) > 0) THEN 1 ELSE 0 END) > 0) THEN\
+        \ 1 ELSE 0 END AS INT))#93472L, count(1) AS count(1)#93473L]\n+- LogicalRDD\
+        \ [id#380L, Marital status#381L, Application mode#382L, Application order#383L,\
+        \ Course#384L, Daytime/evening attendance\t#385L, Previous qualification#386L,\
+        \ Previous qualification (grade)#387, Nacionality#388L, Mother's qualification#389L,\
+        \ Father's qualification#390L, Mother's occupation#391L, Father's occupation#392L,\
+        \ Admission grade#393, Displaced#394L, Educational special needs#395L, Debtor#396L,\
+        \ Tuition fees up to date#397L, Gender#398L, Scholarship holder#399L, Age\
+        \ at enrollment#400L, International#401L, Curricular units 1st sem (credited)#402L,\
+        \ Curricular units 1st sem (enrolled)#403L, ... 14 more fields], false\n"
+      level: warning
+      uid: 40236bef-5f9b-4a45-b4b3-23e4cedad0af
+      source_assumptions:
+      - b23e825a-7ce7-48cc-834c-95a028cd43eb
+    - suggestion: '.hasNumberOfDistinctValues(''Curricular units 2nd sem (enrolled)'',
+        lambda x: x <= 30)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Curricular
+        units 2nd sem (enrolled)'', lambda x: x <= 30)'': Check.hasNumberOfDistinctValues()
+        missing 2 required positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 2a67a77c-aaf2-4581-891f-e5453a1211d1
+      source_assumptions:
+      - eb9b5e22-1b44-4a0c-aef0-e704d092e1a4
+    assumptions:
+    - text: 'The ''Curricular units 2nd sem (enrolled)'' column must be non-null for
+        all input rows. The code reads this column and uses it directly to compute
+        features (as a denominator in rate calculations) and to build the feature
+        matrix; missing values would either break numeric operations or produce NaNs
+        that would propagate into StandardScaler and model training. A Deequ/Great
+        Expectations style rule: .satisfies("CASE WHEN `Curricular units 2nd sem (enrolled)`
+        IS NOT NULL THEN 1 ELSE 0 END", "no_nulls_curricular_units_2nd_sem_enrolled",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      - start_line: 93
+        end_line: 95
+        file: ''
+      uid: cece0666-4355-41c3-acf3-e699c513e136
+    - text: 'The ''Curricular units 2nd sem (enrolled)'' column should contain integer
+        (whole-number) values only (no fractional/decimal values). The feature engineering
+        treats this column as a count used for division and as a numeric feature to
+        be scaled; fractional values are not expected. Validation example: .satisfies("CASE
+        WHEN `Curricular units 2nd sem (enrolled)` = floor(`Curricular units 2nd sem
+        (enrolled)`) THEN 1 ELSE 0 END", "integer_values_curricular_units_2nd_sem_enrolled",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      - start_line: 121
+        end_line: 122
+        file: ''
+      uid: ee93022c-5a5a-4e55-8cd5-5c4c5d24ef1e
+    - text: 'The ''Curricular units 2nd sem (enrolled)'' column must be non-negative
+        (>= 0). This represents counts of enrolled curricular units; negative values
+        are semantically invalid and would also affect the safe_divide logic and derived
+        rates. Validation example: .satisfies("CASE WHEN `Curricular units 2nd sem
+        (enrolled)` >= 0 THEN 1 ELSE 0 END", "non_negative_curricular_units_2nd_sem_enrolled",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      - start_line: 93
+        end_line: 95
+        file: ''
+      uid: 4e6cd59d-600b-44b7-aaef-374b6997194a
+    - text: 'There must be at least some positive (greater than zero) values in ''Curricular
+        units 2nd sem (enrolled)'' across the dataset (i.e., not every row has 0).
+        If every row is zero the derived second-semester rate features will be degenerate
+        (all zeros) and the model input will lose information. Validation example:
+        .satisfies("CASE WHEN SUM(CASE WHEN `Curricular units 2nd sem (enrolled)`
+        > 0 THEN 1 ELSE 0 END) > 0 THEN 1 ELSE 0 END", "at_least_one_positive_curricular_units_2nd_sem_enrolled",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 67
+        end_line: 69
+        file: ''
+      - start_line: 93
+        end_line: 95
+        file: ''
+      - start_line: 121
+        end_line: 122
+        file: ''
+      uid: b23e825a-7ce7-48cc-834c-95a028cd43eb
+    - text: 'The set of distinct values for ''Curricular units 2nd sem (enrolled)''
+        is expected to be relatively small (the dataset metadata indicates ~21 distinct
+        values). As a practical validation, the number of distinct values should not
+        be unreasonably large (e.g., distinct_count <= 30). This ensures the column
+        behaves like a small-range count variable and helps detect unexpected free-text
+        or identifier values. Validation example: .satisfies("CASE WHEN count(distinct
+        `Curricular units 2nd sem (enrolled)`) <= 30 THEN 1 ELSE 0 END", "bounded_distinct_count_curricular_units_2nd_sem_enrolled",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 93
+        end_line: 95
+        file: ''
+      uid: eb9b5e22-1b44-4a0c-aef0-e704d092e1a4
+  Tuition fees up to date:
+    code:
+    - suggestion: .isComplete('Tuition fees up to date')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6ba58558-8d99-4848-adc2-4cb25f598427
+      source_assumptions:
+      - 7e139368-e92c-41e3-a6b8-82c367008894
+      - 2001bcb1-21e5-4e40-b7a8-22b2185fa4db
+    - suggestion: '.satisfies(''CASE WHEN `Tuition fees up to date` IN (0,1) THEN
+        1 ELSE 0 END'', ''Tuition binary'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6ba1a8bc-bd30-4abd-a3ec-893228ff5afc
+      source_assumptions:
+      - 6d105e34-c5e6-41a0-960a-ded7dca8f51f
+    - suggestion: '.satisfies(''CASE WHEN CAST(`Tuition fees up to date` AS DOUBLE)
+        IS NOT NULL THEN 1 ELSE 0 END'', ''Tuition numeric-convertible'', lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: cd04689a-5f18-4861-918e-ccb89bd596da
+      source_assumptions:
+      - 4bff1cca-08c8-4749-baa7-a234073a17f2
+    assumptions:
+    - text: The input must contain a column named 'Tuition fees up to date' (exact
+        match expected by the alias col_tuition).
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: 7e139368-e92c-41e3-a6b8-82c367008894
+    - text: 'The ''Tuition fees up to date'' column must have no missing values (non-null
+        for every row). The code compares values to 0 and casts the column to float
+        and then uses the resulting numeric feature in model training, which will
+        fail or produce incorrect behavior if there are NULLs. Example validation
+        (Deequ/GEs): .satisfies(''CASE WHEN `Tuition fees up to date` IS NOT NULL
+        THEN 1 ELSE 0 END'', ''Tuition non-null'', lambda x: x == 1).'
+      sources:
+      - start_line: 71
+        end_line: 76
+        file: ''
+      - start_line: 107
+        end_line: 107
+        file: ''
+      uid: 2001bcb1-21e5-4e40-b7a8-22b2185fa4db
+    - text: 'The column must be binary with only the values 0 and 1 (or string forms
+        convertible to those). The code treats 0 as ''not up to date'' and 1 as ''up
+        to date'' when computing financial_risk (0 contributes 0.5 risk). Example
+        validation: .satisfies(''CASE WHEN `Tuition fees up to date` IN (0,1) THEN
+        1 ELSE 0 END'', ''Tuition binary'', lambda x: x == 1).'
+      sources:
+      - start_line: 73
+        end_line: 73
+        file: ''
+      - start_line: 107
+        end_line: 107
+        file: ''
+      uid: 6d105e34-c5e6-41a0-960a-ded7dca8f51f
+    - text: 'All values in ''Tuition fees up to date'' must be numeric or safely convertible
+        to numeric (int/float). The code casts the column to float for feature construction;
+        non-convertible strings would raise errors. Example validation: .satisfies(''CASE
+        WHEN CAST(`Tuition fees up to date` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END'',
+        ''Tuition numeric-convertible'', lambda x: x == 1).'
+      sources:
+      - start_line: 107
+        end_line: 107
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      uid: 4bff1cca-08c8-4749-baa7-a234073a17f2
+  Previous qualification (grade):
+    code:
+    - suggestion: .isComplete('Previous qualification (grade)')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8ba8be00-77af-4de9-8adf-374fbc8dadfa
+      source_assumptions:
+      - 1a61f9d5-468f-4b34-9ca2-f4109a42254f
+      - 016a7d20-2fa0-4b22-8005-c62ba5df203b
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`Previous qualification (grade)`
+        AS DOUBLE) IS NOT NULL AND ABS(TRY_CAST(`Previous qualification (grade)` AS
+        DOUBLE)) < 1e308 THEN 1 ELSE 0 END", "prevq_numeric_finite", lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ee012dca-781f-4003-9a79-08dc9fe09855
+      source_assumptions:
+      - 61909ba7-9984-40af-97ae-49123cb5a98c
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`Previous qualification (grade)`
+        AS DOUBLE) BETWEEN 0 AND 200 THEN 1 ELSE 0 END", "prevq_in_0_200", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 48d9ee7c-6174-44f2-aeb8-773c93925620
+      source_assumptions:
+      - 216a978b-bf76-4687-8941-1f4ca3fe32e9
+    - suggestion: '.hasStandardDeviation(''Previous qualification (grade)'', lambda
+        x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fb4382a7-6169-471f-8d76-43bc309c2ee7
+      source_assumptions:
+      - ff5dec93-4d91-41a7-9a63-663a0a4c70a0
+    assumptions:
+    - text: 'The input CSV contains the column ''Previous qualification (grade)''.
+        The script references this column by name when building features, so the column
+        must be present in the input data. Example Great Expectations check: expect_table_column_to_exist(''Previous
+        qualification (grade)'').'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 37
+        end_line: 37
+        file: ''
+      - start_line: 88
+        end_line: 88
+        file: ''
+      uid: 1a61f9d5-468f-4b34-9ca2-f4109a42254f
+    - text: 'All values in ''Previous qualification (grade)'' must be non-null / present.
+        The code divides this column by 200.0 and uses the result in the feature matrix
+        without any null-filling, so nulls would produce NaNs and break downstream
+        scaling/modeling. Example checks: expect_column_values_to_not_be_null(''Previous
+        qualification (grade)'') or Deequ: .satisfies("CASE WHEN `Previous qualification
+        (grade)` IS NOT NULL THEN 1 ELSE 0 END", "non_null_prevq", lambda x: x ==
+        1.0).'
+      sources:
+      - start_line: 60
+        end_line: 60
+        file: ''
+      - start_line: 88
+        end_line: 88
+        file: ''
+      - start_line: 143
+        end_line: 144
+        file: ''
+      uid: 016a7d20-2fa0-4b22-8005-c62ba5df203b
+    - text: 'Values in ''Previous qualification (grade)'' must be numeric (or convertible
+        to float) and finite (no infinities or non-numeric strings). The code performs
+        arithmetic (division by 200.0) and later StandardScaler.transform and model.predict_proba,
+        which require finite numeric inputs. Example check: expect_column_values_to_be_in_type_list(''Previous
+        qualification (grade)'', [''float'', ''int'']) and expect_column_values_to_be_between
+        with allow_cross_type=True for finite bounds, or Deequ: .satisfies("CASE WHEN
+        TRY_CAST(`Previous qualification (grade)` AS DOUBLE) IS NOT NULL AND ABS(TRY_CAST(`Previous
+        qualification (grade)` AS DOUBLE)) < 1e308 THEN 1 ELSE 0 END", "prevq_numeric_finite",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 60
+        end_line: 60
+        file: ''
+      - start_line: 88
+        end_line: 89
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: 61909ba7-9984-40af-97ae-49123cb5a98c
+    - text: "The column values are expected to lie in a reasonable grade range around\
+        \ 0\u2013200 (inclusive). The code divides by 200.0 to create a 0\u20131 scaled\
+        \ feature, implying the original grades should be in [0, 200]. Enforceable\
+        \ check: expect_column_values_to_be_between('Previous qualification (grade)',\
+        \ min_value=0, max_value=200) or Deequ: .satisfies(\"CASE WHEN `Previous qualification\
+        \ (grade)` BETWEEN 0 AND 200 THEN 1 ELSE 0 END\", \"prevq_in_0_200\", lambda\
+        \ x: x == 1.0)."
+      sources:
+      - start_line: 60
+        end_line: 61
+        file: ''
+      - start_line: 88
+        end_line: 89
+        file: ''
+      uid: 216a978b-bf76-4687-8941-1f4ca3fe32e9
+    - text: 'The ''Previous qualification (grade)'' feature should have non-zero variance
+        (not be constant across rows). The script fits a StandardScaler and trains
+        a LogisticRegression on the assembled feature matrix; a constant feature provides
+        no information and may lead to degenerate scaling. Example check: compute
+        standard deviation and assert it''s greater than 0 (expect_column_stdev_to_be_greater_than(''Previous
+        qualification (grade)'', 0)).'
+      sources:
+      - start_line: 120
+        end_line: 125
+        file: ''
+      - start_line: 86
+        end_line: 89
+        file: ''
+      uid: ff5dec93-4d91-41a7-9a63-663a0a4c70a0
+  Age at enrollment:
+    code:
+    - suggestion: .isComplete('Age at enrollment')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f58625d0-01c5-445e-9163-f52ce9c1c58f
+      source_assumptions:
+      - f1ec1972-b16e-47a1-9af6-04eb965a82d5
+      - 41e8e486-9812-4394-a207-ff844cdf2b42
+    - suggestion: '.hasDataType(''Age at enrollment'', ''Numeric'', lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Age at enrollment'',
+        ''Numeric'', lambda x: x == 1.0)'
+      level: error
+      uid: 48acad75-a305-43e9-bf7d-3cfe10ce7005
+      source_assumptions:
+      - 5ff39e0d-1bea-4250-a574-7ca42d9794b5
+    - suggestion: '.satisfies(''CASE WHEN isFinite(`Age at enrollment`) THEN 1 ELSE
+        0 END'', ''age_finite'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CASE WHEN isFinite(`Age at enrollment`)
+        THEN 1 ELSE 0 END'', ''age_finite'', lambda x: x == 1.0)'' failed on data
+        sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_ROUTINE] Cannot
+        resolve function `isFinite` on search path [`system`.`builtin`, `system`.`session`,
+        `spark_catalog`.`default`].; line 1 pos 10'
+      level: error
+      uid: 34d3fe92-5624-4c9b-a287-7ef50e04e535
+      source_assumptions:
+      - d830f8fd-ed5d-4a2c-bcc0-1e10798e34da
+    - suggestion: '.satisfies(''CASE WHEN `Age at enrollment` BETWEEN 15 AND 100 THEN
+        1 ELSE 0 END'', ''age_reasonable_range'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: f9cabf2e-80cf-44e6-8957-a9d273f8c187
+      source_assumptions:
+      - 79375fe9-dc68-4659-ac6c-66cddd921992
+    - suggestion: '.hasNumberOfDistinctValues(''Age at enrollment'', lambda x: x >
+        1)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Age
+        at enrollment'', lambda x: x > 1)'': Check.hasNumberOfDistinctValues() missing
+        2 required positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 45363f5c-2be6-4ee3-9a33-c23cb80d57e6
+      source_assumptions:
+      - b228ff08-77c0-4f1f-aeac-9fa85d57e941
+    assumptions:
+    - text: 'The input must contain the column named ''Age at enrollment''. The code
+        directly indexes df[''Age at enrollment''] when building feature_frame, so
+        the column name must exist exactly (including spacing/casing). Example validation:
+        check that ''Age at enrollment'' is present in the CSV header.'
+      sources:
+      - start_line: 98
+        end_line: 99
+        file: ''
+      - start_line: 23
+        end_line: 23
+        file: ''
+      uid: f1ec1972-b16e-47a1-9af6-04eb965a82d5
+    - text: '''Age at enrollment'' must be numeric (integral in the source) and convertible
+        to float without errors. The code calls .astype(float) and uses this value
+        as a numeric feature for scaling and modeling. Deequ/GX-style check: ensure
+        values are numeric (no non-numeric strings). Example Deequ condition: .isNumeric(''Age
+        at enrollment'') or Great Expectations: expect_column_values_to_be_of_type
+        or expect_column_values_to_be_in_type_list with numeric types.'
+      sources:
+      - start_line: 98
+        end_line: 99
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: 5ff39e0d-1bea-4250-a574-7ca42d9794b5
+    - text: '''Age at enrollment'' should contain no null (missing) values. The dataset
+        metadata indicates completeness = 1.0 and the pipeline does not impute or
+        guard against NaNs for this column before scaling and model training, so missing
+        values would raise errors during StandardScaler.fit_transform or model.predict_proba.
+        Example Deequ constraint: .satisfies("CASE WHEN `Age at enrollment` IS NOT
+        NULL THEN 1 ELSE 0 END", "age_not_null", lambda x: x == 1.0).'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 120
+        end_line: 125
+        file: ''
+      - start_line: 143
+        end_line: 145
+        file: ''
+      uid: 41e8e486-9812-4394-a207-ff844cdf2b42
+    - text: '''Age at enrollment'' values must be finite (no NaN, +Inf, -Inf) because
+        values are scaled and passed to the classifier and predict_proba. Example
+        Deequ constraint: .satisfies("CASE WHEN isFinite(`Age at enrollment`) THEN
+        1 ELSE 0 END", "age_finite", lambda x: x == 1.0). For Great Expectations:
+        expect_column_values_to_be_between with allow_nan=False or a custom expectation
+        for finiteness.'
+      sources:
+      - start_line: 120
+        end_line: 125
+        file: ''
+      - start_line: 143
+        end_line: 145
+        file: ''
+      uid: d830f8fd-ed5d-4a2c-bcc0-1e10798e34da
+    - text: "'Age at enrollment' should be within a plausible human enrollment range\
+        \ to catch data entry errors (suggested: 15 <= age <= 100). This is not strictly\
+        \ required by the code but prevents extreme outliers that could destabilize\
+        \ scaling and model training. Example Deequ constraint: .satisfies(\"CASE\
+        \ WHEN `Age at enrollment` BETWEEN 15 AND 100 THEN 1 ELSE 0 END\", \"age_reasonable_range\"\
+        , lambda x: x >= 0.99) \u2014 adjust the acceptance threshold as needed."
+      sources:
+      - start_line: 98
+        end_line: 99
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: 79375fe9-dc68-4659-ac6c-66cddd921992
+    - text: '''Age at enrollment'' should have more than one distinct value (non-zero
+        variance). The column is used as a numeric feature passed to StandardScaler
+        and the model; if it is constant for all rows it contributes no information
+        and may indicate a data problem. Example Deequ constraint: .satisfies("CASE
+        WHEN approx_count_distinct(`Age at enrollment`) > 1 THEN 1 ELSE 0 END", "age_not_constant",
+        lambda x: x == 1.0), or check that standard deviation > 0.'
+      sources:
+      - start_line: 86
+        end_line: 99
+        file: ''
+      - start_line: 120
+        end_line: 125
+        file: ''
+      uid: b228ff08-77c0-4f1f-aeac-9fa85d57e941
+  Daytime/evening attendance\t:
+    code:
+    - suggestion: .hasColumn("Daytime/evening attendance") or .hasColumn("Daytime/evening
+        attendance\t")
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasColumn("Daytime/evening
+        attendance") or .hasColumn("Daytime/evening attendance\t")'': invalid syntax
+        (<string>, line 1)'
+      level: error
+      uid: e992b5a5-09c0-4a15-b81e-301f85f2526e
+      source_assumptions:
+      - 66f1f5c2-8577-4a78-b744-31fa46bc4c46
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`Daytime/evening attendance` AS
+        DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Daytime attendance numeric", lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"CASE WHEN TRY_CAST(`Daytime/evening\
+        \ attendance` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END\", \"Daytime attendance\
+        \ numeric\", lambda x: x == 1.0)' failed on data sample: org.apache.spark.sql.AnalysisException:\
+        \ [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with\
+        \ name `Daytime/evening attendance` cannot be resolved. Did you mean one of\
+        \ the following? [`Daytime/evening attendance\t`, `Tuition fees up to date`,\
+        \ `International`, `Admission grade`, `Father's occupation`].; line 1 pos\
+        \ 19;\n'Aggregate [sum(cast(CASE WHEN isnotnull(try_cast('Daytime/evening\
+        \ attendance as double)) THEN 1 ELSE 0 END as int)) AS sum(CAST(CASE WHEN\
+        \ (TRY_CAST(Daytime/evening attendance AS DOUBLE) IS NOT NULL) THEN 1 ELSE\
+        \ 0 END AS INT))#88211, count(1) AS count(1)#88212L]\n+- LogicalRDD [id#380L,\
+        \ Marital status#381L, Application mode#382L, Application order#383L, Course#384L,\
+        \ Daytime/evening attendance\t#385L, Previous qualification#386L, Previous\
+        \ qualification (grade)#387, Nacionality#388L, Mother's qualification#389L,\
+        \ Father's qualification#390L, Mother's occupation#391L, Father's occupation#392L,\
+        \ Admission grade#393, Displaced#394L, Educational special needs#395L, Debtor#396L,\
+        \ Tuition fees up to date#397L, Gender#398L, Scholarship holder#399L, Age\
+        \ at enrollment#400L, International#401L, Curricular units 1st sem (credited)#402L,\
+        \ Curricular units 1st sem (enrolled)#403L, ... 14 more fields], false\n"
+      level: error
+      uid: 6416150b-2cde-48a9-bf66-3a008177a296
+      source_assumptions:
+      - 8f0f2567-a28d-49bf-9d52-72d90205d57e
+    - suggestion: '.satisfies("CASE WHEN `Daytime/evening attendance` IS NOT NULL
+        AND NOT isnan(`Daytime/evening attendance`) AND `Daytime/evening attendance`
+        NOT IN (CAST(''Infinity'' AS DOUBLE), CAST(''-Infinity'' AS DOUBLE)) THEN
+        1 ELSE 0 END", "Daytime attendance finite and not null", lambda x: x >= 0.995)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"CASE WHEN `Daytime/evening attendance`\
+        \ IS NOT NULL AND NOT isnan(`Daytime/evening attendance`) AND `Daytime/evening\
+        \ attendance` NOT IN (CAST('Infinity' AS DOUBLE), CAST('-Infinity' AS DOUBLE))\
+        \ THEN 1 ELSE 0 END\", \"Daytime attendance finite and not null\", lambda\
+        \ x: x >= 0.995)' failed on data sample: org.apache.spark.sql.AnalysisException:\
+        \ [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with\
+        \ name `Daytime/evening attendance` cannot be resolved. Did you mean one of\
+        \ the following? [`Daytime/evening attendance\t`, `Tuition fees up to date`,\
+        \ `International`, `Admission grade`, `Father's occupation`].; line 1 pos\
+        \ 10;\n'Aggregate [sum(cast(CASE WHEN ((isnotnull('Daytime/evening attendance)\
+        \ AND NOT 'isnan('Daytime/evening attendance)) AND NOT 'Daytime/evening attendance\
+        \ IN (cast(Infinity as double),cast(-Infinity as double))) THEN 1 ELSE 0 END\
+        \ as int)) AS sum(CAST(CASE WHEN (((Daytime/evening attendance IS NOT NULL)\
+        \ AND (NOT isnan(Daytime/evening attendance))) AND (NOT (Daytime/evening attendance\
+        \ IN (CAST(Infinity AS DOUBLE), CAST(-Infinity AS DOUBLE))))) THEN 1 ELSE\
+        \ 0 END AS INT))#88259, count(1) AS count(1)#88260L]\n+- LogicalRDD [id#380L,\
+        \ Marital status#381L, Application mode#382L, Application order#383L, Course#384L,\
+        \ Daytime/evening attendance\t#385L, Previous qualification#386L, Previous\
+        \ qualification (grade)#387, Nacionality#388L, Mother's qualification#389L,\
+        \ Father's qualification#390L, Mother's occupation#391L, Father's occupation#392L,\
+        \ Admission grade#393, Displaced#394L, Educational special needs#395L, Debtor#396L,\
+        \ Tuition fees up to date#397L, Gender#398L, Scholarship holder#399L, Age\
+        \ at enrollment#400L, International#401L, Curricular units 1st sem (credited)#402L,\
+        \ Curricular units 1st sem (enrolled)#403L, ... 14 more fields], false\n"
+      level: error
+      uid: e8aab5f9-dce6-479e-bf6a-45b40529051f
+      source_assumptions:
+      - bb2b7d1c-652a-415f-9a3c-fb43fd7e981f
+    - suggestion: '.satisfies("CASE WHEN `Daytime/evening attendance` IN (0, 1) THEN
+        1 ELSE 0 END", "Daytime attendance binary (>=95%)", lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"CASE WHEN `Daytime/evening attendance`\
+        \ IN (0, 1) THEN 1 ELSE 0 END\", \"Daytime attendance binary (>=95%)\", lambda\
+        \ x: x >= 0.95)' failed on data sample: org.apache.spark.sql.AnalysisException:\
+        \ [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with\
+        \ name `Daytime/evening attendance` cannot be resolved. Did you mean one of\
+        \ the following? [`Daytime/evening attendance\t`, `Tuition fees up to date`,\
+        \ `International`, `Admission grade`, `Father's occupation`].; line 1 pos\
+        \ 10;\n'Aggregate [sum(cast(CASE WHEN 'Daytime/evening attendance IN (0,1)\
+        \ THEN 1 ELSE 0 END as int)) AS sum(CAST(CASE WHEN (Daytime/evening attendance\
+        \ IN (0, 1)) THEN 1 ELSE 0 END AS INT))#88213, count(1) AS count(1)#88214L]\n\
+        +- LogicalRDD [id#380L, Marital status#381L, Application mode#382L, Application\
+        \ order#383L, Course#384L, Daytime/evening attendance\t#385L, Previous qualification#386L,\
+        \ Previous qualification (grade)#387, Nacionality#388L, Mother's qualification#389L,\
+        \ Father's qualification#390L, Mother's occupation#391L, Father's occupation#392L,\
+        \ Admission grade#393, Displaced#394L, Educational special needs#395L, Debtor#396L,\
+        \ Tuition fees up to date#397L, Gender#398L, Scholarship holder#399L, Age\
+        \ at enrollment#400L, International#401L, Curricular units 1st sem (credited)#402L,\
+        \ Curricular units 1st sem (enrolled)#403L, ... 14 more fields], false\n"
+      level: warning
+      uid: 2a5ed993-00d9-40aa-afc2-6e32323c7250
+      source_assumptions:
+      - 7842d784-7d76-43e1-9150-27a1d1bf8bd1
+    assumptions:
+    - text: 'The input must contain a column for Daytime/evening attendance. The code
+        attempts to locate a column named ''Daytime/evening attendance'' while tolerating
+        trailing tab or whitespace (it falls back to the literal ''Daytime/evening
+        attendance\t'' if not found). Represent as a presence check on the input schema
+        (allowing trailing whitespace in the column name). Example deequ-style check:
+        .hasColumn("Daytime/evening attendance") OR allow alias with trailing whitespace.'
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      uid: 66f1f5c2-8577-4a78-b744-31fa46bc4c46
+    - text: 'Values in the Daytime/evening attendance column must be numeric (parsable
+        to float). The code does df[attendance_col].astype(float) when building features,
+        so non-numeric strings (e.g., ''Daytime''/''Evening'') will cause conversion
+        errors. Represent as a constraint that the column values are numeric or match
+        a numeric regex. Example deequ-style check: .satisfies("CASE WHEN TRY_CAST(`Daytime/evening
+        attendance` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Daytime attendance
+        numeric", lambda x: x >= 1.0).'
+      sources:
+      - start_line: 98
+        end_line: 98
+        file: ''
+      - start_line: 26
+        end_line: 27
+        file: ''
+      uid: 8f0f2567-a28d-49bf-9d52-72d90205d57e
+    - text: 'The Daytime/evening attendance column must not contain missing (NULL/NaN)
+        or infinite values for the vast majority of rows. The numeric column is used
+        directly as a feature, passed to StandardScaler.fit_transform and to the model;
+        scaler/model operations will fail or produce NaN results if values are missing
+        or infinite. Represent as a constraint that nulls/infs are zero (or below
+        a small tolerance). Example deequ-style check: .satisfies("CASE WHEN `Daytime/evening
+        attendance` IS NOT NULL AND isnan(`Daytime/evening attendance`) = false AND
+        `Daytime/evening attendance` NOT IN (CAST(''Infinity'' AS DOUBLE), CAST(''-Infinity''
+        AS DOUBLE)) THEN 1 ELSE 0 END", "Daytime attendance finite and not null",
+        lambda x: x >= 0.995).'
+      sources:
+      - start_line: 98
+        end_line: 98
+        file: ''
+      - start_line: 120
+        end_line: 123
+        file: ''
+      - start_line: 143
+        end_line: 145
+        file: ''
+      uid: bb2b7d1c-652a-415f-9a3c-fb43fd7e981f
+    - text: 'The Daytime/evening attendance values are expected to be in a small,
+        bounded domain (most likely encoded as a binary indicator 0/1). While the
+        code treats it as a numeric feature rather than comparing to a particular
+        value, downstream modeling implies it should be on a small scale similar to
+        other binary flags. If this is the intent, assert that at least a high proportion
+        (for example, 95%) of values are either 0 or 1; alternatively assert values
+        lie in [0, 1]. Example deequ-style checks: .satisfies("CASE WHEN `Daytime/evening
+        attendance` IN (0, 1) THEN 1 ELSE 0 END", "Daytime attendance binary", lambda
+        x: x >= 0.95) or .satisfies("CASE WHEN `Daytime/evening attendance` >= 0 AND
+        `Daytime/evening attendance` <= 1 THEN 1 ELSE 0 END", "Daytime attendance
+        in [0,1]", lambda x: x == 1.0).'
+      sources:
+      - start_line: 86
+        end_line: 109
+        file: ''
+      - start_line: 98
+        end_line: 98
+        file: ''
+      uid: 7842d784-7d76-43e1-9150-27a1d1bf8bd1
+  Application order:
+    code:
+    - suggestion: .isComplete('Application order')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c2543c8b-2a4f-4442-a209-fc4015ca101c
+      source_assumptions:
+      - 573de57d-ab48-48f4-992e-fbfc44b33f33
+    - suggestion: '.satisfies(''CASE WHEN CAST(`Application order` AS DOUBLE) = CAST(CAST(`Application
+        order` AS BIGINT) AS DOUBLE) THEN 1 ELSE 0 END'', ''Integer Application order'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8bf27baf-46f5-4497-9992-89766f43a77f
+      source_assumptions:
+      - 3a4bd8a6-0082-4406-946e-55e9f274a10c
+    - suggestion: '.satisfies(''CASE WHEN `Application order` >= 1 THEN 1 ELSE 0 END'',
+        ''Application order >= 1'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 13277713-139a-481e-8a5f-b8e17dd433b1
+      source_assumptions:
+      - aa06574e-5b2e-4aba-9dff-46c7522e8567
+    - suggestion: '.satisfies(''CASE WHEN `Application order` IN (1,2,3,4,5,6) THEN
+        1 ELSE 0 END'', ''Application order in expected set (1-6)'', lambda x: x >=
+        0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 60c25fe6-93a7-4402-9c6d-deb0d98615d1
+      source_assumptions:
+      - f5c10fd3-d227-41fd-af02-dc385599e8ab
+    - suggestion: '.satisfies(''`Application order` = 1'', ''Has first-choice applications'',
+        lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3de4d6a5-4cb7-4546-bf11-b74ad7efbeb1
+      source_assumptions:
+      - eda8e3df-790e-4f8d-bb50-b5fc849b9e9d
+    assumptions:
+    - text: 'The ''Application order'' column must contain no missing values (non-null)
+        because the pipeline constructs a derived binary feature first_choice from
+        it and then uses that feature in scaling and model training which expect complete
+        features. Example Deequ-like constraint: .satisfies(''CASE WHEN `Application
+        order` IS NOT NULL THEN 1 ELSE 0 END'', ''Non-null Application order'', lambda
+        x: x == 1)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 78
+        end_line: 78
+        file: ''
+      - start_line: 86
+        end_line: 109
+        file: ''
+      - start_line: 120
+        end_line: 126
+        file: ''
+      uid: 573de57d-ab48-48f4-992e-fbfc44b33f33
+    - text: 'The ''Application order'' column must be numeric/integral (no fractional
+        values) and convertible to integer without loss, since code performs equality
+        checks (== 1) and treats the derived value as an integer feature. Example
+        Deequ-like constraint: .satisfies(''CASE WHEN CAST(`Application order` AS
+        DOUBLE) = CAST(CAST(`Application order` AS BIGINT) AS DOUBLE) THEN 1 ELSE
+        0 END'', ''Integer Application order'', lambda x: x == 1)'
+      sources:
+      - start_line: 78
+        end_line: 78
+        file: ''
+      - start_line: 86
+        end_line: 109
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: 3a4bd8a6-0082-4406-946e-55e9f274a10c
+    - text: 'Application order values are expected to be positive ordinal ranks with
+        minimum value >= 1 (i.e., 1 indicates first choice). Example Deequ-like constraint:
+        .satisfies(''CASE WHEN `Application order` >= 1 THEN 1 ELSE 0 END'', ''Application
+        order >= 1'', lambda x: x == 1)'
+      sources:
+      - start_line: 78
+        end_line: 78
+        file: ''
+      - start_line: 86
+        end_line: 99
+        file: ''
+      uid: aa06574e-5b2e-4aba-9dff-46c7522e8567
+    - text: 'Application order should lie in the small expected domain of ranks (for
+        this dataset typically 1,2,3,4,5,6). The code treats ''1'' specially (first_choice),
+        so values outside the expected set are likely anomalies and should be rare.
+        Example Deequ-like constraint (allowing rare exceptions): .satisfies(''CASE
+        WHEN `Application order` IN (1,2,3,4,5,6) THEN 1 ELSE 0 END'', ''Application
+        order in expected set'', lambda x: x >= 0.99)'
+      sources:
+      - start_line: 78
+        end_line: 78
+        file: ''
+      - start_line: 86
+        end_line: 99
+        file: ''
+      uid: f5c10fd3-d227-41fd-af02-dc385599e8ab
+    - text: 'There must be at least one row with value 1 because the code creates
+        first_choice = (Application order == 1). If no rows equal 1, the derived feature
+        would be constant zero and may reduce model signal. Example Deequ-like constraint:
+        .satisfies(''CASE WHEN `Application order` = 1 THEN 1 ELSE 0 END'', ''Has
+        first-choice applications'', lambda x: x > 0)'
+      sources:
+      - start_line: 78
+        end_line: 78
+        file: ''
+      - start_line: 86
+        end_line: 97
+        file: ''
+      - start_line: 116
+        end_line: 126
+        file: ''
+      uid: eda8e3df-790e-4f8d-bb50-b5fc849b9e9d
+  Admission grade:
+    code:
+    - suggestion: '.hasDataType("Admission grade", "Fractional", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Admission grade",
+        "Fractional", lambda x: x == 1)'
+      level: error
+      uid: bdd44c66-f66e-4fe7-ada9-2fc1f89648d7
+      source_assumptions:
+      - 718af911-048a-4e86-9c76-6bb7ab49c4cf
+    - suggestion: '.satisfies("CASE WHEN `Admission grade` IS NOT NULL AND NOT isnan(`Admission
+        grade`) THEN 1 ELSE 0 END", "Admission grade non-null and finite", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2b75435f-71e2-4bb9-a29a-1758ae7c37c2
+      source_assumptions:
+      - 9739bd66-5937-4786-af38-eb29494c2d20
+      - 9901cd8e-9447-4036-87cd-ac89f7323532
+    - suggestion: '.satisfies("CASE WHEN `Admission grade` >= 0 AND `Admission grade`
+        <= 200 THEN 1 ELSE 0 END", "Admission grade in [0,200]", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 14ab64ee-ffa0-4e6c-95c7-cdee8c19ccc5
+      source_assumptions:
+      - 4001d784-ec65-4c5d-99ca-c560c845d688
+    assumptions:
+    - text: "The 'Admission grade' column must be numeric (fractional) and convertible\
+        \ to float because the code divides it by 200.0 and uses the result in downstream\
+        \ numeric feature engineering and model training. \nWe could represent this\
+        \ assumption as a Deequ/GEs-style constraint (example):\n.satisfies(\"CASE\
+        \ WHEN `Admission grade` IS NOT NULL THEN 1 ELSE 0 END\", \"Admission grade\
+        \ not null\", lambda x: x == 1)\n(also ensure values are parseable as numeric\
+        \ types before casting)."
+      sources:
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 59
+        end_line: 59
+        file: ''
+      - start_line: 86
+        end_line: 89
+        file: ''
+      uid: 718af911-048a-4e86-9c76-6bb7ab49c4cf
+    - text: "The 'Admission grade' column must not contain nulls. The code does not\
+        \ fill or drop missing values for this column and uses it to build model features\
+        \ and to fit/transform scalers and the classifier, which will fail or produce\
+        \ NaNs if input contains nulls. \nDeequ/GEs-style suggestion:\n.satisfies(\"\
+        CASE WHEN `Admission grade` IS NOT NULL THEN 1 ELSE 0 END\", \"Admission grade\
+        \ non-null\", lambda x: x == 1)"
+      sources:
+      - start_line: 59
+        end_line: 59
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      - start_line: 124
+        end_line: 125
+        file: ''
+      uid: 9739bd66-5937-4786-af38-eb29494c2d20
+    - text: "The 'Admission grade' values are expected to be in a reasonable bounded\
+        \ range (interpreted by the code as grades out of 200). The code divides by\
+        \ 200.0 to produce a normalized score, so input should be between 0 and 200\
+        \ (or at least non-negative and not absurdly larger than 200). \nDeequ/GEs-style\
+        \ suggestion (strict 0-200):\n.satisfies(\"CASE WHEN `Admission grade` >=\
+        \ 0 AND `Admission grade` <= 200 THEN 1 ELSE 0 END\", \"Admission grade in\
+        \ [0,200]\", lambda x: x == 1)"
+      sources:
+      - start_line: 59
+        end_line: 61
+        file: ''
+      - start_line: 86
+        end_line: 89
+        file: ''
+      uid: 4001d784-ec65-4c5d-99ca-c560c845d688
+    - text: "The 'Admission grade' values must be finite real numbers (no NaN, +Inf\
+        \ or -Inf). The model pipeline (StandardScaler, LogisticRegression) and downstream\
+        \ numeric ops assume finite inputs. \nDeequ/GEs-style suggestion (Spark SQL\
+        \ style):\n.satisfies(\"CASE WHEN `Admission grade` IS NOT NULL AND NOT isnan(`Admission\
+        \ grade`) THEN 1 ELSE 0 END\", \"Admission grade finite\", lambda x: x ==\
+        \ 1)"
+      sources:
+      - start_line: 59
+        end_line: 59
+        file: ''
+      - start_line: 86
+        end_line: 89
+        file: ''
+      - start_line: 143
+        end_line: 144
+        file: ''
+      uid: 9901cd8e-9447-4036-87cd-ac89f7323532
+  Inflation rate:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN `Inflation rate` IS NOT NULL AND TRY_CAST(`Inflation
+        rate` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END'', ''Inflation rate numeric'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7197ce61-a0e3-4235-808c-65f17770f154
+      source_assumptions:
+      - b2df8ab3-9684-4edf-a357-4e5e365fc041
+    - suggestion: '.satisfies(''CASE WHEN `Inflation rate` IS NOT NULL AND NOT isnan(CAST(`Inflation
+        rate` AS DOUBLE)) AND CAST(`Inflation rate` AS DOUBLE) != \''''Infinity\''\''
+        AND CAST(`Inflation rate` AS DOUBLE) != \''''-Infinity\''\'' THEN 1 ELSE 0
+        END'', ''Inflation finite and non-null'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.satisfies(''CASE WHEN
+        `Inflation rate` IS NOT NULL AND NOT isnan(CAST(`Inflation rate` AS DOUBLE))
+        AND CAST(`Inflation rate` AS DOUBLE) != \''''Infinity\''\'' AND CAST(`Inflation
+        rate` AS DOUBLE) != \''''-Infinity\''\'' THEN 1 ELSE 0 END'', ''Inflation
+        finite and non-null'', lambda x: x == 1)'': unexpected character after line
+        continuation character (<string>, line 1)'
+      level: error
+      uid: 7a8595e4-5303-470b-b966-5586cbf6087f
+      source_assumptions:
+      - e4c59b6c-0709-4818-af1a-659d2bf0c58b
+    - suggestion: '.satisfies(''CASE WHEN TRY_CAST(`Inflation rate` AS DOUBLE) BETWEEN
+        -5.0 AND 10.0 THEN 1 ELSE 0 END'', ''Inflation reasonable range'', lambda
+        x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1be58bc8-2b63-42b3-bf77-06d7ee7e1e1c
+      source_assumptions:
+      - ef4f0aa3-c857-477e-a5eb-ed3547af7e4f
+    - suggestion: '.hasNumberOfDistinctValues(''Inflation rate'', lambda x: x <= 50)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Inflation
+        rate'', lambda x: x <= 50)'': Check.hasNumberOfDistinctValues() missing 2
+        required positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 83b3b66d-954b-4a1e-82c8-5d2ac5f28806
+      source_assumptions:
+      - a5d4d5e8-c0f7-4c3b-a7f5-0fdf9acc4726
+    assumptions:
+    - text: 'The ''Inflation rate'' column must be present in the input CSV and its
+        values must be parseable as floating-point numbers (no non-numeric strings).
+
+        Example validation (SQL/Deequ style): .satisfies("CASE WHEN `Inflation rate`
+        IS NOT NULL AND TRY_CAST(`Inflation rate` AS DOUBLE) IS NOT NULL THEN 1 ELSE
+        0 END", "Inflation numeric", lambda x: x == 1)
+
+        This prevents failures at df[''Inflation rate''].astype(float) and when building
+        the numeric feature vector.'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: b2df8ab3-9684-4edf-a357-4e5e365fc041
+    - text: 'The ''Inflation rate'' column must contain no missing/NULL values and
+        values must be finite (not NaN or infinite). The code expects a complete numeric
+        feature for scaling and modeling.
+
+        Example validation: .satisfies("CASE WHEN `Inflation rate` IS NOT NULL AND
+        NOT isnan(CAST(`Inflation rate` AS DOUBLE)) AND CAST(`Inflation rate` AS DOUBLE)
+        != ''Infinity'' THEN 1 ELSE 0 END", "Inflation finite and non-null", lambda
+        x: x == 1)
+
+        (Equivalently: assert proportion non-null and finite == 1.0).'
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      - start_line: 143
+        end_line: 144
+        file: ''
+      uid: e4c59b6c-0709-4818-af1a-659d2bf0c58b
+    - text: "The 'Inflation rate' values are expressed as percentages on a small numeric\
+        \ scale and should lie within a reasonable range. Based on observed data (min\
+        \ \u2248 -0.8, max \u2248 3.7), enforce a sensible bounds check such as -5.0\
+        \ <= Inflation rate <= 10.0 to catch outliers or mis-scaled values (e.g.,\
+        \ values in proportions or basis points).\nExample validation: .satisfies(\"\
+        CASE WHEN CAST(`Inflation rate` AS DOUBLE) BETWEEN -5.0 AND 10.0 THEN 1 ELSE\
+        \ 0 END\", \"Inflation reasonable range\", lambda x: x >= 0.99)\n(Adjust bounds\
+        \ if your domain expects a different extreme.)"
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 143
+        end_line: 145
+        file: ''
+      uid: ef4f0aa3-c857-477e-a5eb-ed3547af7e4f
+    - text: 'The ''Inflation rate'' column is low-cardinality / discretized in this
+        dataset (approximately 9 distinct values). If the production data becomes
+        highly granular, that may indicate a data drift issue worth flagging.
+
+        Example validation: assert distinct count is within expected range, e.g. COUNT(DISTINCT
+        `Inflation rate`) <= 50 or compare to expected value: .satisfies("CASE WHEN
+        COUNT_DISTINCT(`Inflation rate`) <= 50 THEN 1 ELSE 0 END", "Inflation distinct
+        count", lambda x: x == 1) or use an alert if distinct count deviates significantly
+        from historical ~9.'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: a5d4d5e8-c0f7-4c3b-a7f5-0fdf9acc4726
+  Scholarship holder:
+    code:
+    - suggestion: .isComplete('Scholarship holder')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 93a5f7ca-fd8f-4a36-9846-47f8bcdae4fa
+      source_assumptions:
+      - dc7b78ec-0cf1-41a3-a057-c3feecfbeb12
+    - suggestion: '.isContainedIn(''Scholarship holder'', [0, 1], lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: "Unable to instantiate constraint '.isContainedIn('Scholarship\
+        \ holder', [0, 1], lambda x: x == 1)': An error occurred while calling None.None.\
+        \ Trace:\npy4j.Py4JException: Cannot convert java.lang.Integer to java.lang.String\n\
+        \tat py4j.commands.ArrayCommand.convertArgument(ArrayCommand.java:166)\n\t\
+        at py4j.commands.ArrayCommand.setArray(ArrayCommand.java:144)\n\tat py4j.commands.ArrayCommand.execute(ArrayCommand.java:97)\n\
+        \tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:829)\n\n"
+      level: error
+      uid: 43719688-4a3e-408a-9f50-6d949f312e67
+      source_assumptions:
+      - 0ac21559-0dcd-4efb-a6e7-b4db370d56d1
+    - suggestion: '.hasDataType(''Scholarship holder'', ''Integral'', lambda x: x
+        == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Scholarship
+        holder'', ''Integral'', lambda x: x == 1)'
+      level: error
+      uid: 71300d58-4db4-41b1-9adc-fd74508f7ae7
+      source_assumptions:
+      - 04a2e37c-43e7-40d5-a689-ede85aca2ccb
+    assumptions:
+    - text: 'The ''Scholarship holder'' column is a binary indicator encoded as 0/1
+        where 1 means the student is a scholarship holder and 0 means not. The code
+        compares values to 1 and treats the column as a numeric feature, so other
+        values are not expected. Example validation (Deequ): .satisfies("CASE WHEN
+        `Scholarship holder` IN (0,1) THEN 1 ELSE 0 END", "Scholarship_is_binary",
+        lambda x: x == 1). Equivalent Great Expectations: expect_column_values_to_be_in_set(column=''Scholarship
+        holder'', value_set=[0,1]).'
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 74
+        end_line: 74
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: 0ac21559-0dcd-4efb-a6e7-b4db370d56d1
+    - text: 'The ''Scholarship holder'' column must not contain null / missing values.
+        The code does not fill or handle NA for this column and it is cast to float
+        and used directly when computing financial_risk and model features. Example
+        validation (Deequ): .satisfies("CASE WHEN `Scholarship holder` IS NOT NULL
+        THEN 1 ELSE 0 END", "Scholarship_not_null", lambda x: x == 1). Equivalent
+        Great Expectations: expect_column_values_to_not_be_null(column=''Scholarship
+        holder'').'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 74
+        end_line: 74
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: dc7b78ec-0cf1-41a3-a057-c3feecfbeb12
+    - text: 'The ''Scholarship holder'' values should be numeric/integer (i.e., convertible
+        to float without error). The code uses .astype(float) and arithmetic/comparison
+        operations, so string or non-numeric values would break processing. Example
+        validation (Deequ): .satisfies("CASE WHEN `Scholarship holder` IS NOT NULL
+        AND floor(`Scholarship holder`)=`Scholarship holder` THEN 1 ELSE 0 END", "Scholarship_integral",
+        lambda x: x == 1). Equivalent Great Expectations: expect_column_values_to_be_of_type(column=''Scholarship
+        holder'', type_=''int'') or expect_column_values_to_be_in_type_list(column=''Scholarship
+        holder'', type_list=[''int'',''float'']).'
+      sources:
+      - start_line: 74
+        end_line: 74
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: 04a2e37c-43e7-40d5-a689-ede85aca2ccb
+  Unemployment rate:
+    code:
+    - suggestion: .isComplete("Unemployment rate")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3aab26fa-f9e0-4a93-a537-fb1d919624cb
+      source_assumptions:
+      - eaa04be8-d7a2-4d69-899c-853c11f3d3e3
+    - suggestion: '.hasDataType("Unemployment rate", "Fractional", lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Unemployment
+        rate", "Fractional", lambda x: x == 1)'
+      level: error
+      uid: 5e65fa65-2cce-4025-8e83-8a9a7f376d60
+      source_assumptions:
+      - 7c5d0068-884b-4d02-b07c-04a7c1b6b646
+    - suggestion: '.satisfies("CASE WHEN `Unemployment rate` >= 0 AND `Unemployment
+        rate` <= 100 THEN 1 ELSE 0 END", "Unemployment rate in [0,100]", lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: cdf21c2d-d64c-4889-ba56-3f19fbdd97af
+      source_assumptions:
+      - 6cbd5af4-7b08-49b5-9f9e-8070c81228a4
+    - suggestion: '.hasNumberOfDistinctValues("Unemployment rate", lambda x: x <=
+        20)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("Unemployment
+        rate", lambda x: x <= 20)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: c792912c-7ef7-4e86-b2d0-6d3bc76d5437
+      source_assumptions:
+      - 2dd78f5c-b36b-4035-94c5-5b6ba90478c3
+    assumptions:
+    - text: 'No missing values: The ''Unemployment rate'' column must be present and
+        contain no NULL / missing entries in the input data. The code reads this column
+        and immediately casts it to float as part of feature construction, which will
+        fail if values are missing. Example deequ constraint: .satisfies("CASE WHEN
+        `Unemployment rate` IS NOT NULL THEN 1 ELSE 0 END", "Unemployment rate not
+        null", lambda x: x == 1)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 99
+        end_line: 101
+        file: ''
+      uid: eaa04be8-d7a2-4d69-899c-853c11f3d3e3
+    - text: 'Numeric/parsible to float: Every value in ''Unemployment rate'' must
+        be numeric or otherwise convertible to a floating-point number (no percent
+        signs, text like ''N/A'', or other non-numeric tokens), because the code uses
+        df[''Unemployment rate''].astype(float). Example deequ constraint: .satisfies("CASE
+        WHEN `Unemployment rate` RLIKE ''^[0-9]+(\\.[0-9]+)?$'' THEN 1 ELSE 0 END",
+        "Unemployment rate numeric", lambda x: x == 1)'
+      sources:
+      - start_line: 99
+        end_line: 101
+        file: ''
+      uid: 7c5d0068-884b-4d02-b07c-04a7c1b6b646
+    - text: 'Reasonable numeric range: Values should be non-negative and represent
+        a percentage-like rate not exceeding 100. The model standardization and downstream
+        logic assume real-valued, bounded rates. Example deequ constraint: .satisfies("CASE
+        WHEN `Unemployment rate` >= 0 AND `Unemployment rate` <= 100 THEN 1 ELSE 0
+        END", "Unemployment rate in [0,100]", lambda x: x == 1)'
+      sources:
+      - start_line: 99
+        end_line: 101
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: 6cbd5af4-7b08-49b5-9f9e-8070c81228a4
+    - text: 'Low cardinality / discretized values: The ''Unemployment rate'' column
+        is expected to have a small set of distinct numeric values (the provided data
+        shows ~10 distinct values). Enforce that the number of distinct values is
+        small (for example <= 20) to catch unexpected free-text or high-granularity
+        anomalies. Example deequ-style check: .satisfies("countDistinct(`Unemployment
+        rate`)", "Unemployment distinct count", lambda x: x <= 20)'
+      sources:
+      - start_line: 99
+        end_line: 101
+        file: ''
+      uid: 2dd78f5c-b36b-4035-94c5-5b6ba90478c3
+  '["Admission grade","Previous qualification (grade)"]':
+    code: []
+    assumptions:
+    - text: 'Both ''Admission grade'' and ''Previous qualification (grade)'' must
+        be present (no nulls), numeric, and lie within the expected scale 0..200.
+        This is required because the code divides both columns by 200 to compute scaled
+        grades. Example Deequ-like constraints: .isComplete(["Admission grade","Previous
+        qualification (grade)"]) ; .isNonNegative(["Admission grade","Previous qualification
+        (grade)"]) ; .isLessThanOrEqualTo("Admission grade", 200) ; .isLessThanOrEqualTo("Previous
+        qualification (grade)", 200).'
+      sources:
+      - start_line: 36
+        end_line: 37
+        file: ''
+      - start_line: 59
+        end_line: 61
+        file: ''
+      uid: b7d5523f-9e5d-4c3b-8138-094a57c9d7cf
+    - text: 'The scaled grades and their weighted average (''grade_scaled'' = Admission
+        grade / 200, ''prevq_scaled'' = Previous qualification (grade) / 200, ''grade_consensus''
+        = 0.6*grade_scaled + 0.4*prevq_scaled) must fall in [0.0, 1.0]. Enforceable
+        constraints after feature construction: .isNonNegative("grade_scaled") ; .isLessThanOrEqualTo("grade_scaled",
+        1.0) ; .isNonNegative("prevq_scaled") ; .isLessThanOrEqualTo("prevq_scaled",
+        1.0) ; .isNonNegative("grade_consensus") ; .isLessThanOrEqualTo("grade_consensus",
+        1.0).'
+      sources:
+      - start_line: 59
+        end_line: 61
+        file: ''
+      - start_line: 86
+        end_line: 89
+        file: ''
+      uid: 34d8ab32-434b-4270-9151-42daf8594754
+    - text: 'Admission grade and Previous qualification (grade) are expected to be
+        positively correlated (i.e., students with higher previous qualification grades
+        tend to have higher admission grades). Put an actionable threshold for monitoring,
+        e.g., Pearson correlation >= 0.2. Example constraint (conceptual): assert
+        PearsonCorr("Admission grade","Previous qualification (grade)") >= 0.2.'
+      sources:
+      - start_line: 51
+        end_line: 51
+        file: ''
+      - start_line: 59
+        end_line: 61
+        file: ''
+      uid: 037a4a0d-25ac-47ca-983b-4aa929667bf4
+    - text: 'Both grade columns should be continuous / high-cardinality numeric features
+        (not binary or categorical). As a practical check, require each to have a
+        minimum number of distinct values (for example, distinct_count >= 10). Example
+        Deequ constraint: .hasDistinctness("Admission grade", atLeast=0.0) combined
+        with a check on approximate distinct count for both columns (>=10).'
+      sources:
+      - start_line: 36
+        end_line: 37
+        file: ''
+      - start_line: 86
+        end_line: 89
+        file: ''
+      uid: e7ae505d-8af5-467b-9206-834117d73738
+  '["Curricular units 1st sem (approved)","Curricular units 1st sem (enrolled)"]':
+    code: []
+    assumptions:
+    - text: 'For every row, ''Curricular units 1st sem (approved)'' must be less than
+        or equal to ''Curricular units 1st sem (enrolled)''. This ensures the computed
+        first_sem_pass_rate = approved/enrolled is meaningful and within expected
+        bounds. Actionable constraint (Deequ-like): .satisfies(''`Curricular units
+        1st sem (approved)` <= `Curricular units 1st sem (enrolled)`'', ''s1_approved_le_enrolled'')'
+      sources:
+      - start_line: 39
+        end_line: 66
+        file: ''
+      uid: 5ddfc17e-b543-4eeb-a619-d85d441782a4
+    - text: "If 'Curricular units 1st sem (enrolled)' is zero, then 'Curricular units\
+        \ 1st sem (approved)' must also be zero. This prevents spurious non-zero numerators\
+        \ when no students were enrolled and matches the semantic expectation used\
+        \ by safe_divide. Actionable constraint (Deequ-like): .satisfies('(`Curricular\
+        \ units 1st sem (enrolled)` = 0) implies (`Curricular units 1st sem (approved)`\
+        \ = 0)', 'if_enrolled_zero_then_approved_zero') \u2014 equivalently .satisfies('NOT\
+        \ (`Curricular units 1st sem (enrolled)` = 0) OR (`Curricular units 1st sem\
+        \ (approved)` = 0)', 'if_enrolled_zero_then_approved_zero')"
+      sources:
+      - start_line: 39
+        end_line: 66
+        file: ''
+      uid: bbebfa1e-67b9-4497-bb5a-04c70f52ab87
+    - text: 'For rows with enrolled > 0, the ratio approved/enrolled (first_sem_pass_rate)
+        must lie between 0.0 and 1.0 inclusive. This guards against negative values
+        or approved counts exceeding enrolled after data errors. Actionable constraint
+        (Deequ-like): .satisfies(''(`Curricular units 1st sem (enrolled)` = 0) OR
+        ((`Curricular units 1st sem (approved)` / `Curricular units 1st sem (enrolled)`)
+        >= 0 AND (`Curricular units 1st sem (approved)` / `Curricular units 1st sem
+        (enrolled)`) <= 1)'', ''s1_pass_rate_between_0_and_1'')'
+      sources:
+      - start_line: 39
+        end_line: 66
+        file: ''
+      uid: 31c21f68-f37c-4ae4-92fb-0e200f9c2353
+  ? '["Curricular units 1st sem (approved)","Curricular units 1st sem (enrolled)","Curricular
+    units 1st sem (evaluations)","Curricular units 1st sem (without evaluations)"]'
+  : code: []
+    assumptions:
+    - text: 'For every row, ''Curricular units 1st sem (evaluations)'' + ''Curricular
+        units 1st sem (without evaluations)'' should equal ''Curricular units 1st
+        sem (enrolled)''.
+
+        This enforces that enrolled units are partitioned into evaluated and non-evaluated
+        units. Actionable constraint examples (Deequ-like):
+
+        .satisfies("`Curricular units 1st sem (evaluations)` + `Curricular units 1st
+        sem (without evaluations)` == `Curricular units 1st sem (enrolled)`", "evals_plus_noeval_equals_enrolled")'
+      sources:
+      - start_line: 55
+        end_line: 66
+        file: ''
+      - start_line: 86
+        end_line: 93
+        file: ''
+      uid: 2f06aba9-227b-40a5-a11f-de5f9b82e723
+    - text: 'Per-row ordering and non-negativity: 0 <= ''Curricular units 1st sem
+        (approved)'' <= ''Curricular units 1st sem (evaluations)'' <= ''Curricular
+        units 1st sem (enrolled)''.
+
+        This ensures approved cannot exceed evaluated units, and evaluated cannot
+        exceed enrolled. Actionable constraints:
+
+        .satisfies("`Curricular units 1st sem (approved)` >= 0", "s1_approved_non_negative")
+
+        .satisfies("`Curricular units 1st sem (evaluations)` >= 0", "s1_evals_non_negative")
+
+        .satisfies("`Curricular units 1st sem (enrolled)` >= 0", "s1_enrolled_non_negative")
+
+        .satisfies("`Curricular units 1st sem (approved)` <= `Curricular units 1st
+        sem (evaluations)`", "approved_le_evals")
+
+        .satisfies("`Curricular units 1st sem (evaluations)` <= `Curricular units
+        1st sem (enrolled)`", "evals_le_enrolled")'
+      sources:
+      - start_line: 63
+        end_line: 66
+        file: ''
+      - start_line: 86
+        end_line: 96
+        file: ''
+      uid: 32c70a20-eaa1-4b99-bd8a-5571856682e9
+    - text: 'Zero-enrollment consistency: when ''Curricular units 1st sem (enrolled)''
+        == 0 then all related counts should be zero: ''Curricular units 1st sem (evaluations)''
+        == 0, ''Curricular units 1st sem (without evaluations)'' == 0, and ''Curricular
+        units 1st sem (approved)'' == 0.
+
+        This prevents meaningless ratios computed by safe_divide and ensures feature
+        semantics. Actionable constraint:
+
+        .satisfies("`Curricular units 1st sem (enrolled)` == 0 implies (`Curricular
+        units 1st sem (evaluations)` == 0 AND `Curricular units 1st sem (without evaluations)`
+        == 0 AND `Curricular units 1st sem (approved)` == 0)", "zero_enrollment_implies_zero_components")'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 63
+        end_line: 66
+        file: ''
+      uid: cb14369e-684a-444e-934e-41e3ae287b5c
+    - text: 'Per-row ratio bounds: for rows with ''Curricular units 1st sem (enrolled)''
+        > 0, the ratios (''approved''/''enrolled''), (''evaluations''/''enrolled''),
+        and (''without evaluations''/''enrolled'') must be within [0, 1], and the
+        computed engagement 1 - (''without evaluations''/''enrolled'') must also fall
+        into [0, 1].
+
+        Actionable constraints:
+
+        .satisfies("(`Curricular units 1st sem (approved)` / `Curricular units 1st
+        sem (enrolled)`) >= 0 AND (`Curricular units 1st sem (approved)` / `Curricular
+        units 1st sem (enrolled)`) <= 1", "approved_ratio_between_0_and_1")
+
+        .satisfies("(`Curricular units 1st sem (evaluations)` / `Curricular units
+        1st sem (enrolled)`) BETWEEN 0 AND 1", "evals_ratio_between_0_and_1")
+
+        .satisfies("(`Curricular units 1st sem (without evaluations)` / `Curricular
+        units 1st sem (enrolled)`) BETWEEN 0 AND 1", "noeval_ratio_between_0_and_1")
+
+        .satisfies("(1 - (`Curricular units 1st sem (without evaluations)` / `Curricular
+        units 1st sem (enrolled)`)) BETWEEN 0 AND 1", "engagement_between_0_and_1")'
+      sources:
+      - start_line: 55
+        end_line: 66
+        file: ''
+      - start_line: 86
+        end_line: 93
+        file: ''
+      uid: b7ad916f-2750-493b-a505-489dd8e593ff
+  '["Curricular units 1st sem (enrolled)","Curricular units 1st sem (evaluations)"]':
+    code:
+    - suggestion: '.satisfies("`Curricular units 1st sem (evaluations)` + `Curricular
+        units 1st sem (without evaluations)` = `Curricular units 1st sem (enrolled)`",
+        "First semester enrollment partition", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Curricular units 1st sem (evaluations)`
+        + `Curricular units 1st sem (without evaluations)` = `Curricular units 1st
+        sem (enrolled)`", "First semester enrollment partition", lambda x: x == 1)''
+        failed on data sample: Value: 0.3178733031674208 does not meet the constraint
+        requirement!'
+      level: error
+      uid: f7b3f81b-482b-4073-91d6-b8a5105da750
+      source_assumptions:
+      - 8efe311f-b384-4af3-ace2-8aad1fbee01d
+    - suggestion: '.satisfies("`Curricular units 1st sem (approved)` <= `Curricular
+        units 1st sem (evaluations)` AND `Curricular units 1st sem (approved)` <=
+        `Curricular units 1st sem (enrolled)`", "First semester approved bounds",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: eb0f5206-10e1-4dac-b16e-529a0f43ac1e
+      source_assumptions:
+      - e865d359-597f-4ec3-bd78-3727cfa8e839
+    - suggestion: '.satisfies("if(`Curricular units 1st sem (enrolled)` = 0, `Curricular
+        units 1st sem (evaluations)` = 0 AND `Curricular units 1st sem (without evaluations)`
+        = 0 AND `Curricular units 1st sem (approved)` = 0, true)", "Zero enrolled
+        implies zeros", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c072f6e8-132f-4914-b9aa-6764c182b63a
+      source_assumptions:
+      - 0c60438a-b3b3-47b0-b793-a880196f9fac
+    assumptions:
+    - text: 'For each record, the first-semester enrolled units are partitioned into
+        those with evaluations and those without evaluations. Concretely: ''Curricular
+        units 1st sem (evaluations)'' + ''Curricular units 1st sem (without evaluations)''
+        == ''Curricular units 1st sem (enrolled)''. Example Deequ-style constraint:
+        .satisfies("`Curricular units 1st sem (evaluations)` + `Curricular units 1st
+        sem (without evaluations)` = `Curricular units 1st sem (enrolled)`")'
+      sources:
+      - start_line: 39
+        end_line: 45
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 8efe311f-b384-4af3-ace2-8aad1fbee01d
+    - text: '''Curricular units 1st sem (approved)'' never exceeds the number of evaluated
+        units and never exceeds the enrolled units. Concretely for each record: ''Curricular
+        units 1st sem (approved)'' <= ''Curricular units 1st sem (evaluations)'' and
+        ''Curricular units 1st sem (approved)'' <= ''Curricular units 1st sem (enrolled)''.
+        Example Deequ constraints: .satisfies("`Curricular units 1st sem (approved)`
+        <= `Curricular units 1st sem (evaluations)`") and .satisfies("`Curricular
+        units 1st sem (approved)` <= `Curricular units 1st sem (enrolled)`")'
+      sources:
+      - start_line: 39
+        end_line: 45
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: e865d359-597f-4ec3-bd78-3727cfa8e839
+    - text: 'When there are zero enrolled first-semester units, the related counts
+        should also be zero. Concretely: if ''Curricular units 1st sem (enrolled)''
+        == 0 then ''Curricular units 1st sem (evaluations)'' == 0, ''Curricular units
+        1st sem (without evaluations)'' == 0, and ''Curricular units 1st sem (approved)''
+        == 0. This prevents misleading ratios and matches the intended use of safe_divide.
+        Example Deequ constraint: .satisfies("if(`Curricular units 1st sem (enrolled)`
+        = 0, `Curricular units 1st sem (evaluations)` = 0 AND `Curricular units 1st
+        sem (without evaluations)` = 0 AND `Curricular units 1st sem (approved)` =
+        0, true)")'
+      sources:
+      - start_line: 39
+        end_line: 45
+        file: ''
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 63
+        end_line: 66
+        file: ''
+      uid: 0c60438a-b3b3-47b0-b793-a880196f9fac
+  '["Curricular units 1st sem (enrolled)","Curricular units 1st sem (without evaluations)"]':
+    code: []
+    assumptions:
+    - text: 'The three first-semester count columns ''Curricular units 1st sem (without
+        evaluations)'', ''Curricular units 1st sem (approved)'' and ''Curricular units
+        1st sem (evaluations)'' are non-negative integers and must never exceed ''Curricular
+        units 1st sem (enrolled)'' on the same row. Actionable constraints (Deequ-style)
+        examples:
+
+        - .isNonNegative("Curricular units 1st sem (without evaluations)")
+
+        - .isNonNegative("Curricular units 1st sem (approved)")
+
+        - .isNonNegative("Curricular units 1st sem (evaluations)")
+
+        - .satisfies("`Curricular units 1st sem (without evaluations)` <= `Curricular
+        units 1st sem (enrolled)`", "noeval_le_enrolled")
+
+        - .satisfies("`Curricular units 1st sem (approved)` <= `Curricular units 1st
+        sem (enrolled)`", "approved_le_enrolled")
+
+        - .satisfies("`Curricular units 1st sem (evaluations)` <= `Curricular units
+        1st sem (enrolled)`", "evals_le_enrolled")'
+      sources:
+      - start_line: 39
+        end_line: 45
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: cd651def-12dd-4d74-8257-c263725f0124
+    - text: 'For rows where ''Curricular units 1st sem (enrolled)'' equals 0, the
+        related counts should also be zero: ''Curricular units 1st sem (without evaluations)''
+        == 0, ''Curricular units 1st sem (approved)'' == 0 and ''Curricular units
+        1st sem (evaluations)'' == 0. This prevents semantically invalid ratios and
+        aligns with how safe_divide is used. Actionable constraint (Deequ-style):
+
+        - .satisfies("NOT(`Curricular units 1st sem (enrolled)` = 0) OR (`Curricular
+        units 1st sem (without evaluations)` = 0 AND `Curricular units 1st sem (approved)`
+        = 0 AND `Curricular units 1st sem (evaluations)` = 0)", "zero_enrolled_zero_counts")'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: a4465607-00c1-4c7a-ab01-00529bbe4e5c
+    - text: 'When ''Curricular units 1st sem (enrolled)'' > 0, the implied ratios
+        used by feature engineering must lie in [0,1]: (approved / enrolled) in [0,1],
+        (without evaluations / enrolled) in [0,1], and (evaluations / enrolled) in
+        [0,1]. Enforcing the per-row inequalities below enforces these ratio bounds.
+        Actionable constraints (Deequ-style):
+
+        - .satisfies("`Curricular units 1st sem (approved)` >= 0 AND `Curricular units
+        1st sem (approved)` <= `Curricular units 1st sem (enrolled)`", "approved_ratio_bounds")
+
+        - .satisfies("`Curricular units 1st sem (without evaluations)` >= 0 AND `Curricular
+        units 1st sem (without evaluations)` <= `Curricular units 1st sem (enrolled)`",
+        "noeval_ratio_bounds")
+
+        - .satisfies("`Curricular units 1st sem (evaluations)` >= 0 AND `Curricular
+        units 1st sem (evaluations)` <= `Curricular units 1st sem (enrolled)`", "evals_ratio_bounds")'
+      sources:
+      - start_line: 39
+        end_line: 45
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: da094aa6-c114-4228-9178-d9c08e81ec07
+  '["Curricular units 2nd sem (approved)","Curricular units 2nd sem (enrolled)"]':
+    code: []
+    assumptions:
+    - text: 'For every record, ''Curricular units 2nd sem (approved)'' must be less
+        than or equal to ''Curricular units 2nd sem (enrolled)'', and both values
+        must be non-negative. This guarantees that the computed second_sem_pass_rate
+        = approved / enrolled is in the [0, 1] range when enrolled > 0 and that the
+        ratio logic is meaningful. Actionable constraint example (Deequ-style):
+
+        .satisfies("`Curricular units 2nd sem (approved)` <= `Curricular units 2nd
+        sem (enrolled)`", "approved_le_enrolled")
+
+        .satisfies("`Curricular units 2nd sem (approved)` >= 0 AND `Curricular units
+        2nd sem (enrolled)` >= 0", "non_negative_second_sem_counts")'
+      sources:
+      - start_line: 46
+        end_line: 47
+        file: ''
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      - start_line: 86
+        end_line: 95
+        file: ''
+      uid: 9322f58c-32a3-470f-808c-2d1041156aed
+    - text: 'If ''Curricular units 2nd sem (enrolled)'' is 0, then ''Curricular units
+        2nd sem (approved)'' must also be 0. This prevents cases where a denominator
+        of zero produces misleading pass/engagement metrics (the code treats denom<=0
+        specially). Actionable constraint example (Deequ-style):
+
+        .satisfies("NOT(`Curricular units 2nd sem (enrolled)` = 0) OR (`Curricular
+        units 2nd sem (approved)` = 0)", "enrolled_zero_implies_approved_zero")'
+      sources:
+      - start_line: 46
+        end_line: 47
+        file: ''
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: 61efa95c-3e58-4b8b-80c1-14ce04be5483
+  ? '["Curricular units 2nd sem (approved)","Curricular units 2nd sem (enrolled)","Curricular
+    units 2nd sem (evaluations)","Curricular units 2nd sem (without evaluations)"]'
+  : code: []
+    assumptions:
+    - text: 'For every record, ''Curricular units 2nd sem (approved)'' must be less
+        than or equal to ''Curricular units 2nd sem (enrolled)''.
+
+        This is needed because the code computes a pass rate as approved / enrolled
+        (safe_divide) so approved should not exceed enrolled. An actionable constraint
+        (Deequ-style) is: .satisfies("`Curricular units 2nd sem (approved)` <= `Curricular
+        units 2nd sem (enrolled)`", "approved_le_enrolled").'
+      sources:
+      - start_line: 46
+        end_line: 48
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: 2e523f14-7fde-4d67-b9c9-987df5335503
+    - text: 'For every record, ''Curricular units 2nd sem (without evaluations)''
+        must be less than or equal to ''Curricular units 2nd sem (enrolled)''.
+
+        The code computes engagement as 1 - (without_evaluations / enrolled), so without_evaluations
+        should not exceed enrolled. Actionable constraint: .satisfies("`Curricular
+        units 2nd sem (without evaluations)` <= `Curricular units 2nd sem (enrolled)`",
+        "noeval_le_enrolled").'
+      sources:
+      - start_line: 46
+        end_line: 49
+        file: ''
+      - start_line: 68
+        end_line: 68
+        file: ''
+      uid: f3f3291a-7ca7-4910-8ef7-9ed4b6390661
+    - text: 'For every record, ''Curricular units 2nd sem (evaluations)'' must be
+        less than or equal to ''Curricular units 2nd sem (enrolled)''.
+
+        The code computes evaluation load as evaluations / enrolled, so evaluations
+        should not exceed enrolled. Actionable constraint: .satisfies("`Curricular
+        units 2nd sem (evaluations)` <= `Curricular units 2nd sem (enrolled)`", "evals_le_enrolled").'
+      sources:
+      - start_line: 46
+        end_line: 49
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      uid: e7270362-59f7-4c52-8d6f-ca1c4cf34e73
+    - text: 'If ''Curricular units 2nd sem (enrolled)'' == 0 then ''Curricular units
+        2nd sem (approved)'', ''Curricular units 2nd sem (without evaluations)'',
+        and ''Curricular units 2nd sem (evaluations)'' should all be 0.
+
+        This is a data-consistency rule: if nobody is enrolled, there should be no
+        approved units, no evaluations and no "without evaluations" counts. Actionable
+        constraint (Deequ-style): .satisfies("NOT(`Curricular units 2nd sem (enrolled)`
+        = 0) OR (`Curricular units 2nd sem (approved)` = 0 AND `Curricular units 2nd
+        sem (without evaluations)` = 0 AND `Curricular units 2nd sem (evaluations)`
+        = 0)", "zero_enrolled_implies_zero_components").'
+      sources:
+      - start_line: 46
+        end_line: 49
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: 919c1afe-52f6-415c-9e10-072378e7cb5a
+    - text: 'For every record, the combined count of approved, without-evaluations
+        and evaluations should not exceed enrolled:
+
+        ''Curricular units 2nd sem (approved)'' + ''Curricular units 2nd sem (without
+        evaluations)'' + ''Curricular units 2nd sem (evaluations)'' <= ''Curricular
+        units 2nd sem (enrolled)''.
+
+        This enforces that the partitioning of enrolled units into these categories
+        is consistent (actionable constraint: .satisfies("`Curricular units 2nd sem
+        (approved)` + `Curricular units 2nd sem (without evaluations)` + `Curricular
+        units 2nd sem (evaluations)` <= `Curricular units 2nd sem (enrolled)`", "sum_components_le_enrolled").)'
+      sources:
+      - start_line: 46
+        end_line: 49
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: 22064aa0-7496-482c-a69f-6572380347cc
+  '["Curricular units 2nd sem (enrolled)","Curricular units 2nd sem (evaluations)"]':
+    code: []
+    assumptions:
+    - text: 'For every record, ''Curricular units 2nd sem (evaluations)'' must be
+        less than or equal to ''Curricular units 2nd sem (enrolled)''. This ensures
+        the computed rate evaluations/enrolled is not > 1. Example Deequ constraint:
+        .satisfies("`Curricular units 2nd sem (evaluations)` <= `Curricular units
+        2nd sem (enrolled)`", "evals_le_enrolled")'
+      sources:
+      - start_line: 46
+        end_line: 49
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: 27158460-c314-49cf-8938-94682408565a
+    - text: 'If ''Curricular units 2nd sem (enrolled)'' equals 0 then ''Curricular
+        units 2nd sem (evaluations)'' must be 0 (no students enrolled -> no evaluations).
+        A safe Deequ encoding that avoids division-by-zero is: .satisfies("`Curricular
+        units 2nd sem (enrolled)` > 0 OR `Curricular units 2nd sem (evaluations)`
+        == 0", "zero_enrolled_implies_zero_evals")'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: eef92d5a-db33-4de5-9867-6786144568b9
+    - text: 'For records with enrolled > 0, the ratio (''Curricular units 2nd sem
+        (evaluations)'' / ''Curricular units 2nd sem (enrolled)'') should be between
+        0 and 1 inclusive. A Deequ-style constraint that guards against zero denominators:
+        .satisfies("`Curricular units 2nd sem (enrolled)` == 0 OR ((`Curricular units
+        2nd sem (evaluations)` / `Curricular units 2nd sem (enrolled)`) >= 0 AND (`Curricular
+        units 2nd sem (evaluations)` / `Curricular units 2nd sem (enrolled)`) <= 1)",
+        "evals_ratio_0_1")'
+      sources:
+      - start_line: 55
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: 3e73ab77-1f25-4307-961c-88e1238ae801
+  '["Curricular units 2nd sem (enrolled)","Curricular units 2nd sem (without evaluations)"]':
+    code: []
+    assumptions:
+    - text: 'For every row, ''Curricular units 2nd sem (without evaluations)'' must
+        be less than or equal to ''Curricular units 2nd sem (enrolled)''.
+
+        This can be enforced as a Deequ-style constraint, e.g.:
+
+        .satisfies("`Curricular units 2nd sem (without evaluations)` <= `Curricular
+        units 2nd sem (enrolled)`", "noeval_le_enrolled")'
+      sources:
+      - start_line: 46
+        end_line: 48
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: 57d7337c-42da-4eb6-9895-73b7272de39b
+    - text: 'For every row, ''Curricular units 2nd sem (approved)'' must be less than
+        or equal to ''Curricular units 2nd sem (enrolled)''.
+
+        Deequ representation example:
+
+        .satisfies("`Curricular units 2nd sem (approved)` <= `Curricular units 2nd
+        sem (enrolled)`", "approved_le_enrolled")'
+      sources:
+      - start_line: 47
+        end_line: 47
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 1f8498d7-6abc-40a0-bd6f-f0fd24743233
+    - text: 'For every row, ''Curricular units 2nd sem (evaluations)'' must be less
+        than or equal to ''Curricular units 2nd sem (enrolled)''.
+
+        Deequ representation example:
+
+        .satisfies("`Curricular units 2nd sem (evaluations)` <= `Curricular units
+        2nd sem (enrolled)`", "evals_le_enrolled")'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      uid: e1c1c3e8-44c3-44c3-a013-15d116f49918
+    - text: 'The sum of units without evaluations and units with evaluations should
+        not exceed enrolled units:
+
+        ''Curricular units 2nd sem (without evaluations)'' + ''Curricular units 2nd
+        sem (evaluations)'' <= ''Curricular units 2nd sem (enrolled)''.
+
+        Deequ representation example:
+
+        .satisfies("`Curricular units 2nd sem (without evaluations)` + `Curricular
+        units 2nd sem (evaluations)` <= `Curricular units 2nd sem (enrolled)`", "noeval_plus_evals_le_enrolled")'
+      sources:
+      - start_line: 48
+        end_line: 49
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: b83a3ee0-2668-4c85-a496-bae71ade8fdb
+    - text: 'All second-semester count columns used in rate computations are non-null
+        and non-negative integers: specifically ''Curricular units 2nd sem (enrolled)''
+        and ''Curricular units 2nd sem (without evaluations)'' (and by extension ''Curricular
+        units 2nd sem (approved)'' and ''Curricular units 2nd sem (evaluations)'')
+        should have completeness=1 and values >= 0. This can be enforced as:
+
+        .satisfies("`Curricular units 2nd sem (enrolled)` IS NOT NULL AND `Curricular
+        units 2nd sem (enrolled)` >= 0 AND `Curricular units 2nd sem (without evaluations)`
+        IS NOT NULL AND `Curricular units 2nd sem (without evaluations)` >= 0", "nonnegative_nonnull_second_sem_cols")
+
+        (or separate completeness and non-negative constraints per column.)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 46
+        end_line: 49
+        file: ''
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: a48379cb-22f4-4073-9d45-80fa62f0a531
+  GDP:
+    code:
+    - suggestion: '.hasCompleteness(''GDP'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e5063a99-846f-48d8-85fc-66855cc64e49
+      source_assumptions:
+      - c621633f-d702-49a0-b81d-75706f9fb6b7
+      - e664cd67-c526-4bc7-83eb-f1215af6dd04
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`GDP` AS DOUBLE) IS NOT NULL THEN
+        1 ELSE 0 END", "GDP_parsable_as_double", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 19eacc4b-9845-45db-888f-f6bb15e97a46
+      source_assumptions:
+      - 017f7ed4-5308-4dbb-8839-a945b40277da
+    - suggestion: '.satisfies("CASE WHEN `GDP` IS NOT NULL AND `GDP` NOT IN (''NaN'',''Inf'',''-Inf'',''Infinity'',''-Infinity'')
+        THEN 1 ELSE 0 END", "GDP_finite_and_not_null", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c32bf114-49c9-4051-81ff-ec77deb8ae1a
+      source_assumptions:
+      - e664cd67-c526-4bc7-83eb-f1215af6dd04
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`GDP` AS DOUBLE) BETWEEN -100 AND
+        100 THEN 1 ELSE 0 END", "GDP_reasonable_range", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 388d0423-a9c8-4953-8b2e-4b22f0e8fb5a
+      source_assumptions:
+      - 9354de67-2d7c-45f0-8d4a-1d06870a6254
+    assumptions:
+    - text: 'The input must contain a column named ''GDP''. The code accesses df[''GDP'']
+        directly and will fail if the column is missing. Suggested validation (Deequ/GE):
+        check that the column exists in the dataset.'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 102
+        end_line: 102
+        file: ''
+      uid: c621633f-d702-49a0-b81d-75706f9fb6b7
+    - text: 'All values in ''GDP'' must be numeric / convertible to floating-point.
+        The code does df[''GDP''].astype(float) and will raise or produce NaNs for
+        non-numeric strings. Deequ-style constraint example: .satisfies("CASE WHEN
+        TRY_CAST(`GDP` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "GDP_parsable_as_double",
+        lambda x: x == 1). For Great Expectations: expect_column_values_to_be_of_type
+        or expect_column_values_to_be_in_type_list with float-compatible types or
+        a custom expectation testing float-castability.'
+      sources:
+      - start_line: 102
+        end_line: 102
+        file: ''
+      uid: 017f7ed4-5308-4dbb-8839-a945b40277da
+    - text: 'The ''GDP'' column must not contain missing or infinite values (no NULL/NaN/inf).
+        The code does not impute GDP and later passes features to StandardScaler and
+        LogisticRegression, which do not accept NaN/inf during fit/transform. Deequ
+        example: .satisfies("CASE WHEN `GDP` IS NOT NULL AND `GDP` NOT IN (''NaN'',''Inf'',''-Inf'')
+        THEN 1 ELSE 0 END", "GDP_finite_and_not_null", lambda x: x == 1). Great Expectations
+        example: expect_column_values_to_not_be_null and a custom check for finite
+        numeric values.'
+      sources:
+      - start_line: 102
+        end_line: 102
+        file: ''
+      - start_line: 120
+        end_line: 123
+        file: ''
+      uid: e664cd67-c526-4bc7-83eb-f1215af6dd04
+    - text: 'GDP values are expected to be within a reasonable numeric range (no extreme
+        outliers). In the observed data histogram GDP values lie roughly between -4.1
+        and 3.6; the model assumes feature magnitudes are finite and reasonably scaled.
+        A practical constraint is to assert GDP is within a safe range, e.g. between
+        -100 and 100 (or tighter, e.g. -20 to 20) to catch unit/parse errors. Deequ
+        example: .satisfies("CASE WHEN `GDP` BETWEEN -100 AND 100 THEN 1 ELSE 0 END",
+        "GDP_reasonable_range", lambda x: x == 1).'
+      sources:
+      - start_line: 102
+        end_line: 102
+        file: ''
+      - start_line: 124
+        end_line: 126
+        file: ''
+      uid: 9354de67-2d7c-45f0-8d4a-1d06870a6254
+  Displaced:
+    code:
+    - suggestion: '.hasCompleteness(''Displaced'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f9e4c1b8-2491-493e-802d-8267b22fa8bb
+      source_assumptions:
+      - 00a4074b-c9bf-4aa2-bce3-4f0d9f7ad991
+    - suggestion: '.satisfies("CASE WHEN `Displaced` IN (0,1,''0'',''1'') THEN 1 ELSE
+        0 END", "Displaced_is_binary", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 13b5ee27-3847-461a-89c0-dc3170beb811
+      source_assumptions:
+      - 4a36fbb5-49b2-42de-a2df-b88e67ca9d6e
+    - suggestion: '.satisfies("CASE WHEN isFinite(CAST(`Displaced` AS double)) = true
+        THEN 1 ELSE 0 END", "Displaced_is_finite", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN isFinite(CAST(`Displaced`
+        AS double)) = true THEN 1 ELSE 0 END", "Displaced_is_finite", lambda x: x
+        == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_ROUTINE]
+        Cannot resolve function `isFinite` on search path [`system`.`builtin`, `system`.`session`,
+        `spark_catalog`.`default`].; line 1 pos 10'
+      level: error
+      uid: 1855560a-f06a-4c8d-afe2-11ab4ce30926
+      source_assumptions:
+      - 18668a8f-b97c-4301-afbe-2f03e306121d
+    assumptions:
+    - text: 'The input must contain the ''Displaced'' column and it must be fully
+        populated (no NULL / missing values). The code reads the CSV and later accesses
+        df[''Displaced''] without any null-handling, so missing values would cause
+        casting or scaling/training to fail. Suggested validations: Great Expectations
+        - expect_column_values_to_not_be_null(''Displaced''); Deequ - .hasCompleteness(''Displaced'',
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 104
+        end_line: 104
+        file: ''
+      uid: 00a4074b-c9bf-4aa2-bce3-4f0d9f7ad991
+    - text: 'All values in ''Displaced'' must be binary (only 0 or 1) or string representations
+        that cleanly convert to 0/1. The code casts df[''Displaced''].astype(float)
+        and then standardizes / fits a model, so any other category (e.g. 2, -1, ''unknown'',
+        free text) would be invalid. Suggested validations: Great Expectations - expect_column_values_to_be_in_set(''Displaced'',
+        [0, 1, ''0'', ''1'']); Deequ - .satisfies("CASE WHEN `Displaced` IN (0,1,''0'',''1'')
+        THEN 1 ELSE 0 END", ''Displaced_is_binary'', lambda x: x == 1.0).'
+      sources:
+      - start_line: 104
+        end_line: 104
+        file: ''
+      - start_line: 86
+        end_line: 109
+        file: ''
+      uid: 4a36fbb5-49b2-42de-a2df-b88e67ca9d6e
+    - text: 'All ''Displaced'' values must be numeric-finite after conversion (no
+        NaN, +Inf, -Inf) because StandardScaler and LogisticRegression require finite
+        numeric inputs. Suggested validations: Great Expectations - expect_column_values_to_not_be_null(''Displaced'')
+        and expect_column_values_to_be_of_type({''type'': ''numeric''}) and/or a range
+        check (e.g. expect_column_values_to_be_between(''Displaced'', min_value=0,
+        max_value=1, mostly=1.0)); Deequ - .satisfies("CASE WHEN isFinite(CAST(`Displaced`
+        AS double)) = true THEN 1 ELSE 0 END", ''Displaced_is_finite'', lambda x:
+        x == 1.0).'
+      sources:
+      - start_line: 104
+        end_line: 104
+        file: ''
+      - start_line: 120
+        end_line: 126
+        file: ''
+      uid: 18668a8f-b97c-4301-afbe-2f03e306121d
+  Debtor:
+    code:
+    - suggestion: .isComplete('Debtor')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1aa85faf-9fe5-4e93-999f-5f75401eefab
+      source_assumptions:
+      - a526a266-13f7-4040-8a15-8de80d974262
+    - suggestion: '.satisfies(''CASE WHEN `Debtor` IN (0, 1, \''''0\'''', \''1\'')
+        THEN 1 ELSE 0 END'', ''Debtor_binary'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.satisfies(''CASE WHEN
+        `Debtor` IN (0, 1, \''''0\'''', \''1\'') THEN 1 ELSE 0 END'', ''Debtor_binary'',
+        lambda x: x == 1)'': unexpected character after line continuation character
+        (<string>, line 1)'
+      level: error
+      uid: 0bad6a75-acf3-4f96-b8c0-f7b97a03d8c9
+      source_assumptions:
+      - ef8f8455-3b1a-4699-bb2b-5d4c55ea43f2
+    - suggestion: '.satisfies(''CASE WHEN TRY_CAST(`Debtor` AS DOUBLE) IS NOT NULL
+        THEN 1 ELSE 0 END'', ''Debtor_numeric'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3ad78a14-31a2-4dab-a43b-9b41a5fcdf82
+      source_assumptions:
+      - fa58bb9b-2bbc-4cca-a7db-aad733ec5e5d
+    - suggestion: '.satisfies(''CASE WHEN `Debtor` = 1 THEN 1 ELSE 0 END'', ''Debtor_prevalence'',
+        lambda x: x >= 0.05 and x <= 0.20)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3f51a8b9-e4ea-43df-808a-67a35b01c895
+      source_assumptions:
+      - 4b6507b6-1242-4c90-85ef-8662a287b8ab
+    assumptions:
+    - text: 'The ''Debtor'' column must not contain missing (NULL/NaN) values. The
+        pipeline casts it to float and uses it as a model feature and in scaler/model
+        training; missing values would break or corrupt scaling and model training.
+        Example Deequ-like constraint: .satisfies("CASE WHEN `Debtor` IS NOT NULL
+        THEN 1 ELSE 0 END", "Debtor_not_null", lambda x: x == 1)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 106
+        end_line: 106
+        file: ''
+      - start_line: 121
+        end_line: 125
+        file: ''
+      - start_line: 143
+        end_line: 143
+        file: ''
+      uid: a526a266-13f7-4040-8a15-8de80d974262
+    - text: 'The ''Debtor'' column is a binary indicator and should contain only the
+        values 0 or 1 (or string representations convertible to those). The code checks
+        equality to 1 and uses the column directly as a numeric feature; any other
+        values will cause semantic errors or unexpected model behavior. Example Deequ-like
+        constraint: .satisfies("CASE WHEN `Debtor` IN (0, 1) THEN 1 ELSE 0 END", "Debtor_binary",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 32
+        end_line: 32
+        file: ''
+      - start_line: 71
+        end_line: 75
+        file: ''
+      - start_line: 106
+        end_line: 106
+        file: ''
+      uid: ef8f8455-3b1a-4699-bb2b-5d4c55ea43f2
+    - text: 'The ''Debtor'' column must be numeric (or safely castable to float/integer).
+        The code calls .astype(float) on this column and includes it in numeric feature
+        matrices; values that cannot be converted to numeric (e.g., arbitrary text)
+        will raise errors. Example Deequ-like constraint: .satisfies("CASE WHEN TRY_CAST(`Debtor`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Debtor_numeric", lambda x: x ==
+        1)'
+      sources:
+      - start_line: 106
+        end_line: 106
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: fa58bb9b-2bbc-4cca-a7db-aad733ec5e5d
+    - text: 'The ''Debtor'' indicator is expected to be relatively sparse (approximately
+        11.7% = 1 in the provided dataset). Large deviations from this baseline may
+        indicate data drift or upstream issues. You can validate the prevalence (for
+        example) with: .satisfies("CASE WHEN `Debtor` = 1 THEN 1 ELSE 0 END", "Debtor_prevalence",
+        lambda x: x >= 0.05 and x <= 0.20). Adjust bounds to your tolerance for drift.'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 71
+        end_line: 75
+        file: ''
+      - start_line: 106
+        end_line: 106
+        file: ''
+      uid: 4b6507b6-1242-4c90-85ef-8662a287b8ab
+  '["Debtor","Scholarship holder","Tuition fees up to date"]':
+    code: []
+    assumptions:
+    - text: 'The columns ''Debtor'', ''Tuition fees up to date'', and ''Scholarship
+        holder'' are binary indicator variables and must contain only the values 0
+        or 1 across the dataset. Actionable constraints (Deequ-style) that enforce
+        this:
+
+        - .isContainedIn(''Debtor'', [0, 1])
+
+        - .isContainedIn(''Tuition fees up to date'', [0, 1])
+
+        - .isContainedIn(''Scholarship holder'', [0, 1])
+
+        (or a programmatic check that each of these columns has distinct values subset
+        of {0,1}).'
+      sources:
+      - start_line: 31
+        end_line: 34
+        file: ''
+      - start_line: 71
+        end_line: 75
+        file: ''
+      - start_line: 106
+        end_line: 108
+        file: ''
+      uid: ec55c82d-e6c8-48c2-a645-6a3310a78dea
+    - text: 'All columns assembled into feature_frame (grade_scaled, prevq_scaled,
+        grade_consensus, first_sem_pass_rate, first_sem_engagement, first_sem_eval_load,
+        second_sem_pass_rate, second_sem_engagement, second_sem_eval_load, financial_risk,
+        first_choice, daytime_attendance, age_at_enrollment, unemployment_rate, inflation_rate,
+        gdp, international, displaced, gender, debtor, tuition_up_to_date, scholarship)
+        must be present and complete (no missing/NaN values). This is required because
+        StandardScaler.fit_transform and classifier.fit/transform expect numeric arrays
+        without NaNs. Actionable Deequ-style constraint:
+
+        - .isComplete([<list of feature column names>])'
+      sources:
+      - start_line: 86
+        end_line: 108
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      - start_line: 143
+        end_line: 145
+        file: ''
+      uid: 9982ef14-da1f-4611-8e27-5526aaf8284e
+    - text: 'All feature columns (in particular columns cast with .astype(float):
+        daytime attendance, Age at enrollment, Unemployment rate, Inflation rate,
+        GDP, International, Displaced, Gender, Debtor, Tuition fees up to date, Scholarship
+        holder, and the engineered numeric columns) must be numeric / parsable as
+        floats. Actionable checks:
+
+        - Use a Deequ-type check that each column''s data type is numeric or that
+        values match a numeric pattern (e.g. regex) or an analyzer that validates
+        fraction/integral types before casting.
+
+        - Example: for Deequ, ensure hasDataType or custom predicate per column that
+        values are numeric.'
+      sources:
+      - start_line: 98
+        end_line: 108
+        file: ''
+      - start_line: 59
+        end_line: 67
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: 2d81789d-4680-4364-a994-0c48b9678f28
+  Gender:
+    code:
+    - suggestion: .isComplete('Gender')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 72be6ab2-b83f-40b9-83bf-b51789d09927
+      source_assumptions:
+      - 51a4f434-a9b6-450f-83c3-9e64bd08f906
+    - suggestion: .isContainedIn('Gender', [0, 1])
+      validity: false
+      reason_if_invalid: "Unable to instantiate constraint '.isContainedIn('Gender',\
+        \ [0, 1])': An error occurred while calling None.None. Trace:\npy4j.Py4JException:\
+        \ Cannot convert java.lang.Integer to java.lang.String\n\tat py4j.commands.ArrayCommand.convertArgument(ArrayCommand.java:166)\n\
+        \tat py4j.commands.ArrayCommand.setArray(ArrayCommand.java:144)\n\tat py4j.commands.ArrayCommand.execute(ArrayCommand.java:97)\n\
+        \tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:829)\n\n"
+      level: error
+      uid: 128a07d1-e1bb-49f3-a85c-e132e67b8941
+      source_assumptions:
+      - d2664f26-455b-4f49-9f39-bc6f725fdf71
+    - suggestion: '.satisfies("CASE WHEN `Gender` IS NOT NULL AND isFinite(CAST(`Gender`
+        AS double)) THEN 1 ELSE 0 END", "Gender finite numeric", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `Gender` IS NOT NULL
+        AND isFinite(CAST(`Gender` AS double)) THEN 1 ELSE 0 END", "Gender finite
+        numeric", lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_ROUTINE] Cannot resolve function `isFinite` on search path [`system`.`builtin`,
+        `system`.`session`, `spark_catalog`.`default`].; line 1 pos 35'
+      level: error
+      uid: d3c1aa03-a634-4585-9164-a528dbb6d455
+      source_assumptions:
+      - bd5360d4-7def-458c-9c83-76cb36b6d66a
+    - suggestion: '.hasNumberOfDistinctValues(''Gender'', lambda x: x == 2)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Gender'',
+        lambda x: x == 2)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 56a01146-a37a-4e7a-abcb-5945544e9508
+      source_assumptions:
+      - 882eff43-5277-4a4a-8ed0-b0b632929812
+    assumptions:
+    - text: 'The ''Gender'' column must contain no null values (complete column).
+        The code casts df[''Gender''] to float and later fits/transforms using a StandardScaler
+        and the model, which require non-null numeric inputs. A corresponding validation
+        rule could be: .satisfies("CASE WHEN `Gender` IS NOT NULL THEN 1 ELSE 0 END",
+        "No null Gender", lambda x: x == 1.0).'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      - start_line: 121
+        end_line: 122
+        file: ''
+      uid: 51a4f434-a9b6-450f-83c3-9e64bd08f906
+    - text: 'The ''Gender'' column is expected to be binary with exactly the two values
+        0 and 1 (no other categories). The feature assembly uses Gender as a numeric
+        feature (df[''Gender''].astype(float)) and the dataset histogram shows two
+        values; enforce that all input values belong to the set {0,1}. A corresponding
+        validation rule could be: .satisfies("CASE WHEN `Gender` IN (0, 1) THEN 1
+        ELSE 0 END", "Gender in {0,1}", lambda x: x == 1.0).'
+      sources:
+      - start_line: 86
+        end_line: 109
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      uid: d2664f26-455b-4f49-9f39-bc6f725fdf71
+    - text: 'All values in ''Gender'' must be numeric/floating-convertible and finite
+        (no strings, NaN, +/-Inf). The code does df[''Gender''].astype(float) and
+        then scaling and model training/transforming, which will fail on non-numeric
+        or infinite values. A corresponding validation rule could be: .satisfies("CASE
+        WHEN `Gender` IS NOT NULL AND isFinite(CAST(`Gender` AS double)) THEN 1 ELSE
+        0 END", "Gender finite numeric", lambda x: x == 1.0).'
+      sources:
+      - start_line: 105
+        end_line: 105
+        file: ''
+      - start_line: 121
+        end_line: 122
+        file: ''
+      - start_line: 124
+        end_line: 126
+        file: ''
+      uid: bd5360d4-7def-458c-9c83-76cb36b6d66a
+    - text: 'The ''Gender'' column should be low-cardinality (exactly two distinct
+        values). The downstream pipeline and model treat Gender as a single numeric
+        feature (not one-hot encoded), so unexpected high cardinality would indicate
+        corrupted input. A corresponding validation rule could be: .satisfies("CASE
+        WHEN cardinality(`Gender`) = 2 THEN 1 ELSE 0 END", "Gender cardinality ==
+        2", lambda x: x == 1.0).'
+      sources:
+      - start_line: 86
+        end_line: 109
+        file: ''
+      - start_line: 143
+        end_line: 145
+        file: ''
+      uid: 882eff43-5277-4a4a-8ed0-b0b632929812
+  '["GDP","Inflation rate","Unemployment rate"]':
+    code: []
+    assumptions:
+    - text: 'All three macroeconomic feature columns (''Unemployment rate'', ''Inflation
+        rate'', ''GDP'') must be present and complete for every row: no nulls/NaNs
+        and no infinite values across these columns. This is required because they
+        are assembled into feature_frame and passed to StandardScaler and the model
+        (fit/transform). Example Deequ-style constraints: .isComplete([''Unemployment
+        rate'',''Inflation rate'',''GDP'']) and a custom check that values are finite
+        (not infinite/NaN).'
+      sources:
+      - start_line: 86
+        end_line: 102
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      - start_line: 143
+        end_line: 145
+        file: ''
+      uid: a062da31-0dd5-45b3-b8bc-de4e11ad3144
+    - text: 'Each of the three columns should lie within expected/observed numeric
+        ranges to catch data corruption before scaling/modeling: ''Unemployment rate''
+        in [7.6, 16.2], ''Inflation rate'' in [-0.8, 3.7], and ''GDP'' in [-4.06,
+        3.51]. Actionable constraints: per-column range checks (e.g., .isContainedInRange(''Unemployment
+        rate'', 7.6, 16.2), etc.).'
+      sources:
+      - start_line: 86
+        end_line: 102
+        file: ''
+      uid: 8c9e2b8b-b6dd-434b-a51e-d7417865ce3c
+    - text: 'None of the three macroeconomic columns should be constant across the
+        dataset (each must have >1 distinct value). StandardScaler divides by standard
+        deviation; zero variance would lead to invalid scaled features. Actionable
+        check: distinctness or variance threshold per column (e.g., countDistinct(''Unemployment
+        rate'') > 1, etc.).'
+      sources:
+      - start_line: 120
+        end_line: 122
+        file: ''
+      - start_line: 86
+        end_line: 102
+        file: ''
+      uid: bf7c92fa-8620-42b3-b9d9-386421bd61c3
+    - text: 'There must be no rows where all three macroeconomic indicators are simultaneously
+        missing or invalid. The model and full-dataset scoring assume each row has
+        valid macroeconomic context; drop/flag rows where all three are null/NaN/infinite.
+        Actionable constraint: a multi-column completeness predicate such as: not(allNull([''Unemployment
+        rate'',''Inflation rate'',''GDP''])) per row.'
+      sources:
+      - start_line: 86
+        end_line: 102
+        file: ''
+      - start_line: 143
+        end_line: 145
+        file: ''
+      uid: cb882837-5cc3-41e9-8111-2f157158e168
+  International:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `International` IS NOT NULL THEN 1 ELSE 0
+        END", "International_not_null", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5850ecd4-243d-4edc-835e-8c766311fbce
+      source_assumptions:
+      - f10e3ee1-baf4-4709-87e1-ab5fe59a4b05
+    - suggestion: '.satisfies("CASE WHEN `International` IN (0,1,''0'',''1'') THEN
+        1 ELSE 0 END", "International_binary", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e133bf29-133c-40fe-b317-84cf267034ea
+      source_assumptions:
+      - ab0e5913-ee66-45ce-8701-84dfa1127382
+    - suggestion: '.hasDataType(''International'', ''Numeric'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''International'',
+        ''Numeric'', lambda x: x == 1)'
+      level: error
+      uid: 2ba54495-bef2-43e6-9edd-48d427d0a498
+      source_assumptions:
+      - 67cf88b9-8b0e-4c98-915c-4884dc2dfe41
+    assumptions:
+    - text: 'The ''International'' column contains no missing values in the input
+        data. The pipeline casts this column to float and then applies StandardScaler/fit_transform
+        which do not accept NaNs, so the input must be complete. Deequ-style constraint
+        example:
+
+        .satisfies("CASE WHEN `International` IS NOT NULL THEN 1 ELSE 0 END", "International_not_null",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 103
+        end_line: 103
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: f10e3ee1-baf4-4709-87e1-ab5fe59a4b05
+    - text: 'The ''International'' column is a binary indicator with values 0 or 1
+        (it may be stored as numeric or string ''0''/''1''). Feature engineering treats
+        it as a numeric flag, so any other values would be invalid. Deequ-style constraint
+        example:
+
+        .satisfies("CASE WHEN `International` IN (0,1,''0'',''1'') THEN 1 ELSE 0 END",
+        "International_binary", lambda x: x == 1)'
+      sources:
+      - start_line: 103
+        end_line: 103
+        file: ''
+      uid: ab0e5913-ee66-45ce-8701-84dfa1127382
+    - text: 'All values of ''International'' must be convertible to float (numeric).
+        The code does df[''International''].astype(float) and then scales the feature;
+        non-numeric strings would raise an error. Deequ-style constraint example:
+
+        .satisfies("CASE WHEN `International` RLIKE ''^[0-9]+(\\.[0-9]+)?$'' OR `International`
+        IN (''0'',''1'') THEN 1 ELSE 0 END", "International_numeric_castable", lambda
+        x: x == 1)'
+      sources:
+      - start_line: 103
+        end_line: 103
+        file: ''
+      - start_line: 120
+        end_line: 122
+        file: ''
+      uid: 67cf88b9-8b0e-4c98-915c-4884dc2dfe41
+  Target:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(`Target`) IN (''Graduate'',''Enrolled'',''Dropout'')
+        THEN 1 ELSE 0 END", "Valid Target classes", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d4c36dbf-776f-4a9e-81c8-247fbbb2fb21
+      source_assumptions:
+      - ca01984a-d1c7-4570-a7e3-58f56e35400b
+      - a688b778-b029-49b4-9214-59cfc63feba9
+    - suggestion: .isComplete('Target')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3135a07b-12e3-4550-b681-489f564a0222
+      source_assumptions:
+      - e68f90b8-1db3-403a-b9e9-30345f92725c
+    - suggestion: '.satisfies("`Target` = ''Graduate''", "Graduate min count", lambda
+        x: x >= 5)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Target` = ''Graduate''", "Graduate
+        min count", lambda x: x >= 5)'' failed on data sample: Value: 0.5049019607843137
+        does not meet the constraint requirement!'
+      level: error
+      uid: c7f75a74-72e4-4f9c-a316-9a540e183c2f
+      source_assumptions:
+      - 407d64c0-387d-4221-8843-8a3850dbbcd1
+    - suggestion: '.satisfies("`Target` = ''Enrolled''", "Enrolled min count", lambda
+        x: x >= 5)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Target` = ''Enrolled''", "Enrolled
+        min count", lambda x: x >= 5)'' failed on data sample: Value: 0.1768476621417798
+        does not meet the constraint requirement!'
+      level: error
+      uid: cf7dc00e-6522-4812-8cbf-9081c46e1e52
+      source_assumptions:
+      - 407d64c0-387d-4221-8843-8a3850dbbcd1
+    - suggestion: '.satisfies("`Target` = ''Dropout''", "Dropout min count", lambda
+        x: x >= 5)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Target` = ''Dropout''", "Dropout
+        min count", lambda x: x >= 5)'' failed on data sample: Value: 0.31825037707390647
+        does not meet the constraint requirement!'
+      level: error
+      uid: ea27600b-c6b7-4136-97f7-861f80b9be85
+      source_assumptions:
+      - 407d64c0-387d-4221-8843-8a3850dbbcd1
+    assumptions:
+    - text: 'The ''Target'' column must contain only the three class labels exactly
+        as spelled and cased: ''Graduate'', ''Enrolled'', and ''Dropout''. The code
+        maps values to integers via an explicit class_order and will produce NaNs
+        (and fail) if any value is outside this set. Example validation (Deequ-style):
+        .satisfies("CASE WHEN `Target` IN (''Graduate'',''Enrolled'',''Dropout'')
+        THEN 1 ELSE 0 END", "Valid Target classes", lambda x: x == 1)'
+      sources:
+      - start_line: 30
+        end_line: 30
+        file: ''
+      - start_line: 112
+        end_line: 114
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: ca01984a-d1c7-4570-a7e3-58f56e35400b
+    - text: 'The ''Target'' column must not contain nulls. The code maps Target to
+        integers and calls .astype(int); nulls would lead to NaNs and type conversion
+        / stratified splitting failures. Example validation: .satisfies("CASE WHEN
+        `Target` IS NOT NULL THEN 1 ELSE 0 END", "Non-null Target", lambda x: x ==
+        1)'
+      sources:
+      - start_line: 114
+        end_line: 114
+        file: ''
+      - start_line: 116
+        end_line: 117
+        file: ''
+      uid: e68f90b8-1db3-403a-b9e9-30345f92725c
+    - text: 'The ''Target'' values must match the expected strings in a case-sensitive
+        way (exact spelling and casing). The code uses literal string keys (e.g. ''Dropout'')
+        for value_counts and mapping; different casing or trailing whitespace would
+        be treated as different/unmapped categories. Example validation: .satisfies("CASE
+        WHEN TRIM(`Target`) IN (''Graduate'',''Enrolled'',''Dropout'') THEN 1 ELSE
+        0 END", "Trimmed, exact Target classes", lambda x: x == 1)'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      - start_line: 112
+        end_line: 114
+        file: ''
+      uid: a688b778-b029-49b4-9214-59cfc63feba9
+    - text: 'Class frequencies for ''Target'' should be sufficient for a stratified
+        train_test_split with test_size=0.2. Practically, ensure each class has enough
+        samples so stratification can place at least one instance in the test set
+        (recommend >= 5 samples per class for test_size=0.2). Example validation (per-class
+        minimum): .satisfies("CASE WHEN (SELECT COUNT(*) FROM dataset WHERE `Target`
+        = ''Graduate'') >= 5 THEN 1 ELSE 0 END", "Graduate min count", lambda x: x
+        == 1) (and likewise for ''Enrolled'' and ''Dropout'')'
+      sources:
+      - start_line: 116
+        end_line: 117
+        file: ''
+      - start_line: 112
+        end_line: 114
+        file: ''
+      uid: 407d64c0-387d-4221-8843-8a3850dbbcd1
+column_data_flow_locations:
+  '["Curricular units 1st sem (approved)","Curricular units 1st sem (enrolled)"]':
+  - start_line: 23
+    end_line: 168
+    file: ''
+  '["Curricular units 1st sem (enrolled)","Curricular units 1st sem (without evaluations)"]':
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 39
+    end_line: 45
+    file: ''
+  - start_line: 55
+    end_line: 57
+    file: ''
+  - start_line: 63
+    end_line: 65
+    file: ''
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 125
+    file: ''
+  - start_line: 127
+    end_line: 132
+    file: ''
+  - start_line: 135
+    end_line: 140
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 149
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 164
+    file: ''
+  '["Curricular units 1st sem (enrolled)","Curricular units 1st sem (evaluations)"]':
+  - start_line: 39
+    end_line: 168
+    file: ''
+  ? '["Curricular units 1st sem (approved)","Curricular units 1st sem (enrolled)","Curricular
+    units 1st sem (evaluations)","Curricular units 1st sem (without evaluations)"]'
+  : []
+  '["Curricular units 2nd sem (approved)","Curricular units 2nd sem (enrolled)"]':
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 55
+    end_line: 57
+    file: ''
+  - start_line: 67
+    end_line: 69
+    file: ''
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 126
+    file: ''
+  - start_line: 127
+    end_line: 129
+    file: ''
+  - start_line: 130
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 141
+    file: ''
+  - start_line: 143
+    end_line: 146
+    file: ''
+  - start_line: 147
+    end_line: 151
+    file: ''
+  - start_line: 152
+    end_line: 164
+    file: ''
+  '["Curricular units 2nd sem (enrolled)","Curricular units 2nd sem (without evaluations)"]':
+  - start_line: 14
+    end_line: 23
+    file: ''
+  - start_line: 46
+    end_line: 50
+    file: ''
+  - start_line: 55
+    end_line: 57
+    file: ''
+  - start_line: 59
+    end_line: 69
+    file: ''
+  - start_line: 71
+    end_line: 79
+    file: ''
+  - start_line: 80
+    end_line: 84
+    file: ''
+  - start_line: 85
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 119
+    file: ''
+  - start_line: 120
+    end_line: 129
+    file: ''
+  - start_line: 130
+    end_line: 141
+    file: ''
+  - start_line: 142
+    end_line: 151
+    file: ''
+  - start_line: 152
+    end_line: 160
+    file: ''
+  - start_line: 162
+    end_line: 164
+    file: ''
+  - start_line: 167
+    end_line: 168
+    file: ''
+  '["Curricular units 2nd sem (enrolled)","Curricular units 2nd sem (evaluations)"]': []
+  ? '["Curricular units 2nd sem (approved)","Curricular units 2nd sem (enrolled)","Curricular
+    units 2nd sem (evaluations)","Curricular units 2nd sem (without evaluations)"]'
+  : - start_line: 23
+      end_line: 164
+      file: ''
+    - start_line: 167
+      end_line: 168
+      file: ''
+  '["Admission grade","Previous qualification (grade)"]':
+  - start_line: 20
+    end_line: 23
+    file: ''
+  - start_line: 36
+    end_line: 37
+    file: ''
+  - start_line: 55
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 69
+    file: ''
+  - start_line: 71
+    end_line: 79
+    file: ''
+  - start_line: 80
+    end_line: 83
+    file: ''
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 125
+    file: ''
+  - start_line: 127
+    end_line: 129
+    file: ''
+  - start_line: 130
+    end_line: 132
+    file: ''
+  - start_line: 134
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 140
+    file: ''
+  - start_line: 143
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 164
+    file: ''
+  '["Debtor","Scholarship holder","Tuition fees up to date"]':
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 31
+    end_line: 34
+    file: ''
+  - start_line: 71
+    end_line: 76
+    file: ''
+  - start_line: 96
+    end_line: 108
+    file: ''
+  - start_line: 116
+    end_line: 136
+    file: ''
+  - start_line: 143
+    end_line: 164
+    file: ''
+  '["GDP","Inflation rate","Unemployment rate"]':
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 25
+    end_line: 27
+    file: ''
+  - start_line: 29
+    end_line: 35
+    file: ''
+  - start_line: 36
+    end_line: 51
+    file: ''
+  - start_line: 55
+    end_line: 57
+    file: ''
+  - start_line: 59
+    end_line: 79
+    file: ''
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 126
+    file: ''
+  - start_line: 127
+    end_line: 129
+    file: ''
+  - start_line: 134
+    end_line: 136
+    file: ''
+  - start_line: 143
+    end_line: 146
+    file: ''
+  - start_line: 152
+    end_line: 164
+    file: ''
+  - start_line: 167
+    end_line: 168
+    file: ''
+  Target:
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 30
+    end_line: 30
+    file: ''
+  - start_line: 81
+    end_line: 83
+    file: ''
+  - start_line: 112
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  - start_line: 127
+    end_line: 128
+    file: ''
+  - start_line: 130
+    end_line: 132
+    file: ''
+  - start_line: 135
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 140
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 148
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 160
+    file: ''
+  - start_line: 162
+    end_line: 164
+    file: ''
+  Daytime/evening attendance\t:
+  - start_line: 26
+    end_line: 27
+    file: ''
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 129
+    file: ''
+  - start_line: 135
+    end_line: 136
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 149
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 160
+    file: ''
+  - start_line: 162
+    end_line: 164
+    file: ''
+  Application order:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 78
+    end_line: 168
+    file: ''
+  Debtor:
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 71
+    end_line: 76
+    file: ''
+  - start_line: 96
+    end_line: 106
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 128
+    file: ''
+  - start_line: 130
+    end_line: 133
+    file: ''
+  - start_line: 135
+    end_line: 136
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 148
+    end_line: 151
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 164
+    file: ''
+  Tuition fees up to date:
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 107
+    end_line: 107
+    file: ''
+  Scholarship holder:
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 74
+    end_line: 74
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  Admission grade:
+  - start_line: 36
+    end_line: 36
+    file: ''
+  - start_line: 59
+    end_line: 59
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 125
+    file: ''
+  - start_line: 127
+    end_line: 129
+    file: ''
+  - start_line: 130
+    end_line: 132
+    file: ''
+  - start_line: 134
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 140
+    file: ''
+  - start_line: 143
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 151
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 160
+    file: ''
+  - start_line: 162
+    end_line: 164
+    file: ''
+  Previous qualification (grade):
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 37
+    end_line: 37
+    file: ''
+  - start_line: 60
+    end_line: 61
+    file: ''
+  - start_line: 88
+    end_line: 89
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 122
+    file: ''
+  - start_line: 125
+    end_line: 125
+    file: ''
+  - start_line: 127
+    end_line: 128
+    file: ''
+  - start_line: 135
+    end_line: 136
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 149
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 160
+    file: ''
+  - start_line: 162
+    end_line: 164
+    file: ''
+  Curricular units 1st sem (enrolled):
+  - start_line: 39
+    end_line: 39
+    file: ''
+  - start_line: 63
+    end_line: 65
+    file: ''
+  Curricular units 1st sem (approved):
+  - start_line: 40
+    end_line: 40
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 90
+    end_line: 167
+    file: ''
+  Curricular units 1st sem (without evaluations):
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 64
+    end_line: 64
+    file: ''
+  - start_line: 91
+    end_line: 91
+    file: ''
+  - start_line: 116
+    end_line: 116
+    file: ''
+  - start_line: 121
+    end_line: 122
+    file: ''
+  - start_line: 125
+    end_line: 125
+    file: ''
+  - start_line: 127
+    end_line: 128
+    file: ''
+  - start_line: 130
+    end_line: 132
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 139
+    end_line: 140
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 149
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 160
+    file: ''
+  - start_line: 162
+    end_line: 164
+    file: ''
+  Curricular units 1st sem (evaluations):
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  Curricular units 2nd sem (enrolled):
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 46
+    end_line: 46
+    file: ''
+  - start_line: 67
+    end_line: 69
+    file: ''
+  - start_line: 93
+    end_line: 95
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 121
+    end_line: 122
+    file: ''
+  - start_line: 125
+    end_line: 125
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 143
+    end_line: 146
+    file: ''
+  - start_line: 149
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 160
+    file: ''
+  - start_line: 162
+    end_line: 164
+    file: ''
+  Curricular units 2nd sem (approved):
+  - start_line: 47
+    end_line: 47
+    file: ''
+  - start_line: 67
+    end_line: 168
+    file: ''
+  Curricular units 2nd sem (without evaluations):
+  - start_line: 48
+    end_line: 168
+    file: ''
+  Curricular units 2nd sem (evaluations):
+  - start_line: 49
+    end_line: 49
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 95
+    end_line: 95
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 121
+    end_line: 129
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 164
+    file: ''
+  Age at enrollment:
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 122
+    file: ''
+  - start_line: 125
+    end_line: 125
+    file: ''
+  - start_line: 127
+    end_line: 128
+    file: ''
+  - start_line: 130
+    end_line: 133
+    file: ''
+  - start_line: 135
+    end_line: 136
+    file: ''
+  - start_line: 138
+    end_line: 140
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 149
+    end_line: 150
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 164
+    file: ''
+  Unemployment rate:
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 120
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 128
+    file: ''
+  - start_line: 130
+    end_line: 133
+    file: ''
+  - start_line: 135
+    end_line: 136
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 148
+    end_line: 151
+    file: ''
+  - start_line: 152
+    end_line: 158
+    file: ''
+  - start_line: 160
+    end_line: 164
+    file: ''
+  Inflation rate:
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 164
+    file: ''
+  GDP:
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 102
+    end_line: 102
+    file: ''
+  - start_line: 116
+    end_line: 168
+    file: ''
+  International:
+  - start_line: 103
+    end_line: 103
+    file: ''
+  Displaced:
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 104
+    end_line: 168
+    file: ''
+  Gender:
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 86
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 118
+    file: ''
+  - start_line: 121
+    end_line: 122
+    file: ''
+  - start_line: 135
+    end_line: 136
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.006425
+    total_tokens: 11231
+    prompt_tokens: 9164
+    completion_tokens: 2067
+  data_flow_inspection:
+    cost: 0.15341115000000002
+    total_tokens: 138298
+    prompt_tokens: 68219
+    completion_tokens: 70079
+  column_correlation_discovery:
+    cost: 0.00859675
+    total_tokens: 8725
+    prompt_tokens: 5059
+    completion_tokens: 3666
+  multi_column_data_flow_inspection:
+    cost: 0.06079325
+    total_tokens: 64127
+    prompt_tokens: 38549
+    completion_tokens: 25578
+  multi_column_assumption_generation:
+    cost: 0.065279
+    total_tokens: 68420
+    prompt_tokens: 40892
+    completion_tokens: 27528
+  multi_column_code_generation:
+    cost: 0.06501925
+    total_tokens: 83262
+    prompt_tokens: 57509
+    completion_tokens: 25753
+  single_column_assumption_generation:
+    cost: 0.15633025
+    total_tokens: 167038
+    prompt_tokens: 101569
+    completion_tokens: 65469
+  single_column_code_generation:
+    cost: 0.12196065000000003
+    total_tokens: 207280
+    prompt_tokens: 162065
+    completion_tokens: 45215

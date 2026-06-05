@@ -1,0 +1,2361 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  AgeGroup:
+    code:
+    - suggestion: '.satisfies("AgeGroup = TRIM(AgeGroup) AND AgeGroup IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')",
+        "AgeGroup formatting", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8edc51dd-dd62-4b70-b1b8-4c7f0346637b
+      source_assumptions:
+      - 485b1765-fab1-47ca-9ed8-c20a7b021652
+    - suggestion: '.satisfies("AgeGroup = ''26-35''", "Has 26-35 cohort", lambda x:
+        x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3c525d71-6cae-4654-8c55-55b86c7fb5a1
+      source_assumptions:
+      - 7492a129-622a-422f-b73c-20b5ebf80f22
+    assumptions:
+    - text: 'AgeGroup must be non-null for all records (completeness 100%), because
+        the code directly compares AgeGroup to the literal ''26-35'' to compute age_weight
+        and supplemental budget shares. A suitable Deequ rule could be: .hasCompleteness(''AgeGroup'',
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 51e3439c-8243-4c95-9ea1-551d1be3b461
+    - text: 'AgeGroup values should be restricted to the canonical set {''18-25'',
+        ''26-35'', ''36-45'', ''46-55'', ''55+''}, with exact spelling, so downstream
+        equality checks work as intended and no unexpected categories appear. This
+        can be validated with Deequ: .isContainedIn(''AgeGroup'', [''18-25'',''26-35'',''36-45'',''46-55'',''55+'']).'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 263454e6-f870-48b4-a11a-448234857138
+    - text: 'The dataset should contain at least some rows with AgeGroup = ''26-35''
+        so that age_weight and the emerging_talent_supp_pct logic have effect and
+        the emerging_talent_pool is non-zero in typical runs. This can be represented
+        as a Deequ fraction constraint: .satisfies("CASE WHEN AgeGroup = ''26-35''
+        THEN 1 ELSE 0 END", ''Has 26-35 cohort'', lambda x: x > 0).'
+      sources:
+      - start_line: 58
+        end_line: 66
+        file: ''
+      - start_line: 35
+        end_line: 35
+        file: ''
+      uid: 7492a129-622a-422f-b73c-20b5ebf80f22
+    - text: 'AgeGroup values must be exactly formatted (no leading/trailing whitespace,
+        ASCII ''-'' and ''+'', and correct casing) so that direct string equality
+        to ''26-35'' evaluates as expected. One way to validate this: Deequ satisfies
+        rule .satisfies("CASE WHEN AgeGroup = TRIM(AgeGroup) AND AgeGroup RLIKE ''^(18-25|26-35|36-45|46-55|55\\+)$''
+        THEN 1 ELSE 0 END", ''AgeGroup formatting'', lambda x: x == 1).'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 485b1765-fab1-47ca-9ed8-c20a7b021652
+  '["AgeGroup","BusinessTravel","MonthlyIncome","PercentSalaryHike","PerformanceRating","SalarySlab"]':
+    code: []
+    assumptions:
+    - text: 'PercentSalaryHike must respect the performance guideline implied by PerformanceRating:
+        if PerformanceRating = 3 then PercentSalaryHike <= 12; if PerformanceRating
+        = 4 then PercentSalaryHike <= 18. This prevents downstream NaNs (from unmapped
+        ratings) and ensures the requested hike does not exceed the guideline that
+        will be applied in the min(). Deequ example: .satisfies("CASE WHEN PerformanceRating
+        = 3 THEN PercentSalaryHike <= 12 WHEN PerformanceRating = 4 THEN PercentSalaryHike
+        <= 18 ELSE false END", "hike_within_rating_guideline")'
+      sources:
+      - start_line: 27
+        end_line: 28
+        file: ''
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: 0d7a4bfb-e012-4361-9be2-88d0a742a851
+    - text: 'SalarySlab must be one of {''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''}
+        and the proposed_merit_pct must be less than or equal to the corresponding
+        slab cap percent. Deequ example: .satisfies("proposed_merit_pct <= CASE WHEN
+        SalarySlab = ''Upto 5k'' THEN 0.20 WHEN SalarySlab = ''5k-10k'' THEN 0.18
+        WHEN SalarySlab = ''10k-15k'' THEN 0.15 WHEN SalarySlab = ''15k+'' THEN 0.12
+        END", "proposed_merit_pct_not_exceed_slab_cap")'
+      sources:
+      - start_line: 31
+        end_line: 32
+        file: ''
+      - start_line: 42
+        end_line: 42
+        file: ''
+      uid: e012602d-8a25-4d59-8c87-145e3417c3dd
+    - text: 'Proposed merit amount must be bounded by MonthlyIncome and the SalarySlab
+        cap: 0 <= proposed_merit_amount <= MonthlyIncome * slab_cap(SalarySlab). Deequ
+        example: .satisfies("proposed_merit_amount >= 0 AND proposed_merit_amount
+        <= MonthlyIncome * (CASE WHEN SalarySlab = ''Upto 5k'' THEN 0.20 WHEN SalarySlab
+        = ''5k-10k'' THEN 0.18 WHEN SalarySlab = ''10k-15k'' THEN 0.15 WHEN SalarySlab
+        = ''15k+'' THEN 0.12 END)", "proposed_merit_amount_bounded_by_income_and_slab")'
+      sources:
+      - start_line: 31
+        end_line: 32
+        file: ''
+      - start_line: 42
+        end_line: 43
+        file: ''
+      uid: bb077be2-9bac-4f54-b4a0-2f7c12df5d1b
+    - text: 'After normalization, BusinessTravel must be in {''Travel_Frequently'',''Travel_Rarely'',''Non-Travel''}
+        and travel_multiplier must match the category: 1.01 for ''Travel_Frequently''
+        and 1.00 for ''Travel_Rarely'' or ''Non-Travel''. Deequ example: .satisfies("CASE
+        WHEN BusinessTravel = ''Travel_Frequently'' THEN travel_multiplier = 1.01
+        WHEN BusinessTravel IN (''Travel_Rarely'',''Non-Travel'') THEN travel_multiplier
+        = 1.00 ELSE false END", "business_travel_multiplier_consistency")'
+      sources:
+      - start_line: 18
+        end_line: 24
+        file: ''
+      - start_line: 36
+        end_line: 37
+        file: ''
+      uid: 80439f82-58df-4af6-8927-f9f332d8ecf3
+    - text: 'AgeGroup must drive age_weight deterministically: if AgeGroup = ''26-35''
+        then age_weight = 1.02, else age_weight = 1.00. Deequ example: .satisfies("CASE
+        WHEN AgeGroup = ''26-35'' THEN age_weight = 1.02 ELSE age_weight = 1.00 END",
+        "age_weight_consistency")'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      uid: 462715b5-83a0-4962-9d0a-041533caf638
+    - text: 'Compression amount depends jointly on SalarySlab and MonthlyIncome: if
+        SalarySlab in (''Upto 5k'',''5k-10k'') then compression_amount = round(MonthlyIncome
+        * 0.003, 2) else compression_amount = 0.00. Deequ example: .satisfies("CASE
+        WHEN SalarySlab IN (''Upto 5k'',''5k-10k'') THEN compression_amount = round(MonthlyIncome
+        * 0.003, 2) ELSE compression_amount = 0.00 END", "compression_amount_rule")'
+      sources:
+      - start_line: 59
+        end_line: 61
+        file: ''
+      uid: 6de1c809-3046-4f5a-9d34-9aed152251e1
+    - text: 'Emerging talent supplement depends jointly on AgeGroup and MonthlyIncome:
+        if AgeGroup = ''26-35'' then emerging_talent_amount = round(MonthlyIncome
+        * 0.005, 2) else emerging_talent_amount = 0.00. Deequ example: .satisfies("CASE
+        WHEN AgeGroup = ''26-35'' THEN emerging_talent_amount = round(MonthlyIncome
+        * 0.005, 2) ELSE emerging_talent_amount = 0.00 END", "emerging_talent_amount_rule")'
+      sources:
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 33b86d53-08e6-41b8-9092-70aceba7d3c3
+    - text: 'Promotion raise percent must align with multi-column eligibility logic:
+        if (PerformanceRating = 4 AND YearsInCurrentRole >= 2 AND YearsSinceLastPromotion
+        >= 1 AND JobLevel < 5) then promotion_raise_pct = CASE JobLevel WHEN 1 THEN
+        0.10 WHEN 2 THEN 0.08 WHEN 3 THEN 0.07 WHEN 4 THEN 0.06 WHEN 5 THEN 0.00 END
+        else promotion_raise_pct = 0.0. Deequ example: .satisfies("CASE WHEN PerformanceRating
+        = 4 AND YearsInCurrentRole >= 2 AND YearsSinceLastPromotion >= 1 AND JobLevel
+        < 5 THEN (promotion_raise_pct IN (0.10,0.08,0.07,0.06)) ELSE promotion_raise_pct
+        = 0.0 END", "promotion_raise_pct_consistent_with_eligibility")'
+      sources:
+      - start_line: 46
+        end_line: 56
+        file: ''
+      uid: 0c556af6-1740-4670-b3e0-cec8115f01da
+    - text: 'Department-level total_budget must equal the sum of the component pools:
+        total_budget = merit_pool + promotion_pool + compression_pool + emerging_talent_pool.
+        Deequ example: .satisfies("total_budget = merit_pool + promotion_pool + compression_pool
+        + emerging_talent_pool", "department_total_budget_additivity")'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 77
+        end_line: 78
+        file: ''
+      uid: 24f97f4c-98a8-4ac7-8825-238b42c8d71b
+  '["AgeGroup","MonthlyIncome"]':
+    code: []
+    assumptions:
+    - text: 'age_weight is fully determined by AgeGroup: age_weight = 1.02 when AgeGroup
+        = ''26-35'', else age_weight = 1.00. Constraint example: .satisfies("(AgeGroup
+        = ''26-35'' AND age_weight = 1.02) OR (AgeGroup <> ''26-35'' AND age_weight
+        = 1.00)", ''age_weight_by_agegroup'').'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      uid: 55d385b0-c1fe-4aaf-8658-47ac5c57f359
+    - text: 'emerging_talent_supp_pct is fully determined by AgeGroup: emerging_talent_supp_pct
+        = 0.005 when AgeGroup = ''26-35'', else 0.0. Constraint example: .satisfies("(AgeGroup
+        = ''26-35'' AND emerging_talent_supp_pct = 0.005) OR (AgeGroup <> ''26-35''
+        AND emerging_talent_supp_pct = 0.0)", ''emerging_pct_by_agegroup'').'
+      sources:
+      - start_line: 63
+        end_line: 64
+        file: ''
+      uid: afde8587-4a86-4c34-9a3f-ca48297d25e5
+    - text: 'emerging_talent_amount must equal MonthlyIncome * emerging_talent_supp_pct
+        (rounded to 2 decimals). Constraint example: .satisfies("abs(emerging_talent_amount
+        - round(MonthlyIncome * emerging_talent_supp_pct, 2)) < 0.005", ''emerging_amount_matches'').'
+      sources:
+      - start_line: 65
+        end_line: 65
+        file: ''
+      uid: a69136c8-4a57-433d-a446-a0bbc4a96af4
+    - text: 'proposed_merit_amount must equal MonthlyIncome * proposed_merit_pct (rounded
+        to 2 decimals). Constraint example: .satisfies("abs(proposed_merit_amount
+        - round(MonthlyIncome * proposed_merit_pct, 2)) < 0.005", ''merit_amount_matches'').'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      uid: ce17fb3a-b6dd-4ed3-805c-383f7b9f46b1
+    - text: 'promotion_amount must equal MonthlyIncome * promotion_raise_pct (rounded
+        to 2 decimals). Since promotion_raise_pct is set to 0.0 for ineligible rows,
+        ineligible employees must have promotion_amount = 0. Constraint example: .satisfies("abs(promotion_amount
+        - round(MonthlyIncome * promotion_raise_pct, 2)) < 0.005", ''promotion_amount_matches'').'
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 223fd31c-2a8b-4dbb-86da-727ad42b654b
+    - text: 'compression_pool_share is fully determined by SalarySlab: compression_pool_share
+        = 0.003 when SalarySlab in (''Upto 5k'',''5k-10k''), else 0.0. Constraint
+        example: .satisfies("((SalarySlab IN (''Upto 5k'',''5k-10k'')) AND compression_pool_share
+        = 0.003) OR ((SalarySlab NOT IN (''Upto 5k'',''5k-10k'')) AND compression_pool_share
+        = 0.0)", ''compression_share_by_slab'').'
+      sources:
+      - start_line: 58
+        end_line: 60
+        file: ''
+      uid: 62c4e356-fffd-405a-8871-939097403ec7
+    - text: 'compression_amount must equal MonthlyIncome * compression_pool_share
+        (rounded to 2 decimals). Constraint example: .satisfies("abs(compression_amount
+        - round(MonthlyIncome * compression_pool_share, 2)) < 0.005", ''compression_amount_matches'').'
+      sources:
+      - start_line: 61
+        end_line: 61
+        file: ''
+      uid: 88a18c8f-472e-4835-9f07-df648ce12a65
+    - text: 'proposed_merit_pct must be capped by slab_cap_pct, i.e., proposed_merit_pct
+        <= slab_cap_pct and equals min(adjusted_merit_pct, slab_cap_pct) where adjusted_merit_pct
+        = min(perf_guideline_pct, PercentSalaryHike/100.0) * age_weight * travel_multiplier.
+        Constraint example: .satisfies("proposed_merit_pct <= slab_cap_pct", ''merit_pct_capped'').'
+      sources:
+      - start_line: 35
+        end_line: 37
+        file: ''
+      - start_line: 40
+        end_line: 42
+        file: ''
+      uid: 867278a1-ca0b-4d22-8cc3-288263fe27b8
+    - text: 'For AgeGroup = ''26-35'', emerging_talent_amount must equal round(0.005
+        * MonthlyIncome, 2); for other AgeGroup values, emerging_talent_amount must
+        equal 0.00. Constraint example: .satisfies("(AgeGroup = ''26-35'' AND abs(emerging_talent_amount
+        - round(0.005 * MonthlyIncome, 2)) < 0.005) OR (AgeGroup <> ''26-35'' AND
+        emerging_talent_amount = 0.0)", ''emerging_amount_by_agegroup'').'
+      sources:
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 1c7145ab-bc33-425a-b3b8-6279dd588b99
+    - text: 'Department-level aggregates must match employee-level sums: for each
+        Department, base_pay = sum(MonthlyIncome), merit_pool = sum(proposed_merit_amount),
+        promotion_pool = sum(promotion_amount), compression_pool = sum(compression_amount),
+        emerging_talent_pool = sum(emerging_talent_amount); headcount = count(EmpID).
+        This can be checked by recomputing grouped sums from the detail and comparing
+        to agg.'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: 7f73fc11-3b6e-4294-bb6e-63e3665f130e
+    - text: 'In the aggregated output, total_budget must equal the sum of component
+        pools: total_budget = merit_pool + promotion_pool + compression_pool + emerging_talent_pool.
+        Constraint example: .satisfies("abs(total_budget - (merit_pool + promotion_pool
+        + compression_pool + emerging_talent_pool)) < 0.005", ''total_budget_sum_check'').'
+      sources:
+      - start_line: 77
+        end_line: 78
+        file: ''
+      uid: d2ee4d4b-f4a2-400d-a422-716b410a1455
+    - text: 'Given that all employee-level amounts are computed as percentages of
+        MonthlyIncome and each percentage is non-negative, the department total_budget
+        should not exceed base_pay: total_budget <= base_pay for every Department.
+        Constraint example: .satisfies("total_budget <= base_pay", ''budget_within_base_pay'').'
+      sources:
+      - start_line: 40
+        end_line: 42
+        file: ''
+      - start_line: 54
+        end_line: 56
+        file: ''
+      - start_line: 58
+        end_line: 65
+        file: ''
+      - start_line: 68
+        end_line: 78
+        file: ''
+      uid: 63ccc09a-5d74-4ad0-a2cc-fde8382e3094
+  BusinessTravel:
+    code:
+    - suggestion: .isComplete('BusinessTravel')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c6c5ac69-e358-45c7-9c71-d6b530d7fe78
+      source_assumptions:
+      - be24ca78-e65a-4a85-9c08-bfde10346da4
+    - suggestion: '.isContainedIn(''BusinessTravel'', [''TravelRarely'', ''Travel_Rarely'',
+        ''Travel_Frequently'', ''Non-Travel''], lambda f: f == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2b0ce6d5-4bc8-4d96-b1d9-ea4055691f3d
+      source_assumptions:
+      - 23da1373-c015-41f4-94c1-9c858625d92e
+    - suggestion: '.satisfies(''`BusinessTravel` = trim(`BusinessTravel`)'', ''BusinessTravel
+        no leading/trailing spaces'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3c31b375-38e6-40a1-91b7-4a8a999a0e0a
+      source_assumptions:
+      - 21398cff-783a-4290-8b5f-403f8f7e8a6c
+    assumptions:
+    - text: 'BusinessTravel values in the input must be limited to the expected categories:
+        ''TravelRarely'', ''Travel_Rarely'', ''Travel_Frequently'', or ''Non-Travel''.
+        Any other value would not map to a valid travel_multiplier and will propagate
+        NaNs into downstream calculations. We could represent this as a Deequ constraint
+        like: .satisfies("CASE WHEN `BusinessTravel` IN (''TravelRarely'',''Travel_Rarely'',''Travel_Frequently'',''Non-Travel'')
+        THEN 1 ELSE 0 END", "Valid BusinessTravel domain", lambda x: x == 1.0) or
+        a Great Expectations rule: expect_column_values_to_be_in_set([''TravelRarely'',''Travel_Rarely'',''Travel_Frequently'',''Non-Travel'']).'
+      sources:
+      - start_line: 18
+        end_line: 23
+        file: ''
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 36
+        end_line: 37
+        file: ''
+      uid: 23da1373-c015-41f4-94c1-9c858625d92e
+    - text: 'BusinessTravel must be non-null for all rows. Nulls will remain null
+        after the normalization step and will not match any key in travel_multiplier_map,
+        causing travel_multiplier and subsequent merit fields to be NaN. We could
+        represent this as Deequ: .hasCompleteness(''BusinessTravel'', lambda c: c
+        == 1.0) or Great Expectations: expect_column_values_to_not_be_null(''BusinessTravel'').'
+      sources:
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 37
+        end_line: 37
+        file: ''
+      uid: be24ca78-e65a-4a85-9c08-bfde10346da4
+    - text: 'BusinessTravel values must match the expected tokens exactly (including
+        underscores and case), i.e., no leading/trailing whitespace or casing variations.
+        The code uses exact string keys for mapping and does not trim or case-normalize,
+        so deviations would fail to map and result in NaNs downstream. This can be
+        validated with Deequ: .satisfies("`BusinessTravel` = trim(`BusinessTravel`)",
+        "No leading/trailing spaces", lambda x: x == 1.0) AND the domain check above;
+        or Great Expectations: expect_column_values_to_be_in_set([...]) combined with
+        expect_column_values_to_match_regex_list([''^\\S+$'']).'
+      sources:
+      - start_line: 18
+        end_line: 24
+        file: ''
+      - start_line: 36
+        end_line: 37
+        file: ''
+      uid: 21398cff-783a-4290-8b5f-403f8f7e8a6c
+    - text: 'The number of distinct BusinessTravel categories in the input should
+        not exceed 4 (the recognized set: ''TravelRarely'', ''Travel_Rarely'', ''Travel_Frequently'',
+        ''Non-Travel''). This guards against unexpected new categories that would
+        not receive a travel_multiplier. We could represent this as Deequ: .hasNumberOfDistinctValues(''BusinessTravel'',
+        lambda n: n <= 4) or Great Expectations: expect_column_unique_value_count_to_be_between(min_value=1,
+        max_value=4).'
+      sources:
+      - start_line: 18
+        end_line: 23
+        file: ''
+      - start_line: 37
+        end_line: 37
+        file: ''
+      uid: 983c9e3b-09f4-4891-b472-7f1872f5b4ff
+  YearsInCurrentRole:
+    code:
+    - suggestion: .isComplete('YearsInCurrentRole')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 456d0ed8-4f04-4a0c-aac6-58a216c4ac28
+      source_assumptions:
+      - b5e678ee-e86b-4228-bdeb-463594352388
+    - suggestion: '.hasDataType(''YearsInCurrentRole'', ConstrainableDataTypes.Integral,
+        lambda f: f == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''YearsInCurrentRole'',
+        ConstrainableDataTypes.Integral, lambda f: f == 1.0)'
+      level: error
+      uid: e430deec-7f4a-4595-8261-9ffbc1eb910d
+      source_assumptions:
+      - 85803722-0c5a-4552-a1e6-5db04a725114
+    - suggestion: '.isNonNegative(''YearsInCurrentRole'', lambda f: f == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7b281e58-a4fc-4747-961e-4f983aaf8157
+      source_assumptions:
+      - 26a3c9ed-dbae-4523-8e1f-60b210c2b2d0
+    - suggestion: '.satisfies(''YearsInCurrentRole >= 2'', ''At least some tenure
+        >= 2'', lambda f: f > 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7f81edda-2e80-466a-9067-31269fc3b05f
+      source_assumptions:
+      - bfbb53cc-dcc1-4cb5-8330-89806652e7ad
+    assumptions:
+    - text: 'YearsInCurrentRole must be non-null for all rows because it is used directly
+        in a boolean threshold (>= 2) to set promotion eligibility, which then drives
+        promotion amounts and department-level promotion pools and budgets. We could
+        represent this as: Deequ: .hasCompleteness(''YearsInCurrentRole'', lambda
+        c: c == 1.0) or Great Expectations: expect_column_values_to_not_be_null(''YearsInCurrentRole'').'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 52
+        end_line: 56
+        file: ''
+      - start_line: 72
+        end_line: 72
+        file: ''
+      - start_line: 77
+        end_line: 78
+        file: ''
+      - start_line: 82
+        end_line: 82
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      - start_line: 90
+        end_line: 90
+        file: ''
+      uid: b5e678ee-e86b-4228-bdeb-463594352388
+    - text: 'YearsInCurrentRole must be numeric (ideally integral) so that comparison
+        against the integer 2 does not fail. We could represent this as: Deequ: .hasDataType(''YearsInCurrentRole'',
+        ConstrainableDataTypes.Integral) or, more generally, .isNonNegative and castable-to-numeric
+        check via .satisfies(''CASE WHEN cast(YearsInCurrentRole as double) IS NOT
+        NULL THEN 1 ELSE 0 END'', ''YearsInCurrentRole numeric'', lambda x: x == 1.0);
+        Great Expectations: expect_column_values_to_be_in_type_list with integer types
+        (e.g., [''IntegerType'', ''LongType'', ''ByteType'', ''ShortType'', ''int64'',
+        ''int32'']).'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      uid: 85803722-0c5a-4552-a1e6-5db04a725114
+    - text: 'YearsInCurrentRole should be non-negative (values represent tenure in
+        years; negative values are invalid). We could represent this as: Deequ: .satisfies(''CASE
+        WHEN `YearsInCurrentRole` >= 0 THEN 1 ELSE 0 END'', ''Non-negative YearsInCurrentRole'',
+        lambda x: x == 1.0); Great Expectations: expect_column_min_to_be_between(''YearsInCurrentRole'',
+        min_value=0).'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      uid: 26a3c9ed-dbae-4523-8e1f-60b210c2b2d0
+    - text: 'There should be at least some records with YearsInCurrentRole >= 2 so
+        that the promotion eligibility logic can identify eligible employees and the
+        promotion pool is not trivially zero due to tenure alone. We could represent
+        this as: Deequ: .satisfies(''CASE WHEN `YearsInCurrentRole` >= 2 THEN 1 ELSE
+        0 END'', ''Tenure >= 2 share'', lambda x: x > 0); Great Expectations: expect_condition_parser_condition_to_be_true
+        on the predicate (YearsInCurrentRole >= 2) with mostly > 0.'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 72
+        end_line: 72
+        file: ''
+      - start_line: 77
+        end_line: 78
+        file: ''
+      uid: bfbb53cc-dcc1-4cb5-8330-89806652e7ad
+  EmpID:
+    code:
+    - suggestion: '.satisfies(''`EmpID` IS NOT NULL OR `EmpID` IS NULL'', ''EmpID
+        column exists'', lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 56139a35-fdec-4ae9-bf6b-ec290aefe5fa
+      source_assumptions:
+      - 1f1c93c3-4fa8-406c-9d0f-4c0b55189f4e
+    - suggestion: '.hasUniqueness([''EmpID''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d18cdfc7-ab83-4865-942d-0e9180112c83
+      source_assumptions:
+      - a762cf07-b9a7-4e98-936e-b75e7a73f73f
+    - suggestion: '.satisfies(''length(trim(`EmpID`)) > 0'', ''Non-empty EmpID'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 518f42b3-3c85-4edb-bfea-9c843a6dda1c
+      source_assumptions:
+      - b22e5911-69de-409b-9f46-9259d69d8ee7
+    assumptions:
+    - text: 'The ''EmpID'' column must exist in the input CSV because it is referenced
+        for aggregation and included in the output details. We could represent this
+        assumption with Great Expectations as: expect_column_to_exist(''EmpID'').'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 90
+        end_line: 90
+        file: ''
+      uid: 1f1c93c3-4fa8-406c-9d0f-4c0b55189f4e
+    - text: 'The ''EmpID'' column should be complete (no nulls). Null values would
+        undercount headcount in the department aggregation and would produce missing
+        identifiers in the employee-level output. We could represent this assumption
+        as a Deequ constraint like: .isComplete(''EmpID'') or .satisfies(''CASE WHEN
+        EmpID IS NOT NULL THEN 1 ELSE 0 END'', ''EmpID completeness'', lambda x: x
+        == 1.0).'
+      sources:
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 90
+        end_line: 90
+        file: ''
+      uid: e6b41a2c-043a-435f-b7ff-df415116fda3
+    - text: 'The ''EmpID'' values should be unique across rows so that department
+        headcount and budget sums reflect unique employees rather than duplicated
+        records. We could represent this as a Deequ constraint: .hasUniqueness(''EmpID'',
+        lambda x: x == 1.0) or with Great Expectations: expect_column_values_to_be_unique(''EmpID'').'
+      sources:
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 90
+        end_line: 90
+        file: ''
+      uid: a762cf07-b9a7-4e98-936e-b75e7a73f73f
+    - text: 'The ''EmpID'' should be a non-empty string identifier (no purely blank
+        values or whitespace-only strings) to ensure meaningful identifiers in outputs
+        and accurate counts. We could represent this as a Deequ constraint: .satisfies(''length(trim(`EmpID`))
+        > 0'', ''Non-empty EmpID'', lambda x: x == 1.0) or a Great Expectations regex
+        check: expect_column_values_to_match_regex(''EmpID'', ''^\\S+$'').'
+      sources:
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 90
+        end_line: 90
+        file: ''
+      uid: b22e5911-69de-409b-9f46-9259d69d8ee7
+  Department:
+    code:
+    - suggestion: .isComplete('Department')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e4a4f57d-9ddc-405b-8f84-709cc4125fd9
+      source_assumptions:
+      - f24870c5-477e-4a16-a4d5-e23cff4613f5
+    - suggestion: '.isContainedIn(''Department'', [''Sales'', ''Research & Development'',
+        ''Human Resources''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dbea39d2-2cee-4757-a84c-52c0df61e488
+      source_assumptions:
+      - 3cd0a24f-c79d-479a-890a-fb5202c10ad6
+    - suggestion: '.hasNumberOfDistinctValues(''Department'', lambda x: x == 3)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Department'',
+        lambda x: x == 3)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 84a49bc5-6557-4365-93da-845e8bab5c95
+      source_assumptions:
+      - 68ce2944-e73c-459d-980b-d8d80eed1892
+    - suggestion: '.satisfies(''Department = trim(Department)'', ''Department trimmed'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 04c733d7-0813-4aca-bef6-dbc171732dbe
+      source_assumptions:
+      - 6754eade-bf3a-4dde-891d-48dcd54c5c98
+    - suggestion: '.satisfies(''length(trim(Department)) > 0'', ''No empty Department'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 313198e9-37ec-447f-b365-826cf92dcb3d
+      source_assumptions:
+      - 37a6c5ad-d5c3-45ea-a75b-f63273b95d80
+    assumptions:
+    - text: 'Department must be present (non-null) for every employee record. Null
+        departments would be dropped from the department-level groupby and those employees
+        would be omitted from the budgets output, while the per-employee export expects
+        a Department value. This can be represented as: completeness(''Department'')
+        == 1.0 (Deequ) or expect_column_values_to_not_be_null(''Department'') (Great
+        Expectations).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 82
+        end_line: 82
+        file: ''
+      - start_line: 85
+        end_line: 90
+        file: ''
+      uid: f24870c5-477e-4a16-a4d5-e23cff4613f5
+    - text: 'Department values should be restricted to the known set: {''Sales'',
+        ''Research & Development'', ''Human Resources''}. Unexpected categories would
+        create unintended budget lines. This can be represented as: satisfies("CASE
+        WHEN Department IN (''Sales'',''Research & Development'',''Human Resources'')
+        THEN 1 ELSE 0 END", ''Valid Departments'', lambda x: x == 1.0) (Deequ) or
+        expect_column_values_to_be_in_set([''Sales'',''Research & Development'',''Human
+        Resources'']) (Great Expectations).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 82
+        end_line: 82
+        file: ''
+      uid: 3cd0a24f-c79d-479a-890a-fb5202c10ad6
+    - text: 'All three departments should be present in the input (distinct Department
+        count equals 3) so that department-level budgets are complete. This can be
+        represented as: hasNumberOfDistinctValues(''Department'', lambda x: x == 3)
+        (Deequ) or expect_column_unique_value_count_to_equal(''Department'', 3) (Great
+        Expectations).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 82
+        end_line: 82
+        file: ''
+      uid: 68ce2944-e73c-459d-980b-d8d80eed1892
+    - text: 'Department values should be consistently cased and trimmed (no leading/trailing
+        whitespace) to avoid splitting the same department into multiple groups (e.g.,
+        ''Sales'' vs ''Sales ''). This can be represented as: satisfies("CASE WHEN
+        Department = TRIM(Department) THEN 1 ELSE 0 END", ''Department trimmed'',
+        lambda x: x == 1.0) (Deequ) or a custom expectation that values equal their
+        stripped version (Great Expectations).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 82
+        end_line: 82
+        file: ''
+      uid: 6754eade-bf3a-4dde-891d-48dcd54c5c98
+    - text: 'Department should not be an empty string, as that would create an unintended
+        empty-name department bucket in the aggregation. This can be represented as:
+        satisfies("CASE WHEN Department <> '''' THEN 1 ELSE 0 END", ''No empty Department'',
+        lambda x: x == 1.0) (Deequ) or expect_column_values_to_not_be_in_set([''''])
+        (Great Expectations).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: 37a6c5ad-d5c3-45ea-a75b-f63273b95d80
+  '["Department","EmpID"]':
+    code: []
+    assumptions:
+    - text: 'The (Department, EmpID) pair must be unique across the dataset (no duplicate
+        EmpID entries within the same Department), and EmpID must be present whenever
+        Department is present. This guarantees that department headcount computed
+        via count(EmpID) reflects the true number of employee rows in each Department.
+        Deequ-style representation: .isUnique(["Department", "EmpID"]) together with
+        .where("Department IS NOT NULL").hasCompleteness("EmpID", 1.0).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: a01d457a-0500-42ee-ac10-5c6db944855f
+    - text: 'Each EmpID belongs to exactly one Department (functional dependency EmpID
+        -> Department). No EmpID should appear under multiple Department values; otherwise,
+        department-level headcounts and budget sums would be double-counted. Deequ-style
+        representation: a functional dependency check such as hasFunctionalDependency("EmpID",
+        "Department") with zero allowed violations (or equivalently, groupBy("EmpID").agg(countDistinct("Department")
+        == 1)).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: 30b57965-89a7-4fc3-b635-470db80e30ec
+    - text: 'EmployeeNumber and EmpID should have a one-to-one mapping (each EmployeeNumber
+        corresponds to exactly one EmpID and vice versa), ensuring consistent employee
+        identity across outputs that include both identifiers. Deequ-style representation:
+        .isUnique(["EmployeeNumber"]) and .isUnique(["EmpID"]) plus functional dependencies
+        both ways (EmployeeNumber -> EmpID and EmpID -> EmployeeNumber).'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 85
+        end_line: 90
+        file: ''
+      uid: 8192c375-13b4-44f1-8e64-3c26f7049920
+  '["Department","MonthlyIncome"]':
+    code: []
+    assumptions:
+    - text: 'For each employee row, proposed_merit_amount must equal round(MonthlyIncome
+        * proposed_merit_pct, 2). Deequ: .satisfies("proposed_merit_amount = round(MonthlyIncome
+        * proposed_merit_pct, 2)", "merit_amount_formula")'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      uid: 474d17ff-99e1-45df-802e-f9a4090e2086
+    - text: 'For each employee row, promotion_amount must equal round(MonthlyIncome
+        * promotion_raise_pct, 2). Deequ: .satisfies("promotion_amount = round(MonthlyIncome
+        * promotion_raise_pct, 2)", "promotion_amount_formula")'
+      sources:
+      - start_line: 56
+        end_line: 56
+        file: ''
+      uid: b21d7261-3a9d-439b-905d-e6b00ba0e08b
+    - text: 'For each employee row, compression_amount must equal round(MonthlyIncome
+        * compression_pool_share, 2). Deequ: .satisfies("compression_amount = round(MonthlyIncome
+        * compression_pool_share, 2)", "compression_amount_formula")'
+      sources:
+      - start_line: 58
+        end_line: 61
+        file: ''
+      uid: b8c27230-a23d-4466-8d2e-50904c487e28
+    - text: 'For each employee row, emerging_talent_amount must equal round(MonthlyIncome
+        * emerging_talent_supp_pct, 2). Deequ: .satisfies("emerging_talent_amount
+        = round(MonthlyIncome * emerging_talent_supp_pct, 2)", "emerging_talent_amount_formula")'
+      sources:
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: c36454ef-c503-4a21-8864-da98c352ae51
+    - text: 'Each employee''s proposed_merit_pct must be less than or equal to slab_cap_pct
+        (it is the min of adjusted_merit_pct and slab_cap_pct). Deequ: .satisfies("proposed_merit_pct
+        <= slab_cap_pct", "merit_pct_capped_by_slab")'
+      sources:
+      - start_line: 31
+        end_line: 33
+        file: ''
+      - start_line: 39
+        end_line: 42
+        file: ''
+      uid: 81741478-0180-45ce-a54d-9895ee9def01
+    - text: 'travel_multiplier must be consistent with normalized BusinessTravel values:
+        ''Travel_Frequently'' -> 1.01, ''Travel_Rarely'' -> 1.00, ''Non-Travel'' ->
+        1.00. Deequ: .satisfies("CASE WHEN BusinessTravel = ''Travel_Frequently''
+        THEN travel_multiplier = 1.01 WHEN BusinessTravel = ''Travel_Rarely'' THEN
+        travel_multiplier = 1.00 WHEN BusinessTravel = ''Non-Travel'' THEN travel_multiplier
+        = 1.00 ELSE travel_multiplier IS NULL END", "travel_multiplier_mapping")'
+      sources:
+      - start_line: 17
+        end_line: 24
+        file: ''
+      - start_line: 36
+        end_line: 37
+        file: ''
+      uid: 003744c9-417a-42ca-8e99-4568d776a6c5
+    - text: 'age_weight must be consistent with AgeGroup: if AgeGroup = ''26-35''
+        then age_weight = 1.02, else 1.00. Deequ: .satisfies("(AgeGroup = ''26-35''
+        AND age_weight = 1.02) OR (AgeGroup <> ''26-35'' AND age_weight = 1.00)",
+        "age_weight_mapping")'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      uid: 8f898bf5-5eea-47b6-9a0c-e8209ca1e7b1
+    - text: 'slab_cap_pct must be consistent with SalarySlab mapping: ''Upto 5k''
+        -> 0.20, ''5k-10k'' -> 0.18, ''10k-15k'' -> 0.15, ''15k+'' -> 0.12. Deequ:
+        .satisfies("CASE SalarySlab WHEN ''Upto 5k'' THEN slab_cap_pct = 0.20 WHEN
+        ''5k-10k'' THEN slab_cap_pct = 0.18 WHEN ''10k-15k'' THEN slab_cap_pct = 0.15
+        WHEN ''15k+'' THEN slab_cap_pct = 0.12 ELSE slab_cap_pct IS NULL END", "slab_cap_mapping")'
+      sources:
+      - start_line: 31
+        end_line: 33
+        file: ''
+      uid: 0e4915bf-e4f5-49f2-9c86-d2e280e3d51c
+    - text: 'compression_pool_share must be consistent with SalarySlab: if SalarySlab
+        in (''Upto 5k'',''5k-10k'') then 0.003 else 0.0. Deequ: .satisfies("(SalarySlab
+        IN (''Upto 5k'',''5k-10k'') AND compression_pool_share = 0.003) OR (SalarySlab
+        NOT IN (''Upto 5k'',''5k-10k'') AND compression_pool_share = 0.0)", "compression_share_mapping")'
+      sources:
+      - start_line: 58
+        end_line: 61
+        file: ''
+      uid: 3d76dfc1-c81a-4fca-96dc-994e366a9c6d
+    - text: 'promotion_eligible must reflect the rule: PerformanceRating = 4 AND YearsInCurrentRole
+        >= 2 AND YearsSinceLastPromotion >= 1 AND JobLevel < 5. Deequ: .satisfies("promotion_eligible
+        = (PerformanceRating = 4 AND YearsInCurrentRole >= 2 AND YearsSinceLastPromotion
+        >= 1 AND JobLevel < 5)", "promotion_eligibility_rule")'
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: 5776649f-d2a6-410b-b54f-44db840a31b8
+    - text: 'promotion_raise_pct must be 0.0 when promotion_eligible is false; when
+        true, it must match the JobLevel mapping (1->0.10, 2->0.08, 3->0.07, 4->0.06,
+        5->0.0). Deequ: .satisfies("(NOT promotion_eligible AND promotion_raise_pct
+        = 0.0) OR (promotion_eligible AND ((JobLevel = 1 AND promotion_raise_pct =
+        0.10) OR (JobLevel = 2 AND promotion_raise_pct = 0.08) OR (JobLevel = 3 AND
+        promotion_raise_pct = 0.07) OR (JobLevel = 4 AND promotion_raise_pct = 0.06)
+        OR (JobLevel = 5 AND promotion_raise_pct = 0.0)))", "promotion_raise_rule")'
+      sources:
+      - start_line: 53
+        end_line: 55
+        file: ''
+      uid: 44d4dd2c-9bb3-4ecd-9123-b3584731fa9a
+    - text: 'In the department-level aggregation, for each Department the aggregates
+        must equal the sums of the corresponding employee-level columns: base_pay
+        = SUM(MonthlyIncome), merit_pool = SUM(proposed_merit_amount), promotion_pool
+        = SUM(promotion_amount), compression_pool = SUM(compression_amount), emerging_talent_pool
+        = SUM(emerging_talent_amount). This ties Department and MonthlyIncome (and
+        other pools) across levels. Deequ on the aggregated dataset: .isComplete("Department")
+        and cross-check sums by recomputing groupBy("Department").sum(...).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: 7350dfb5-a7c3-403b-af17-eb89635fe1b7
+    - text: 'In the aggregated dataset, total_budget must equal round(merit_pool +
+        promotion_pool + compression_pool + emerging_talent_pool, 2). Deequ (on agg):
+        .satisfies("total_budget = round(merit_pool + promotion_pool + compression_pool
+        + emerging_talent_pool, 2)", "department_total_budget_sum")'
+      sources:
+      - start_line: 77
+        end_line: 78
+        file: ''
+      uid: 3f4b6520-a0c2-4cbe-8f4d-9786faf17c8c
+  EmployeeNumber:
+    code:
+    - suggestion: .hasColumn("EmployeeNumber")
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasColumn("EmployeeNumber")'':
+        ''Check'' object has no attribute ''hasColumn'''
+      level: error
+      uid: 62f1c5a2-82ef-469a-a5c9-1c7f37b3f14a
+      source_assumptions:
+      - 18868b45-91cf-4ac2-bcb0-a6bc4f67e5af
+    - suggestion: .isComplete("EmployeeNumber")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 16f8fbd6-6451-429a-9c20-37d7208e985f
+      source_assumptions:
+      - 41c069ca-617c-46d4-890b-d4e8e268c947
+    - suggestion: .isUnique("EmployeeNumber")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5edee192-132c-4677-8dcf-05762bba4d74
+      source_assumptions:
+      - 054dbe88-9427-4b4b-94a0-5990ba0af7e0
+    - suggestion: '.hasDataType("EmployeeNumber", ConstrainableDataTypes.Integral,
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("EmployeeNumber",
+        ConstrainableDataTypes.Integral, lambda x: x == 1.0)'
+      level: warning
+      uid: 64d5ca31-cde7-43c6-b2f7-1fecae0006d4
+      source_assumptions:
+      - 4a693bec-2174-48ab-bade-eeb6257fa962
+    assumptions:
+    - text: 'The input must contain the ''EmployeeNumber'' column, because the script
+        sets it as the index and also selects it for output. This can be enforced
+        with checks such as: Great Expectations expect_column_to_exist(''EmployeeNumber'')
+        or Deequ hasColumn(''EmployeeNumber'').'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 84
+        end_line: 90
+        file: ''
+      uid: 18868b45-91cf-4ac2-bcb0-a6bc4f67e5af
+    - text: '''EmployeeNumber'' should be complete (no nulls), since it is used as
+        the row identifier/index and written to the per-employee output. This can
+        be enforced with: Deequ isComplete(''EmployeeNumber'') or Great Expectations
+        expect_column_values_to_not_be_null(''EmployeeNumber'').'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 84
+        end_line: 90
+        file: ''
+      uid: 41c069ca-617c-46d4-890b-d4e8e268c947
+    - text: '''EmployeeNumber'' values should be unique (one row per employee), to
+        ensure one compensation proposal per employee. This can be enforced with:
+        Deequ isUnique(''EmployeeNumber'') (or hasUniqueness(''EmployeeNumber'', lambda
+        d: d == 1.0)) or Great Expectations expect_column_values_to_be_unique(''EmployeeNumber'').'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 84
+        end_line: 90
+        file: ''
+      uid: 054dbe88-9427-4b4b-94a0-5990ba0af7e0
+    - text: '''EmployeeNumber'' should be consistently integral (integer-like) in
+        the input, as the pipeline does not cast or clean this column after reading
+        the CSV. This can be enforced with: Deequ hasDataType(''EmployeeNumber'',
+        Integral) or Great Expectations expect_column_values_to_be_in_type_list([''int64'',''int32'',''INTEGER'']).'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      uid: 4a693bec-2174-48ab-bade-eeb6257fa962
+  '["EmpID","EmployeeNumber"]':
+    code: []
+    assumptions:
+    - text: 'EmployeeNumber and EmpID identify the same employee in a one-to-one manner
+        (bijection). There must not be two rows where the same EmployeeNumber maps
+        to different EmpID, nor the same EmpID maps to different EmployeeNumber. Suggested
+        constraints: hasFunctionalDependency(''EmployeeNumber'', Array(''EmpID''))
+        and hasFunctionalDependency(''EmpID'', Array(''EmployeeNumber'')); optionally
+        also isUnique(Array(''EmployeeNumber'',''EmpID'')).'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 68
+        end_line: 69
+        file: ''
+      - start_line: 84
+        end_line: 88
+        file: ''
+      uid: bbf483b5-b473-4c5c-b9f9-f53c1bccf771
+    - text: 'Within each Department, EmpID values are unique so that the headcount
+        computed as count(EmpID) reflects the number of distinct employees in that
+        department. Suggested constraint: isUnique(Array(''Department'',''EmpID'')).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: ff4cdd9a-3616-4a0b-8e3c-eb368de1d861
+    - text: 'Each EmpID belongs to exactly one Department across the dataset (no cross-department
+        duplicates). Suggested constraint: hasFunctionalDependency(''EmpID'', Array(''Department'')).'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 84
+        end_line: 88
+        file: ''
+      uid: 07567140-bf82-4dde-a9bf-be78952eaa72
+    - text: 'Department must be non-null for every row that has an EmpID/EmployeeNumber
+        so that no employees are silently dropped from department-level budgets (pandas
+        groupby excludes null groups). Suggested constraint: isComplete(''Department'')
+        or isComplete(''Department'').where(''EmpID IS NOT NULL'').'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 81
+        end_line: 82
+        file: ''
+      uid: b9afa06a-a70d-41bb-9527-a5a9d8703975
+  PercentSalaryHike:
+    code:
+    - suggestion: .isComplete('PercentSalaryHike')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: da3d2ca0-aea8-46f7-bdf3-9b1d4f1b34e7
+      source_assumptions:
+      - 257e9dd0-982d-40e9-8986-ea51f7d37f2c
+    - suggestion: '.hasDataType(''PercentSalaryHike'', ConstrainableDataTypes.Numeric,
+        lambda v: v == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''PercentSalaryHike'',
+        ConstrainableDataTypes.Numeric, lambda v: v == 1.0)'
+      level: error
+      uid: 4b8e5981-2e7b-4822-9140-ff342068f7fe
+      source_assumptions:
+      - b337d68b-d9a7-493c-8466-bf9221c436d7
+    - suggestion: '.hasMin(''PercentSalaryHike'', lambda m: m >= 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7cdde7d7-046a-47e8-8c19-5c948b2a1dba
+      source_assumptions:
+      - 26ff90f1-7700-4910-a845-91efc7b6a448
+    - suggestion: '.hasMax(''PercentSalaryHike'', lambda m: m <= 100)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b7c80205-8c0e-40ca-96c5-0671e989aba6
+      source_assumptions:
+      - 26ff90f1-7700-4910-a845-91efc7b6a448
+    - suggestion: '.satisfies(''CASE WHEN CAST(PercentSalaryHike AS DOUBLE) = CAST(CAST(PercentSalaryHike
+        AS DOUBLE) AS INT) THEN 1 ELSE 0 END'', ''Integer PercentSalaryHike'', lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 106ae597-b964-43d2-af9a-68fd768e1252
+      source_assumptions:
+      - b4fd0178-5bf1-49f8-bab1-e06817387901
+    - suggestion: '.satisfies(''CASE WHEN PercentSalaryHike <= 30 THEN 1 ELSE 0 END'',
+        ''Reasonable PercentSalaryHike upper bound'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ee25b73f-0b37-4592-a71a-a4a2f7f1275e
+      source_assumptions:
+      - e498b902-f444-4cd4-a220-850c584aac77
+    assumptions:
+    - text: 'PercentSalaryHike must be present (no nulls) because it is used in arithmetic
+        to compute base_merit_pct and is also written to the employee output. We could
+        represent this as a Deequ constraint like: .hasCompleteness("PercentSalaryHike",
+        lambda v: v == 1.0)'
+      sources:
+      - start_line: 40
+        end_line: 43
+        file: ''
+      - start_line: 84
+        end_line: 90
+        file: ''
+      uid: 257e9dd0-982d-40e9-8986-ea51f7d37f2c
+    - text: 'PercentSalaryHike must be numeric (parsable to a number) to allow division
+        by 100.0. We could represent this as a Deequ constraint like: .satisfies("CASE
+        WHEN CAST(PercentSalaryHike AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Numeric
+        PercentSalaryHike", lambda x: x == 1.0)'
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: b337d68b-d9a7-493c-8466-bf9221c436d7
+    - text: 'PercentSalaryHike values are percentage points (not fractions) and should
+        lie between 0 and 100 inclusive. This avoids negative raises and mis-scaled
+        fractional inputs (e.g., 0.12) which would produce unrealistically small merit
+        rates after dividing by 100. We could represent this as Deequ constraints
+        like: .hasMin("PercentSalaryHike", lambda m: m >= 0) and .hasMax("PercentSalaryHike",
+        lambda m: m <= 100)'
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      - start_line: 27
+        end_line: 33
+        file: ''
+      uid: 26ff90f1-7700-4910-a845-91efc7b6a448
+    - text: "PercentSalaryHike should be an integer percentage (no fractional part),\
+        \ consistent with downstream usage as whole percentage points and the dataset\u2019\
+        s integral type. We could represent this as a Deequ constraint like: .satisfies(\"\
+        CASE WHEN PercentSalaryHike = CAST(PercentSalaryHike AS INT) THEN 1 ELSE 0\
+        \ END\", \"Integer PercentSalaryHike\", lambda x: x == 1.0)"
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: b4fd0178-5bf1-49f8-bab1-e06817387901
+    - text: 'PercentSalaryHike should typically be modest; at least 99% of values
+        should be 30 or below, aligned with the guideline and slab caps used downstream
+        (18% and up to 20%). We could represent this as a Deequ constraint like: .satisfies("CASE
+        WHEN PercentSalaryHike <= 30 THEN 1 ELSE 0 END", "Reasonable PercentSalaryHike
+        upper bound", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 27
+        end_line: 33
+        file: ''
+      - start_line: 40
+        end_line: 43
+        file: ''
+      uid: e498b902-f444-4cd4-a220-850c584aac77
+  MonthlyIncome:
+    code:
+    - suggestion: .isComplete('MonthlyIncome')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: eda1870d-4112-4300-87b1-c642f41f39b3
+      source_assumptions:
+      - 3d41a449-1f6f-495c-934d-ab4ebbd0c343
+    - suggestion: '.hasDataType(''MonthlyIncome'', ConstrainableDataTypes.Numeric,
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''MonthlyIncome'',
+        ConstrainableDataTypes.Numeric, lambda x: x == 1.0)'
+      level: error
+      uid: dda2993c-aa8d-478c-a818-324bdd93d7ed
+      source_assumptions:
+      - a8689bee-2577-40e0-b823-9914b407601c
+    - suggestion: '.satisfies(''MonthlyIncome >= 0'', ''Non-negative MonthlyIncome'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 372cbee0-22c1-4c75-a388-18435e87a3a0
+      source_assumptions:
+      - e6ac9c34-6a9d-45d1-89b1-afc594d5d0af
+    - suggestion: '.satisfies(''CASE WHEN SalarySlab = \''Upto 5k\'' THEN MonthlyIncome
+        <= 5000 WHEN SalarySlab = \''5k-10k\'' THEN MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000 WHEN SalarySlab = \''10k-15k\'' THEN MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000 WHEN SalarySlab = \''15k+\'' THEN MonthlyIncome > 15000 ELSE false
+        END'', ''MonthlyIncome aligns with SalarySlab'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 03ab46b8-aebb-466c-9ca4-01b20ccd5058
+      source_assumptions:
+      - c69c90c7-88bd-4a94-b7c7-386374e9f0a5
+    assumptions:
+    - text: 'MonthlyIncome must be present and non-null for all rows. The script multiplies
+        it by several percentage columns to compute payout amounts, sums it for department
+        budgets, and exports it directly; nulls would propagate to NaN amounts and
+        distort aggregates. Example Deequ constraint: .satisfies("CASE WHEN `MonthlyIncome`
+        IS NOT NULL THEN 1 ELSE 0 END", "MonthlyIncome non-null", lambda x: x == 1.0)'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 61
+        end_line: 61
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 90
+        end_line: 90
+        file: ''
+      uid: 3d41a449-1f6f-495c-934d-ab4ebbd0c343
+    - text: 'MonthlyIncome must be numeric (parseable as integer/float). The code
+        performs arithmetic and rounding on this column; non-numeric strings or currency-formatted
+        text would fail. Example Deequ constraint: .hasDataType("MonthlyIncome", ConstrainableDataTypes.Numeric)
+        (or ConstrainableDataTypes.Integral if enforcing whole units). Great Expectations:
+        expect_column_values_to_be_in_type_list with ["int64", "int32", "float64",
+        "float32"].'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 61
+        end_line: 61
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: a8689bee-2577-40e0-b823-9914b407601c
+    - text: 'MonthlyIncome values should be non-negative (>= 0). Negative incomes
+        would invert payout amounts and corrupt department budgets. Example Deequ
+        constraint: .satisfies("`MonthlyIncome` >= 0", "Non-negative MonthlyIncome",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 61
+        end_line: 61
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: e6ac9c34-6a9d-45d1-89b1-afc594d5d0af
+    - text: 'MonthlyIncome should be consistent with SalarySlab categories, since
+        slab-based caps and pools are applied. Expected mapping: SalarySlab = ''Upto
+        5k'' => MonthlyIncome <= 5000; ''5k-10k'' => 5000 < MonthlyIncome <= 10000;
+        ''10k-15k'' => 10000 < MonthlyIncome <= 15000; ''15k+'' => MonthlyIncome >
+        15000. Example Deequ constraint: .satisfies("CASE WHEN `SalarySlab` = ''Upto
+        5k'' THEN CASE WHEN `MonthlyIncome` <= 5000 THEN 1 ELSE 0 END WHEN `SalarySlab`
+        = ''5k-10k'' THEN CASE WHEN `MonthlyIncome` > 5000 AND `MonthlyIncome` <=
+        10000 THEN 1 ELSE 0 END WHEN `SalarySlab` = ''10k-15k'' THEN CASE WHEN `MonthlyIncome`
+        > 10000 AND `MonthlyIncome` <= 15000 THEN 1 ELSE 0 END WHEN `SalarySlab` =
+        ''15k+'' THEN CASE WHEN `MonthlyIncome` > 15000 THEN 1 ELSE 0 END ELSE 0 END",
+        "MonthlyIncome aligns with SalarySlab", lambda x: x == 1.0).'
+      sources:
+      - start_line: 31
+        end_line: 33
+        file: ''
+      - start_line: 59
+        end_line: 61
+        file: ''
+      uid: c69c90c7-88bd-4a94-b7c7-386374e9f0a5
+  JobLevel:
+    code:
+    - suggestion: .isComplete('JobLevel')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d29d0181-1bef-4f6f-9828-7f3044a55336
+      source_assumptions:
+      - b2f8e4f6-aa60-4452-9933-32cbf839f516
+    - suggestion: '.hasDataType(''JobLevel'', ConstrainableDataTypes.Integral, lambda
+        f: f == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''JobLevel'',
+        ConstrainableDataTypes.Integral, lambda f: f == 1.0)'
+      level: error
+      uid: 94bdec91-2659-455a-9f69-b7f5d3ee3c4e
+      source_assumptions:
+      - f549f52e-8bd3-4e09-8967-25e2f9754c1f
+    - suggestion: '.isContainedIn(''JobLevel'', [''1'', ''2'', ''3'', ''4'', ''5''],
+        lambda f: f == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7fe2668a-950f-457a-a569-cdfd1ad0639e
+      source_assumptions:
+      - 1d1e6188-6819-4e24-8619-42b0260eae70
+    assumptions:
+    - text: 'JobLevel must be complete (no nulls) for all rows so that comparisons
+        and mappings work as intended. Example validation: Deequ .isComplete(''JobLevel'')
+        or Great Expectations expect_column_values_to_not_be_null(''JobLevel'').'
+      sources:
+      - start_line: 46
+        end_line: 51
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: b2f8e4f6-aa60-4452-9933-32cbf839f516
+    - text: 'JobLevel must be numeric/integral (not strings or mixed types) so that
+        the comparison JobLevel < 5 does not error. Example validation: Deequ .hasDataType(''JobLevel'',
+        ConstrainableDataTypes.Integral) or Great Expectations expect_column_values_to_be_of_type(''JobLevel'',
+        ''int64'') (or an equivalent integer dtype).'
+      sources:
+      - start_line: 50
+        end_line: 50
+        file: ''
+      uid: f549f52e-8bd3-4e09-8967-25e2f9754c1f
+    - text: 'JobLevel values should be restricted to the set {1, 2, 3, 4, 5} (with
+        5 being the ceiling level used in logic). Values outside this set can lead
+        to NaN promotion raise percentages for otherwise eligible rows. Example validation:
+        Deequ .isContainedIn(''JobLevel'', [1,2,3,4,5]) or .satisfies(''JobLevel >=
+        1 AND JobLevel <= 5'', ''JobLevel in [1,5]'', lambda v: v == 1.0).'
+      sources:
+      - start_line: 53
+        end_line: 55
+        file: ''
+      - start_line: 50
+        end_line: 50
+        file: ''
+      uid: 1d1e6188-6819-4e24-8619-42b0260eae70
+  '["JobLevel","PerformanceRating","YearsInCurrentRole","YearsSinceLastPromotion"]':
+    code: []
+    assumptions:
+    - text: 'perf_guideline_pct is a deterministic mapping of PerformanceRating: 3
+        -> 0.12 and 4 -> 0.18. Therefore, for every row perf_guideline_pct must equal
+        that mapping and be non-null (implying PerformanceRating only takes values
+        3 or 4). Possible Deequ: .isComplete(''perf_guideline_pct'') and .satisfies(''CASE
+        WHEN PerformanceRating = 3 THEN 0.12 WHEN PerformanceRating = 4 THEN 0.18
+        ELSE NULL END = perf_guideline_pct'', ''perf_guideline_pct_matches_rating'').'
+      sources:
+      - start_line: 27
+        end_line: 28
+        file: ''
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: 08341963-318a-45ab-993d-0f5e76f5902d
+    - text: 'proposed_merit_pct is capped by slab_cap_pct for every row. Possible
+        Deequ: .satisfies(''proposed_merit_pct <= slab_cap_pct'', ''merit_cap_by_slab'').'
+      sources:
+      - start_line: 40
+        end_line: 43
+        file: ''
+      uid: ba136d25-954f-4596-99c7-375e367205dc
+    - text: 'Because adjusted_merit_pct = min(perf_guideline_pct, PercentSalaryHike/100.0)
+        * age_weight * travel_multiplier and proposed_merit_pct = min(adjusted_merit_pct,
+        slab_cap_pct), it must hold that: (1) proposed_merit_pct <= age_weight * travel_multiplier
+        * perf_guideline_pct and (2) proposed_merit_pct <= age_weight * travel_multiplier
+        * (PercentSalaryHike/100.0). Possible Deequ: .satisfies(''proposed_merit_pct
+        <= perf_guideline_pct * age_weight * travel_multiplier'', ''merit_leq_guideline_after_weights'')
+        and .satisfies(''proposed_merit_pct <= (PercentSalaryHike / 100.0) * age_weight
+        * travel_multiplier'', ''merit_leq_hike_after_weights'').'
+      sources:
+      - start_line: 35
+        end_line: 37
+        file: ''
+      - start_line: 40
+        end_line: 42
+        file: ''
+      uid: b082d883-2870-4997-ba88-19661cc54f59
+    - text: 'proposed_merit_amount must equal MonthlyIncome * proposed_merit_pct,
+        rounded to 2 decimals. Possible Deequ: .satisfies(''proposed_merit_amount
+        = round(MonthlyIncome * proposed_merit_pct, 2)'', ''proposed_merit_amount_formula'').'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      uid: 92464c7f-480b-471f-9b5c-052ab7805088
+    - text: 'promotion_eligible must equal (PerformanceRating = 4) AND (YearsInCurrentRole
+        >= 2) AND (YearsSinceLastPromotion >= 1) AND (JobLevel < 5). Possible Deequ
+        (either as equivalence or two implications): .satisfies(''(PerformanceRating
+        = 4 AND YearsInCurrentRole >= 2 AND YearsSinceLastPromotion >= 1 AND JobLevel
+        < 5) = promotion_eligible'', ''promotion_eligibility_logic'') or .satisfies(''NOT
+        promotion_eligible OR (PerformanceRating = 4 AND YearsInCurrentRole >= 2 AND
+        YearsSinceLastPromotion >= 1 AND JobLevel < 5)'', ''eligibility_implies_criteria'')
+        and .satisfies(''promotion_eligible OR NOT (PerformanceRating = 4 AND YearsInCurrentRole
+        >= 2 AND YearsSinceLastPromotion >= 1 AND JobLevel < 5)'', ''criteria_implies_eligibility'').'
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: 978826ea-a02b-4db1-81cb-03fde1989540
+    - text: 'promotion_raise_pct must equal 0.0 for all rows where promotion_eligible
+        is false; otherwise it must follow the JobLevel mapping {1: 0.10, 2: 0.08,
+        3: 0.07, 4: 0.06, 5: 0.0}. Possible Deequ: .satisfies("promotion_raise_pct
+        = CASE WHEN promotion_eligible THEN CASE WHEN JobLevel = 1 THEN 0.10 WHEN
+        JobLevel = 2 THEN 0.08 WHEN JobLevel = 3 THEN 0.07 WHEN JobLevel = 4 THEN
+        0.06 WHEN JobLevel = 5 THEN 0.0 END ELSE 0.0 END", ''promotion_raise_logic'').'
+      sources:
+      - start_line: 53
+        end_line: 56
+        file: ''
+      uid: 06d89773-32bb-440d-bb6f-4f60710c56c3
+    - text: 'In the department-level aggregate, total_budget must equal merit_pool
+        + promotion_pool + compression_pool + emerging_talent_pool. Possible Deequ
+        (on the aggregated dataset): .satisfies(''total_budget = round(merit_pool
+        + promotion_pool + compression_pool + emerging_talent_pool, 2)'', ''dept_total_budget_sum'').'
+      sources:
+      - start_line: 68
+        end_line: 78
+        file: ''
+      uid: 92411c70-7b49-48f5-be31-b9eb025ae24c
+  YearsSinceLastPromotion:
+    code:
+    - suggestion: '.hasCompleteness(''YearsSinceLastPromotion'', lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 66a05d39-63e9-4436-b959-8d2c6421cdb2
+      source_assumptions:
+      - 2d32500c-aa2f-4ea4-b101-d2ca82376218
+    - suggestion: '.hasDataType(''YearsSinceLastPromotion'', ConstrainableDataTypes.Integral,
+        lambda f: f == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''YearsSinceLastPromotion'',
+        ConstrainableDataTypes.Integral, lambda f: f == 1.0)'
+      level: error
+      uid: c0ecec67-e425-40e9-857d-5351d7d864b1
+      source_assumptions:
+      - bbd8960c-865c-4f18-a64e-72a1442d4224
+    - suggestion: '.isNonNegative(''YearsSinceLastPromotion'', lambda f: f == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ce011451-3ff7-4f5b-9286-178f5c8f6336
+      source_assumptions:
+      - bbd8960c-865c-4f18-a64e-72a1442d4224
+    - suggestion: '.hasApproxCountDistinct(''YearsSinceLastPromotion'', lambda n:
+        n <= 20)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e6c4ca10-211c-4a1e-bdf1-e80128d64378
+      source_assumptions:
+      - 08e38c85-3340-4104-ac48-42b7339750a2
+    assumptions:
+    - text: 'The ''YearsSinceLastPromotion'' column must exist in the input CSV and
+        be complete (no nulls), since it is used directly in the promotion eligibility
+        filter without any null handling. Deequ example: .hasCompleteness(''YearsSinceLastPromotion'',
+        lambda v: v == 1.0). Great Expectations: expect_column_to_exist(''YearsSinceLastPromotion'');
+        expect_column_values_to_not_be_null(''YearsSinceLastPromotion'').'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 2d32500c-aa2f-4ea4-b101-d2ca82376218
+    - text: 'The ''YearsSinceLastPromotion'' values must be numeric, integer-like,
+        and non-negative so the comparison (>= 1) works without type errors and reflects
+        valid time elapsed. Deequ example: .hasDataType(''YearsSinceLastPromotion'',
+        ConstrainableDataTypes.Integral) and .isNonNegative(''YearsSinceLastPromotion'').
+        Alternatively: .satisfies(''`YearsSinceLastPromotion` >= 0'', ''Non-negative
+        YSLP'', lambda x: x == 1.0). Great Expectations: expect_column_values_to_be_in_type_list([''integer'',''int64'',''int32'',''long'']);
+        expect_column_values_to_be_between(min_value=0, strict_min=False).'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: bbd8960c-865c-4f18-a64e-72a1442d4224
+    - text: 'The ''YearsSinceLastPromotion'' column should have a small number of
+        distinct integer values (years), consistent with reference data (~16 distinct
+        values). As a guardrail, the distinct count should not exceed 20. Deequ example:
+        .hasApproxCountDistinct(''YearsSinceLastPromotion'', lambda x: x <= 20). Great
+        Expectations: expect_column_unique_value_count_to_be_between(min_value=1,
+        max_value=20).'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 08e38c85-3340-4104-ac48-42b7339750a2
+  '["MonthlyIncome","SalarySlab"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN SalarySlab = ''Upto 5k'' THEN MonthlyIncome
+        <= 5000 WHEN SalarySlab = ''5k-10k'' THEN MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000 WHEN SalarySlab = ''10k-15k'' THEN MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000 WHEN SalarySlab = ''15k+'' THEN MonthlyIncome > 15000 ELSE false
+        END", "salary_slab_matches_income", assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: bde40128-87a5-4577-a6c9-4d6d1c1b4d01
+      source_assumptions:
+      - 2d6d83b7-70f2-4b86-8f55-17bc0b9e2795
+    - suggestion: '.satisfies("CASE WHEN SalarySlab IN (''Upto 5k'',''5k-10k'') THEN
+        compression_pool_share = 0.003 AND ROUND(MonthlyIncome * 0.003, 2) = compression_amount
+        ELSE compression_pool_share = 0.0 AND compression_amount = 0.0 END", "low_slab_compression_rule",
+        assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN SalarySlab IN (''Upto
+        5k'',''5k-10k'') THEN compression_pool_share = 0.003 AND ROUND(MonthlyIncome
+        * 0.003, 2) = compression_amount ELSE compression_pool_share = 0.0 AND compression_amount
+        = 0.0 END", "low_slab_compression_rule", assertion=lambda x: x == 1.0)'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `compression_pool_share` cannot be
+        resolved. Did you mean one of the following? [`Attrition`, `EducationField`,
+        `EmployeeCount`, `EmployeeNumber`, `MonthlyRate`].; line 1 pos 50;
+
+        ''Aggregate [sum(cast(CASE WHEN SalarySlab#1456568 IN (Upto 5k,5k-10k) THEN
+        ((''compression_pool_share = 0.003) AND (round((cast(MonthlyIncome#1456567L
+        as decimal(20,0)) * 0.003), 2) = ''compression_amount)) ELSE ((''compression_pool_share
+        = 0.0) AND (''compression_amount = 0.0)) END as int)) AS sum(CAST(CASE WHEN
+        (SalarySlab IN (Upto 5k, 5k-10k)) THEN ((compression_pool_share = 0.003) AND
+        (ROUND((MonthlyIncome * 0.003), 2) = compression_amount)) ELSE ((compression_pool_share
+        = 0.0) AND (compression_amount = 0.0)) END AS INT))#1612378, count(1) AS count(1)#1612382L]
+
+        +- LogicalRDD [id#1456546L, EmpID#1456547, Age#1456548L, AgeGroup#1456549,
+        Attrition#1456550, BusinessTravel#1456551, DailyRate#1456552L, Department#1456553,
+        DistanceFromHome#1456554L, Education#1456555L, EducationField#1456556, EmployeeCount#1456557L,
+        EmployeeNumber#1456558L, EnvironmentSatisfaction#1456559L, Gender#1456560,
+        HourlyRate#1456561L, JobInvolvement#1456562L, JobLevel#1456563L, JobRole#1456564,
+        JobSatisfaction#1456565L, MaritalStatus#1456566, MonthlyIncome#1456567L, SalarySlab#1456568,
+        MonthlyRate#1456569L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: ad32d199-dc78-496c-8e59-5651b557f427
+      source_assumptions:
+      - 1db075ca-cb9b-4280-b60b-b296d467b86b
+    - suggestion: '.satisfies("CASE WHEN SalarySlab = ''Upto 5k'' THEN proposed_merit_pct
+        <= 0.20 WHEN SalarySlab = ''5k-10k'' THEN proposed_merit_pct <= 0.18 WHEN
+        SalarySlab = ''10k-15k'' THEN proposed_merit_pct <= 0.15 WHEN SalarySlab =
+        ''15k+'' THEN proposed_merit_pct <= 0.12 ELSE false END", "merit_within_slab_cap",
+        assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN SalarySlab = ''Upto 5k''
+        THEN proposed_merit_pct <= 0.20 WHEN SalarySlab = ''5k-10k'' THEN proposed_merit_pct
+        <= 0.18 WHEN SalarySlab = ''10k-15k'' THEN proposed_merit_pct <= 0.15 WHEN
+        SalarySlab = ''15k+'' THEN proposed_merit_pct <= 0.12 ELSE false END", "merit_within_slab_cap",
+        assertion=lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `proposed_merit_pct` cannot be resolved. Did you mean one of the following?
+        [`Department`, `AgeGroup`, `Attrition`, `EmployeeCount`, `EmployeeNumber`].;
+        line 1 pos 38;
+
+        ''Aggregate [sum(cast(CASE WHEN (SalarySlab#1456568 = Upto 5k) THEN (''proposed_merit_pct
+        <= 0.20) WHEN (SalarySlab#1456568 = 5k-10k) THEN (''proposed_merit_pct <=
+        0.18) WHEN (SalarySlab#1456568 = 10k-15k) THEN (''proposed_merit_pct <= 0.15)
+        WHEN (SalarySlab#1456568 = 15k+) THEN (''proposed_merit_pct <= 0.12) ELSE
+        false END as int)) AS sum(CAST(CASE WHEN (SalarySlab = Upto 5k) THEN (proposed_merit_pct
+        <= 0.20) WHEN (SalarySlab = 5k-10k) THEN (proposed_merit_pct <= 0.18) WHEN
+        (SalarySlab = 10k-15k) THEN (proposed_merit_pct <= 0.15) WHEN (SalarySlab
+        = 15k+) THEN (proposed_merit_pct <= 0.12) ELSE false END AS INT))#1612387,
+        count(1) AS count(1)#1612388L]
+
+        +- LogicalRDD [id#1456546L, EmpID#1456547, Age#1456548L, AgeGroup#1456549,
+        Attrition#1456550, BusinessTravel#1456551, DailyRate#1456552L, Department#1456553,
+        DistanceFromHome#1456554L, Education#1456555L, EducationField#1456556, EmployeeCount#1456557L,
+        EmployeeNumber#1456558L, EnvironmentSatisfaction#1456559L, Gender#1456560,
+        HourlyRate#1456561L, JobInvolvement#1456562L, JobLevel#1456563L, JobRole#1456564,
+        JobSatisfaction#1456565L, MaritalStatus#1456566, MonthlyIncome#1456567L, SalarySlab#1456568,
+        MonthlyRate#1456569L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: 19531180-17e9-4e8d-a14b-cb884e142f5c
+      source_assumptions:
+      - 015bbba5-f021-482d-9d7f-cc7eb22600f8
+    - suggestion: '.satisfies("ABS(proposed_merit_amount - ROUND(MonthlyIncome * proposed_merit_pct,
+        2)) < 0.005", "merit_amount_matches_pct", assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("ABS(proposed_merit_amount - ROUND(MonthlyIncome
+        * proposed_merit_pct, 2)) < 0.005", "merit_amount_matches_pct", assertion=lambda
+        x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `proposed_merit_amount` cannot be resolved. Did you mean one of the following?
+        [`EmployeeCount`, `Attrition`, `Department`, `AgeGroup`, `Education`].; line
+        1 pos 4;
+
+        ''Aggregate [sum(cast((''ABS((''proposed_merit_amount - ''ROUND((MonthlyIncome#1456567L
+        * ''proposed_merit_pct), 2))) < 0.005) as int)) AS sum(CAST((ABS((proposed_merit_amount
+        - ROUND((MonthlyIncome * proposed_merit_pct), 2))) < 0.005) AS INT))#1612383,
+        count(1) AS count(1)#1612386L]
+
+        +- LogicalRDD [id#1456546L, EmpID#1456547, Age#1456548L, AgeGroup#1456549,
+        Attrition#1456550, BusinessTravel#1456551, DailyRate#1456552L, Department#1456553,
+        DistanceFromHome#1456554L, Education#1456555L, EducationField#1456556, EmployeeCount#1456557L,
+        EmployeeNumber#1456558L, EnvironmentSatisfaction#1456559L, Gender#1456560,
+        HourlyRate#1456561L, JobInvolvement#1456562L, JobLevel#1456563L, JobRole#1456564,
+        JobSatisfaction#1456565L, MaritalStatus#1456566, MonthlyIncome#1456567L, SalarySlab#1456568,
+        MonthlyRate#1456569L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: bd9af69e-c5e9-4a68-8dcf-e51a09d5a0d8
+      source_assumptions:
+      - 015bbba5-f021-482d-9d7f-cc7eb22600f8
+    - suggestion: '.satisfies("ABS(promotion_amount - ROUND(MonthlyIncome * promotion_raise_pct,
+        2)) < 0.005", "promotion_amount_matches_pct", assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("ABS(promotion_amount - ROUND(MonthlyIncome
+        * promotion_raise_pct, 2)) < 0.005", "promotion_amount_matches_pct", assertion=lambda
+        x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `promotion_amount` cannot be resolved. Did you mean one of the following?
+        [`EmployeeCount`, `JobInvolvement`, `Attrition`, `Education`, `EducationField`].;
+        line 1 pos 4;
+
+        ''Aggregate [sum(cast((''ABS((''promotion_amount - ''ROUND((MonthlyIncome#1456567L
+        * ''promotion_raise_pct), 2))) < 0.005) as int)) AS sum(CAST((ABS((promotion_amount
+        - ROUND((MonthlyIncome * promotion_raise_pct), 2))) < 0.005) AS INT))#1612379,
+        count(1) AS count(1)#1612381L]
+
+        +- LogicalRDD [id#1456546L, EmpID#1456547, Age#1456548L, AgeGroup#1456549,
+        Attrition#1456550, BusinessTravel#1456551, DailyRate#1456552L, Department#1456553,
+        DistanceFromHome#1456554L, Education#1456555L, EducationField#1456556, EmployeeCount#1456557L,
+        EmployeeNumber#1456558L, EnvironmentSatisfaction#1456559L, Gender#1456560,
+        HourlyRate#1456561L, JobInvolvement#1456562L, JobLevel#1456563L, JobRole#1456564,
+        JobSatisfaction#1456565L, MaritalStatus#1456566, MonthlyIncome#1456567L, SalarySlab#1456568,
+        MonthlyRate#1456569L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: 29904c03-9c7a-45ee-ac3f-890701797273
+      source_assumptions:
+      - e1de3395-c66b-418a-99f9-a9f9dad60a47
+    - suggestion: '.satisfies("ABS(total_budget - (merit_pool + promotion_pool + compression_pool
+        + emerging_talent_pool)) < 0.005", "dept_total_budget_matches_components",
+        assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("ABS(total_budget - (merit_pool
+        + promotion_pool + compression_pool + emerging_talent_pool)) < 0.005", "dept_total_budget_matches_components",
+        assertion=lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `total_budget` cannot be resolved. Did you mean one of the following? [`Age`,
+        `DailyRate`, `HourlyRate`, `JobRole`, `MonthlyRate`].; line 1 pos 4;
+
+        ''Aggregate [sum(cast((''ABS((''total_budget - (((''merit_pool + ''promotion_pool)
+        + ''compression_pool) + ''emerging_talent_pool))) < 0.005) as int)) AS sum(CAST((ABS((total_budget
+        - (((merit_pool + promotion_pool) + compression_pool) + emerging_talent_pool)))
+        < 0.005) AS INT))#1612380, count(1) AS count(1)#1612385L]
+
+        +- LogicalRDD [id#1456546L, EmpID#1456547, Age#1456548L, AgeGroup#1456549,
+        Attrition#1456550, BusinessTravel#1456551, DailyRate#1456552L, Department#1456553,
+        DistanceFromHome#1456554L, Education#1456555L, EducationField#1456556, EmployeeCount#1456557L,
+        EmployeeNumber#1456558L, EnvironmentSatisfaction#1456559L, Gender#1456560,
+        HourlyRate#1456561L, JobInvolvement#1456562L, JobLevel#1456563L, JobRole#1456564,
+        JobSatisfaction#1456565L, MaritalStatus#1456566, MonthlyIncome#1456567L, SalarySlab#1456568,
+        MonthlyRate#1456569L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: 46b034a9-4a1a-4f45-b760-4f48efc40c13
+      source_assumptions:
+      - acb89bfc-45bd-47d4-aebd-45091010309f
+    assumptions:
+    - text: 'MonthlyIncome must be consistent with the SalarySlab banding: SalarySlab
+        = ''Upto 5k'' => MonthlyIncome <= 5000; SalarySlab = ''5k-10k'' => 5000 <
+        MonthlyIncome <= 10000; SalarySlab = ''10k-15k'' => 10000 < MonthlyIncome
+        <= 15000; SalarySlab = ''15k+'' => MonthlyIncome > 15000. This can be enforced
+        with a Deequ check like: .satisfies("CASE WHEN SalarySlab = ''Upto 5k'' THEN
+        MonthlyIncome <= 5000 WHEN SalarySlab = ''5k-10k'' THEN MonthlyIncome > 5000
+        AND MonthlyIncome <= 10000 WHEN SalarySlab = ''10k-15k'' THEN MonthlyIncome
+        > 10000 AND MonthlyIncome <= 15000 WHEN SalarySlab = ''15k+'' THEN MonthlyIncome
+        > 15000 ELSE false END", ''salary_slab_matches_income'', assertion=_.equals(1.0))'
+      sources:
+      - start_line: 30
+        end_line: 32
+        file: ''
+      - start_line: 59
+        end_line: 61
+        file: ''
+      uid: 2d6d83b7-70f2-4b86-8f55-17bc0b9e2795
+    - text: "Compression amounts depend jointly on SalarySlab and MonthlyIncome: If\
+        \ SalarySlab \u2208 {'Upto 5k','5k-10k'} then compression_pool_share = 0.003\
+        \ and compression_amount = round(MonthlyIncome * 0.003, 2); otherwise compression_pool_share\
+        \ = 0.0 and compression_amount = 0.00. Deequ example: .satisfies(\"CASE WHEN\
+        \ SalarySlab IN ('Upto 5k','5k-10k') THEN compression_pool_share = 0.003 AND\
+        \ ROUND(MonthlyIncome * 0.003, 2) = compression_amount ELSE compression_pool_share\
+        \ = 0.0 AND compression_amount = 0.0 END\", 'low_slab_compression_rule', assertion=_.equals(1.0))"
+      sources:
+      - start_line: 59
+        end_line: 61
+        file: ''
+      uid: 1db075ca-cb9b-4280-b60b-b296d467b86b
+    - text: 'Proposed merit is capped by SalarySlab and scaled by MonthlyIncome: proposed_merit_pct
+        <= slab_cap_pct (where slab_cap_pct is determined by SalarySlab mapping),
+        and proposed_merit_amount = round(MonthlyIncome * proposed_merit_pct, 2).
+        Deequ examples: .satisfies("proposed_merit_pct <= slab_cap_pct", ''merit_within_slab_cap'',
+        assertion=_.equals(1.0)) and .satisfies("ABS(proposed_merit_amount - ROUND(MonthlyIncome
+        * proposed_merit_pct, 2)) < 0.005", ''merit_amount_matches_pct'', assertion=_.equals(1.0))'
+      sources:
+      - start_line: 30
+        end_line: 32
+        file: ''
+      - start_line: 40
+        end_line: 43
+        file: ''
+      uid: 015bbba5-f021-482d-9d7f-cc7eb22600f8
+    - text: 'Promotion amounts scale with MonthlyIncome: promotion_amount = round(MonthlyIncome
+        * promotion_raise_pct, 2). Deequ example: .satisfies("ABS(promotion_amount
+        - ROUND(MonthlyIncome * promotion_raise_pct, 2)) < 0.005", ''promotion_amount_matches_pct'',
+        assertion=_.equals(1.0))'
+      sources:
+      - start_line: 53
+        end_line: 56
+        file: ''
+      uid: e1de3395-c66b-418a-99f9-a9f9dad60a47
+    - text: 'At the department aggregation level, total_budget equals the sum of component
+        pools: total_budget = merit_pool + promotion_pool + compression_pool + emerging_talent_pool.
+        This can be validated on the aggregated DataFrame with: .satisfies("ABS(total_budget
+        - (merit_pool + promotion_pool + compression_pool + emerging_talent_pool))
+        < 0.005", ''dept_total_budget_matches_components'', assertion=_.equals(1.0))'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      - start_line: 77
+        end_line: 78
+        file: ''
+      uid: acb89bfc-45bd-47d4-aebd-45091010309f
+  PerformanceRating:
+    code:
+    - suggestion: .isComplete('PerformanceRating')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d9be6828-c723-4b8c-abda-cc59d850c360
+      source_assumptions:
+      - 88570150-0f30-4b36-83cb-1860821c3637
+    - suggestion: '.isContainedIn(''PerformanceRating'', [''3'', ''4''], lambda v:
+        v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 78801a42-49dd-4fa7-9d09-d7d12ad08f47
+      source_assumptions:
+      - 792b7683-8365-4070-b8a7-f5fa5766212f
+    - suggestion: '.hasDataType(''PerformanceRating'', ''Integral'', lambda v: v ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''PerformanceRating'',
+        ''Integral'', lambda v: v == 1.0)'
+      level: error
+      uid: b38bfd4f-b5a1-4605-91c6-e0415c352d97
+      source_assumptions:
+      - fb34c318-c526-4bc4-a44e-a54075f0667d
+    - suggestion: '.hasMin(''PerformanceRating'', lambda v: v >= 3)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dee95b20-1785-4666-8e3b-2b303637f86d
+      source_assumptions:
+      - ecab8272-4257-4e58-a34f-0df748301343
+    - suggestion: '.hasMax(''PerformanceRating'', lambda v: v <= 4)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5a2d89aa-034b-48b0-b283-6b5b7d2df7f6
+      source_assumptions:
+      - ecab8272-4257-4e58-a34f-0df748301343
+    assumptions:
+    - text: 'The ''PerformanceRating'' column must exist in the input CSV and contain
+        no null values, since it is mapped to a percent, used in promotion eligibility
+        logic, and exported without any null handling. Example validations: Deequ
+        completeness(''PerformanceRating'') == 1.0 (and hasColumn(''PerformanceRating''));
+        Great Expectations expect_column_to_exist and expect_column_values_to_not_be_null.'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 28
+        end_line: 28
+        file: ''
+      - start_line: 46
+        end_line: 51
+        file: ''
+      - start_line: 85
+        end_line: 90
+        file: ''
+      uid: 88570150-0f30-4b36-83cb-1860821c3637
+    - text: 'All ''PerformanceRating'' values must be in the allowed set {3, 4} so
+        that every row maps to a merit guideline percent (no unmapped ratings like
+        1 or 2). Example validations: Deequ isContainedIn(''PerformanceRating'', [3,
+        4]); Great Expectations expect_column_values_to_be_in_set([3, 4]).'
+      sources:
+      - start_line: 27
+        end_line: 28
+        file: ''
+      uid: 792b7683-8365-4070-b8a7-f5fa5766212f
+    - text: '''PerformanceRating'' should be numeric/integral (not string-coded like
+        ''3'' or ''4''), because the dictionary uses integer keys and the promotion
+        check compares to integer 4. Example validations: Deequ hasDataType(''PerformanceRating'',
+        ''Integral''); Great Expectations expect_column_values_to_be_in_type_list([''int64'',
+        ''int32'', ''long'']).'
+      sources:
+      - start_line: 27
+        end_line: 28
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: fb34c318-c526-4bc4-a44e-a54075f0667d
+    - text: 'The ''PerformanceRating'' numeric values should lie within the closed
+        interval [3, 4] (i.e., minimum >= 3 and maximum <= 4). Example validations:
+        Deequ hasMin(''PerformanceRating'', _ >= 3) and hasMax(''PerformanceRating'',
+        _ <= 4); Great Expectations expect_column_min_to_be_between(min_value=3, max_value=4)
+        and expect_column_max_to_be_between(min_value=3, max_value=4).'
+      sources:
+      - start_line: 27
+        end_line: 28
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: ecab8272-4257-4e58-a34f-0df748301343
+  SalarySlab:
+    code:
+    - suggestion: .isComplete('SalarySlab')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 92e406a4-5f50-4197-9740-c36555e18868
+      source_assumptions:
+      - e8356df1-4dca-40e4-aaf1-a30d75f9d3ed
+    - suggestion: '.isContainedIn(''SalarySlab'', [''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''],
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c55b5b03-b97d-4153-954e-d2466baa893e
+      source_assumptions:
+      - 06b14b68-5803-4a4f-97a1-a5ccfa80efc7
+    - suggestion: '.hasApproxCountDistinct(''SalarySlab'', lambda x: x == 4)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 45dc7c35-b9f1-456f-8926-3ddf2c1cf146
+      source_assumptions:
+      - ad06851b-5e5b-4389-a3d6-63be6119a91f
+    assumptions:
+    - text: 'SalarySlab must be non-null for all input rows, since it is mapped to
+        a cap percentage and used in downstream percent/amount computations. Example
+        validation: Deequ hasCompleteness(''SalarySlab'', lambda x: x == 1.0) or satisfies(''CASE
+        WHEN `SalarySlab` IS NOT NULL THEN 1 ELSE 0 END'', ''SalarySlab not null'',
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 32
+        end_line: 32
+        file: ''
+      - start_line: 42
+        end_line: 43
+        file: ''
+      uid: e8356df1-4dca-40e4-aaf1-a30d75f9d3ed
+    - text: 'All SalarySlab values must be in the expected set: {''Upto 5k'', ''5k-10k'',
+        ''10k-15k'', ''15k+''}. Values outside this set will not receive a cap and
+        will break proposed_merit_pct. Example validation: Deequ satisfies("CASE WHEN
+        `SalarySlab` IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'') THEN 1 ELSE
+        0 END", ''Valid SalarySlab'', lambda x: x == 1.0) or Great Expectations expect_column_values_to_be_in_set.'
+      sources:
+      - start_line: 31
+        end_line: 32
+        file: ''
+      - start_line: 59
+        end_line: 60
+        file: ''
+      uid: 06b14b68-5803-4a4f-97a1-a5ccfa80efc7
+    - text: 'SalarySlab values must match the expected labels exactly (case, spacing,
+        symbols) with no leading/trailing whitespace, e.g., ''Upto 5k'', ''5k-10k'',
+        ''10k-15k'', ''15k+''. Example validation: Deequ satisfies("CASE WHEN `SalarySlab`
+        RLIKE ''^(Upto 5k|5k-10k|10k-15k|15k\+)$'' THEN 1 ELSE 0 END", ''SalarySlab
+        exact format'', lambda x: x == 1.0) or Great Expectations expect_column_values_to_match_regex
+        with the same pattern.'
+      sources:
+      - start_line: 32
+        end_line: 32
+        file: ''
+      - start_line: 59
+        end_line: 60
+        file: ''
+      uid: 32b9a587-2387-4f3a-a88a-4a387ae3ebeb
+    - text: 'SalarySlab should have exactly 4 distinct categories in the input (Upto
+        5k, 5k-10k, 10k-15k, 15k+). Example validation: Deequ hasApproxCountDistinct(''SalarySlab'',
+        lambda x: x == 4) or Great Expectations expect_column_unique_value_count_to_be_between
+        with min_value=4 and max_value=4.'
+      sources:
+      - start_line: 31
+        end_line: 31
+        file: ''
+      uid: ad06851b-5e5b-4389-a3d6-63be6119a91f
+column_data_flow_locations:
+  '["MonthlyIncome","SalarySlab"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 30
+    end_line: 30
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 42
+    end_line: 43
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 59
+    end_line: 61
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  '["AgeGroup","BusinessTravel","MonthlyIncome","PercentSalaryHike","PerformanceRating","SalarySlab"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 18
+    end_line: 24
+    file: ''
+  - start_line: 27
+    end_line: 28
+    file: ''
+  - start_line: 31
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 37
+    file: ''
+  - start_line: 40
+    end_line: 43
+    file: ''
+  - start_line: 46
+    end_line: 56
+    file: ''
+  - start_line: 59
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 90
+    file: ''
+  '["JobLevel","PerformanceRating","YearsInCurrentRole","YearsSinceLastPromotion"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 27
+    end_line: 28
+    file: ''
+  - start_line: 40
+    end_line: 43
+    file: ''
+  - start_line: 46
+    end_line: 56
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 90
+    file: ''
+  '["AgeGroup","MonthlyIncome"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 41
+    end_line: 43
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 90
+    file: ''
+  '["Department","EmpID"]':
+  - start_line: 12
+    end_line: 12
+    file: ''
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 90
+    file: ''
+  '["Department","MonthlyIncome"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 89
+    end_line: 90
+    file: ''
+  '["EmpID","EmployeeNumber"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 25
+    end_line: 25
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 81
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 90
+    file: ''
+  BusinessTravel:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 24
+    end_line: 24
+    file: ''
+  - start_line: 37
+    end_line: 37
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  EmployeeNumber:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 25
+    end_line: 25
+    file: ''
+  - start_line: 84
+    end_line: 90
+    file: ''
+  PerformanceRating:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 46
+    end_line: 51
+    file: ''
+  - start_line: 85
+    end_line: 90
+    file: ''
+  SalarySlab:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 42
+    end_line: 43
+    file: ''
+  - start_line: 59
+    end_line: 61
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  AgeGroup:
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  PercentSalaryHike:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 40
+    end_line: 43
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  MonthlyIncome:
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  YearsInCurrentRole:
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 52
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 72
+    end_line: 72
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 86
+    end_line: 86
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  YearsSinceLastPromotion:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 49
+    end_line: 49
+    file: ''
+  JobLevel:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 46
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  Department:
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  EmpID:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+fixing_results:
+  AgeGroup:
+    8edc51dd-dd62-4b70-b1b8-4c7f0346637b: '.satisfies("AgeGroup = TRIM(AgeGroup) AND
+      AgeGroup IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')", "AgeGroup formatting",
+      lambda x: x == 1)'
+  BusinessTravel:
+    36b7e4ec-f16e-43cc-bd0d-548b09d995ce: .isContainedIn('BusinessTravel', ['TravelRarely',
+      'Travel_Rarely', 'Travel_Frequently', 'Non-Travel'])
+  JobLevel:
+    7fe2668a-950f-457a-a569-cdfd1ad0639e: '.isContainedIn(''JobLevel'', [''1'', ''2'',
+      ''3'', ''4'', ''5''], lambda f: f == 1.0)'
+  YearsSinceLastPromotion:
+    e6c4ca10-211c-4a1e-bdf1-e80128d64378: '.hasApproxCountDistinct(''YearsSinceLastPromotion'',
+      lambda n: n <= 20)'
+  PerformanceRating:
+    78801a42-49dd-4fa7-9d09-d7d12ad08f47: '.isContainedIn(''PerformanceRating'', [''3'',
+      ''4''], lambda v: v == 1.0)'
+  SalarySlab:
+    45dc7c35-b9f1-456f-8926-3ddf2c1cf146: '.hasApproxCountDistinct(''SalarySlab'',
+      lambda x: x == 4)'
+consolidation_results:
+  AgeGroup:
+  - idx_to_remove: b9db6c91-4b43-4e17-a2a2-12f4855f32e7
+    redundant_with:
+    - 8edc51dd-dd62-4b70-b1b8-4c7f0346637b
+  - idx_to_remove: 1f4e3d59-c61f-47e2-b2bc-7ba6590e19ee
+    redundant_with:
+    - 8edc51dd-dd62-4b70-b1b8-4c7f0346637b
+  BusinessTravel:
+  - idx_to_remove: 36b7e4ec-f16e-43cc-bd0d-548b09d995ce
+    redundant_with:
+    - 2b0ce6d5-4bc8-4d96-b1d9-ea4055691f3d
+  EmpID:
+  - idx_to_remove: d9b0f534-bfc0-43d2-9b99-2ad7a9644e04
+    redundant_with:
+    - 518f42b3-3c85-4edb-bfea-9c843a6dda1c
+  SalarySlab:
+  - idx_to_remove: 64e434a8-ebc8-478e-8881-19d24525f2c3
+    redundant_with:
+    - c55b5b03-b97d-4153-954e-d2466baa893e
+cost_summary:
+  column_access_detection:
+    cost: 0.02265375
+    total_tokens: 10626
+    prompt_tokens: 9555
+    completion_tokens: 1071
+  data_flow_inspection:
+    cost: 0.5369525
+    total_tokens: 77150
+    prompt_tokens: 24090
+    completion_tokens: 53060
+  column_correlation_discovery:
+    cost: 0.05405375
+    total_tokens: 7893
+    prompt_tokens: 2843
+    completion_tokens: 5050
+  multi_column_data_flow_inspection:
+    cost: 0.25703125
+    total_tokens: 37786
+    prompt_tokens: 13809
+    completion_tokens: 23977
+  multi_column_assumption_generation:
+    cost: 0.43640124999999996
+    total_tokens: 58852
+    prompt_tokens: 17385
+    completion_tokens: 41467
+  multi_column_code_generation:
+    cost: 0.32063875
+    total_tokens: 61206
+    prompt_tokens: 32071
+    completion_tokens: 29135
+  single_column_assumption_generation:
+    cost: 0.5210825
+    total_tokens: 82168
+    prompt_tokens: 34354
+    completion_tokens: 47814
+  single_column_code_generation:
+    cost: 0.406439
+    total_tokens: 106896
+    prompt_tokens: 71372
+    completion_tokens: 35524
+  code_fixing:
+    cost: 0.17040125
+    total_tokens: 28409
+    prompt_tokens: 12993
+    completion_tokens: 15416
+  consolidate_constraints:
+    cost: 0.20967750000000002
+    total_tokens: 32733
+    prompt_tokens: 13446
+    completion_tokens: 19287

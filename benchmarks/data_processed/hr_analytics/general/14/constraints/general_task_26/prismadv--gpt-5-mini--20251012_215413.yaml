@@ -1,0 +1,1995 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-mini
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  YearsAtCompany:
+    code:
+    - suggestion: .isComplete('YearsAtCompany')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5ca51378-37c2-4140-9c49-af1192110c5a
+      source_assumptions:
+      - b9364dec-01d9-4428-960e-1ddf1271b311
+    - suggestion: '.satisfies(''CASE WHEN CAST(`YearsAtCompany` AS DOUBLE) IS NOT
+        NULL THEN 1 ELSE 0 END'', ''YearsAtCompany numeric-convertible'', lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 05318346-9390-4e47-848f-3dfdfe172f87
+      source_assumptions:
+      - b9364dec-01d9-4428-960e-1ddf1271b311
+    - suggestion: '.satisfies(''CASE WHEN floor(`YearsAtCompany`) = `YearsAtCompany`
+        THEN 1 ELSE 0 END'', ''YearsAtCompany integer-valued'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 29c9ed5f-2e00-46d0-ac63-065f19712f2f
+      source_assumptions:
+      - 5de2c089-a1d6-434d-9589-dd9c38241bee
+    - suggestion: .isNonNegative('YearsAtCompany')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2b8c2e00-9f39-43eb-b556-da7a3e908221
+      source_assumptions:
+      - d2fbfa3d-0717-4ff7-8495-ee4878aa35eb
+    - suggestion: '.isLessThanOrEqualTo(''YearsSinceLastPromotion'', ''YearsAtCompany'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 50965bb0-ef01-4063-a826-ae0d7d1030da
+      source_assumptions:
+      - a6459955-960e-436f-8235-685792451dae
+    assumptions:
+    - text: 'YearsAtCompany must be numeric (convertible to a numeric type) and present
+        (non-null) in the input so that the pd.to_numeric coercion (errors=''coerce'')
+        does not introduce missing values required later by calculations. Example
+        Deequ/GEsque check: .satisfies("CASE WHEN `YearsAtCompany` IS NOT NULL THEN
+        1 ELSE 0 END", "Non-null YearsAtCompany", lambda x: x == 1) and/or ensure
+        conversion: .satisfies("CASE WHEN CAST(`YearsAtCompany` AS DOUBLE) IS NOT
+        NULL THEN 1 ELSE 0 END", "YearsAtCompany numeric-convertible", lambda x: x
+        == 1).'
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      uid: b9364dec-01d9-4428-960e-1ddf1271b311
+    - text: 'YearsAtCompany should be an integral (whole number) value (no fractional
+        years). This is expected because the column represents years and the dataset
+        describes it as Integral; many downstream comparisons and ratio semantics
+        assume whole-year counts. Example check: .satisfies("CASE WHEN floor(`YearsAtCompany`)
+        = `YearsAtCompany` THEN 1 ELSE 0 END", "YearsAtCompany integer-valued", lambda
+        x: x == 1).'
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      - start_line: 122
+        end_line: 124
+        file: ''
+      uid: 5de2c089-a1d6-434d-9589-dd9c38241bee
+    - text: 'YearsAtCompany must be non-negative (>= 0). Tenure is used as a denominator
+        and in ratio calculations; negative tenure would be semantically invalid.
+        Example check: .satisfies("CASE WHEN `YearsAtCompany` >= 0 THEN 1 ELSE 0 END",
+        "Non-negative YearsAtCompany", lambda x: x == 1).'
+      sources:
+      - start_line: 80
+        end_line: 83
+        file: ''
+      - start_line: 56
+        end_line: 65
+        file: ''
+      uid: d2fbfa3d-0717-4ff7-8495-ee4878aa35eb
+    - text: 'Hierarchical consistency: YearsSinceLastPromotion should be less than
+        or equal to YearsAtCompany for each record (YearsSinceLastPromotion <= YearsAtCompany).
+        Tenure-derived calculations and promotion gating rely on this relationship.
+        Example check: .satisfies("CASE WHEN `YearsSinceLastPromotion` <= `YearsAtCompany`
+        THEN 1 ELSE 0 END", "Promotion-tenure consistency", lambda x: x == 1).'
+      sources:
+      - start_line: 80
+        end_line: 84
+        file: ''
+      - start_line: 90
+        end_line: 93
+        file: ''
+      uid: a6459955-960e-436f-8235-685792451dae
+  '["BaseRaisePct","PerformanceRating"]':
+    code: []
+    assumptions:
+    - text: 'BaseRaisePct is deterministically derived from PerformanceRating: rows
+        with PerformanceRating == 3 must have BaseRaisePct == 0.03; rows with PerformanceRating
+        == 4 must have BaseRaisePct == 0.08; all other PerformanceRating values (including
+        null) must have BaseRaisePct == 0.0. (This can be expressed as row-level predicates
+        such as: PerformanceRating = 3 => BaseRaisePct = 0.03, PerformanceRating =
+        4 => BaseRaisePct = 0.08, else BaseRaisePct = 0.0.)'
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      uid: 773f98a3-a3c0-4332-854e-44ef08e201f4
+    - text: 'CompaRatio is computed as MonthlyIncome / BandMidpoint, therefore for
+        any row where MonthlyIncome is not null, BandMidpoint must be non-null and
+        non-zero. (Actionable constraint: for MonthlyIncome not null, BandMidpoint
+        IS NOT NULL and BandMidpoint != 0.)'
+      sources:
+      - start_line: 68
+        end_line: 70
+        file: ''
+      uid: 6629c1f0-e61b-4b55-9779-f4730547e6a6
+    - text: 'PromotionRecommended is only set when a conjunction of conditions holds.
+        Concretely, any row with PromotionRecommended == True must satisfy: PerformanceRating
+        >= 4, YearsSinceLastPromotion >= 2, LevelPercentile >= 0.85, and JobLevel
+        < max(JobLevel) (i.e. JobLevel is not already the highest level). (Actionable
+        constraint: PromotionRecommended => all four conditions hold.)'
+      sources:
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: c9967f4a-d279-4c58-8136-a09999a01c63
+    - text: 'If a row is eligible for promotion and a next-band lower bound exists,
+        the final NewMonthlyIncome must be at least the NextBandMin. Formally: for
+        rows where PromotionRecommended == True and NextBandMin is not null, NewMonthlyIncome
+        >= NextBandMin. (The code enforces this by boosting new income to the next-band
+        minimum.)'
+      sources:
+      - start_line: 103
+        end_line: 111
+        file: ''
+      uid: c9e03e91-6932-48b5-badb-bf007201166c
+    - text: Tenure-derived logic assumes hierarchical consistency between YearsAtCompany
+        and YearsSinceLastPromotion. Practically, YearsAtCompany should be >= 0 and
+        YearsSinceLastPromotion should be between 0 and YearsAtCompany (i.e. 0 <=
+        YearsSinceLastPromotion <= YearsAtCompany) so that TenureRatio = YearsSinceLastPromotion
+        / YearsAtCompany is sensible.
+      sources:
+      - start_line: 80
+        end_line: 84
+        file: ''
+      uid: daab55fb-bcd6-4c27-92f7-a5c81d7bbd5f
+    - text: 'LevelPercentile is computed by grouping on JobLevel and ranking MonthlyIncome
+        within the group. Therefore JobLevel must be present and for each JobLevel
+        group there should be at least one non-null MonthlyIncome. (Actionable constraint:
+        for every JobLevel value, count(MonthlyIncome NOT NULL) >= 1.)'
+      sources:
+      - start_line: 86
+        end_line: 87
+        file: ''
+      uid: b4a9eaad-51bf-44b5-9662-bfc8cf359d55
+    - text: 'The SalarySlab-to-midpoint mapping expects SalarySlab to be one of the
+        defined bands. Specifically, SalarySlab values ''Upto 5k'', ''5k-10k'', ''10k-15k''
+        must map to the fixed midpoints 2500.0, 7500.0, 12500.0 respectively; ''15k+''
+        maps to the median MonthlyIncome of rows with SalarySlab == ''15k+'' (or a
+        fallback constant if that median is NaN). (Actionable constraints: SalarySlab
+        subset check and for the three fixed slabs BandMidpoint equals the specified
+        constants; for ''15k+'' BandMidpoint equals median(MonthlyIncome) for that
+        slab or falls back to the known default.)'
+      sources:
+      - start_line: 22
+        end_line: 31
+        file: ''
+      uid: 1c804a50-8ff3-4fb1-8485-579f6d947f6d
+  EmpID:
+    code:
+    - suggestion: assert 'EmpID' in df.columns, "Missing required column 'EmpID'"
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''assert ''EmpID'' in df.columns,
+        "Missing required column ''EmpID''"'': invalid syntax (<string>, line 1)'
+      level: error
+      uid: e9d1dd5b-00d5-4756-b1d9-7ca6a80966df
+      source_assumptions:
+      - b38c931a-f4a3-499f-b465-9fdccd03ba96
+    - suggestion: .isComplete('EmpID')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: af431395-da78-4513-84f6-8aaae83b05f9
+      source_assumptions:
+      - a955c9e7-fd05-48f7-909d-a27a504d77cd
+    - suggestion: '.hasDataType(''EmpID'', ''String'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''EmpID'', ''String'',
+        lambda x: x == 1.0)'
+      level: warning
+      uid: ba100b12-7ec9-4985-930d-38ce72bfa259
+      source_assumptions:
+      - 888f8eb2-dba7-42cc-abac-e6aa45a9d1dc
+    - suggestion: '.hasDistinctness([''EmpID''], lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 778ef181-8be0-4873-8d28-79f321bea61b
+      source_assumptions:
+      - 80fdc375-0192-41c6-95b7-a19b9854360b
+    assumptions:
+    - text: 'The input must contain an ''EmpID'' column because the script selects
+        it for inclusion in the output file. Validating presence: assert that ''EmpID''
+        is a column in the input CSV.'
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 116
+        end_line: 134
+        file: ''
+      uid: b38c931a-f4a3-499f-b465-9fdccd03ba96
+    - text: 'The ''EmpID'' column should not contain null values (every row should
+        have an EmpID). This is required because EmpID is carried through to the output
+        without any filling or imputation. Deequ/GE check: fraction of non-null EmpID
+        == 1.0.'
+      sources:
+      - start_line: 116
+        end_line: 134
+        file: ''
+      - start_line: 137
+        end_line: 137
+        file: ''
+      uid: a955c9e7-fd05-48f7-909d-a27a504d77cd
+    - text: 'The ''EmpID'' values should be strings (or at least safely representable
+        as strings). The code does not coerce or transform EmpID, and it is written
+        back to CSV, so values should not be complex objects. Deequ/GE check: all
+        EmpID values satisfy type/string pattern (e.g., not JSON objects); or cast
+        to string without error.'
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 116
+        end_line: 134
+        file: ''
+      uid: 888f8eb2-dba7-42cc-abac-e6aa45a9d1dc
+    - text: 'EmpID is expected to act as a row identifier and therefore should be
+        unique per row (no duplicate EmpIDs). If exact uniqueness is too strict for
+        the use case, at least a very high distinctness (e.g., distinct_count/row_count
+        >= 0.99) should hold. Deequ/GE check: distinct(''EmpID'') == count or distinct
+        ratio >= 0.99.'
+      sources:
+      - start_line: 116
+        end_line: 134
+        file: ''
+      uid: 80fdc375-0192-41c6-95b7-a19b9854360b
+  MonthlyIncome:
+    code:
+    - suggestion: .isComplete('MonthlyIncome')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2f1d7be8-b71d-4712-a147-8e2c2b0c4cdf
+      source_assumptions:
+      - 8c3f3416-5103-42f3-a06c-c2b49d63ce71
+    - suggestion: '.hasDataType(''MonthlyIncome'', ''Numeric'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''MonthlyIncome'',
+        ''Numeric'', lambda x: x == 1.0)'
+      level: error
+      uid: b3f55fe1-6b3a-4185-a527-a1ffb3337dd7
+      source_assumptions:
+      - 506e6f26-a9fd-4dff-9fde-e848143526d0
+    - suggestion: .isNonNegative('MonthlyIncome')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 454449d8-809e-4838-9906-f4b99438c7b6
+      source_assumptions:
+      - 6a0680ca-0382-4102-9e92-18865f488ff0
+    - suggestion: '.hasMax(''MonthlyIncome'', lambda x: x < 1e7)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e0ed09d5-549a-4dd6-a9a4-c1d1bac59b1d
+      source_assumptions:
+      - b35e6142-7c11-403a-a2f4-409446fe5799
+    - suggestion: '.satisfies("floor(`MonthlyIncome`) = `MonthlyIncome`", ''MonthlyIncome
+        is integral-valued'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e5319cca-e185-446c-a056-6051a25276b1
+      source_assumptions:
+      - a5cf1e84-b09e-4a73-81bc-2d366808351b
+    assumptions:
+    - text: 'The ''MonthlyIncome'' column must not contain null/missing values in
+        the input (or become null after coercion). The pipeline later computes new
+        salaries and performs an astype(int) conversion (df[''NewMonthlyIncome'']
+        = new_income.astype(int)), which will fail if MonthlyIncome is missing. Represent
+        as a validation: no nulls in MonthlyIncome.'
+      sources:
+      - start_line: 53
+        end_line: 66
+        file: ''
+      - start_line: 112
+        end_line: 112
+        file: ''
+      uid: 8c3f3416-5103-42f3-a06c-c2b49d63ce71
+    - text: 'The ''MonthlyIncome'' values must be numeric or coercible to numeric
+        without producing NaNs (i.e., no non-numeric strings). The code uses pd.to_numeric(...,
+        errors=''coerce'') and later float(income) in assign_salary_slab; non-numeric
+        inputs would be coerced to NaN and break downstream numeric operations/casts.
+        Represent as a validation: MonthlyIncome is numeric (can be validated with
+        is_numeric or coercion check).'
+      sources:
+      - start_line: 56
+        end_line: 66
+        file: ''
+      - start_line: 8
+        end_line: 11
+        file: ''
+      uid: 506e6f26-a9fd-4dff-9fde-e848143526d0
+    - text: 'The ''MonthlyIncome'' values should be non-negative (>= 0) and realistically
+        positive. The slab assignment and business logic rely on comparisons to positive
+        thresholds (<= 5000, <= 10000, etc.) and multiplying/rounding incomes; negative
+        incomes are illogical and may produce incorrect business decisions. Represent
+        as a validation: MonthlyIncome >= 0.'
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 103
+        end_line: 113
+        file: ''
+      uid: 6a0680ca-0382-4102-9e92-18865f488ff0
+    - text: 'The ''MonthlyIncome'' values must be finite (no +inf or -inf) and within
+        a reasonable numeric range to avoid division/overflow when computing CompaRatio
+        (MonthlyIncome / BandMidpoint) and percentile ranks. Represent as a validation:
+        is_finite(MonthlyIncome) and optionally bound by a high upper limit (e.g.,
+        < 1e7) if appropriate for your data.'
+      sources:
+      - start_line: 68
+        end_line: 70
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      uid: b35e6142-7c11-403a-a2f4-409446fe5799
+    - text: 'MonthlyIncome is expected to be integral (whole currency units). The
+        dataset metadata lists it as Integral and the pipeline rounds and casts incomes
+        to integer types (new_income.round(0).astype(''Int64'') then astype(int)).
+        Represent as a validation: values are integer-valued (or have zero fractional
+        part).'
+      sources:
+      - start_line: 56
+        end_line: 66
+        file: ''
+      - start_line: 103
+        end_line: 104
+        file: ''
+      uid: a5cf1e84-b09e-4a73-81bc-2d366808351b
+  JobLevel:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `JobLevel` IS NOT NULL AND regexp_like(cast(`JobLevel`
+        as string), ''^\\d+$'') THEN 1 ELSE 0 END", "JobLevel is integer-like", lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `JobLevel` IS NOT NULL
+        AND regexp_like(cast(`JobLevel` as string), ''^\\d+$'') THEN 1 ELSE 0 END",
+        "JobLevel is integer-like", lambda x: x == 1)'' failed on data sample: Value:
+        0.0 does not meet the constraint requirement!'
+      level: error
+      uid: bea20933-5433-4bd0-930c-fd75efe8fc15
+      source_assumptions:
+      - 6d8658ca-6a59-4f1a-9653-89d769d97d76
+    - suggestion: .isComplete("JobLevel")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 215f9856-500f-4793-be05-c4ac5958bf46
+      source_assumptions:
+      - d0c4a043-a2b5-48d1-8cd5-6531af755a07
+    - suggestion: '.satisfies("CASE WHEN `JobLevel` > 0 THEN 1 ELSE 0 END", "JobLevel
+        positive", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 204f8656-894c-46bb-a485-86c3cbb1c4d4
+      source_assumptions:
+      - bda706bd-45a4-4555-a67e-6b1b588b986b
+    - suggestion: '.satisfies("CASE WHEN `JobLevel` IN (1,2,3,4,5) THEN 1 ELSE 0 END",
+        "JobLevel in expected set 1-5", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 6d6dcda8-aa56-4724-821e-995f537275c4
+      source_assumptions:
+      - bda706bd-45a4-4555-a67e-6b1b588b986b
+    - suggestion: '.hasCompleteness("JobLevel", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b62a4080-cf4b-4296-a4b0-79076c5477fd
+      source_assumptions:
+      - 12cdf962-553b-4385-a532-010fb75ff056
+    assumptions:
+    - text: 'JobLevel must be numeric/integer-parsable in the input. The code coerces
+        JobLevel with pd.to_numeric(errors=''coerce'') and subsequently performs numeric
+        operations (grouping, comparisons, arithmetic). If coercion produces NaNs
+        the numeric operations will be affected. A validation rule could be: .satisfies("CASE
+        WHEN `JobLevel` IS NOT NULL AND regexp_like(cast(`JobLevel` as string), ''^\\d+$'')
+        THEN 1 ELSE 0 END", "JobLevel is integer-like", lambda x: x == 1) or equivalently
+        assert that casting to numeric does not produce nulls for JobLevel.'
+      sources:
+      - start_line: 55
+        end_line: 65
+        file: ''
+      uid: 6d8658ca-6a59-4f1a-9653-89d769d97d76
+    - text: 'JobLevel should be complete (no missing values) in the input. The downstream
+        logic assumes JobLevel exists for rows (used in groupby, comparisons, and
+        arithmetic). You can express this as: .satisfies("CASE WHEN `JobLevel` IS
+        NOT NULL THEN 1 ELSE 0 END", "JobLevel not null", lambda x: x == 1).'
+      sources:
+      - start_line: 53
+        end_line: 65
+        file: ''
+      uid: d0c4a043-a2b5-48d1-8cd5-6531af755a07
+    - text: 'JobLevel is an ordinal level where larger numeric values indicate higher
+        seniority. The code compares JobLevel (< df[''JobLevel''].max()) to detect
+        top level and increments JobLevel by 1 for promoted rows. Validate that ordering
+        is meaningful (e.g., positive integers where larger means more senior). Example
+        check: .satisfies("CASE WHEN `JobLevel` > 0 THEN 1 ELSE 0 END", "JobLevel
+        positive", lambda x: x == 1) and a domain check such as .satisfies("CASE WHEN
+        `JobLevel` IN (1,2,3,4,5) THEN 1 ELSE 0 END", "JobLevel in expected set",
+        lambda x: x >= 0.99) if you expect a bounded set.'
+      sources:
+      - start_line: 87
+        end_line: 94
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      uid: bda706bd-45a4-4555-a67e-6b1b588b986b
+    - text: 'There must be at least one valid (non-null, numeric) JobLevel value so
+        df[''JobLevel''].max() is defined. The code uses df[''JobLevel''].max() to
+        prevent promotions from the top level; if all JobLevel values are null or
+        non-numeric this logic will fail or behave unexpectedly. Example check: .satisfies("CASE
+        WHEN max(`JobLevel`) IS NOT NULL THEN 1 ELSE 0 END", "JobLevel has a defined
+        max", lambda x: x == 1) (or ensure at least one row has a valid JobLevel).'
+      sources:
+      - start_line: 94
+        end_line: 94
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      uid: 12cdf962-553b-4385-a532-010fb75ff056
+  '["JobLevel","MonthlyIncome","PerformanceRating","YearsSinceLastPromotion"]':
+    code: []
+    assumptions:
+    - text: 'When computing CompaRatio the code divides MonthlyIncome by BandMidpoint.
+        Therefore for every row where MonthlyIncome is not null, BandMidpoint must
+        be non-null and strictly greater than 0 (to avoid NaN/Inf or divide-by-zero).
+        This can be enforced as multi-column checks such as: ensure (MonthlyIncome
+        IS NOT NULL) => (BandMidpoint IS NOT NULL AND BandMidpoint > 0).'
+      sources:
+      - start_line: 22
+        end_line: 31
+        file: ''
+      - start_line: 68
+        end_line: 71
+        file: ''
+      uid: 962bb8d1-a8ff-4fa0-986a-0c6ec6b7eb07
+    - text: 'Tenure-derived calculations assume hierarchical year consistency: whenever
+        YearsAtCompany > 0, YearsSinceLastPromotion should be numeric and less than
+        or equal to YearsAtCompany (YearsSinceLastPromotion <= YearsAtCompany). Enforce:
+        for rows with YearsAtCompany > 0, YearsSinceLastPromotion IS NOT NULL AND
+        YearsSinceLastPromotion <= YearsAtCompany.'
+      sources:
+      - start_line: 80
+        end_line: 84
+        file: ''
+      uid: beaa2333-e700-4c60-bf38-334d1f37bd38
+    - text: 'Level percentile calculation and subsequent percentile-based promotion
+        gating require both JobLevel and MonthlyIncome to be present and valid. Concretely:
+        JobLevel IS NOT NULL and MonthlyIncome IS NOT NULL for rows used to compute
+        LevelPercentile, and within every JobLevel group there must be at least one
+        non-null MonthlyIncome so that group percentiles are defined. Also LevelPercentile
+        values should fall in the [0.0, 1.0] range.'
+      sources:
+      - start_line: 86
+        end_line: 94
+        file: ''
+      uid: ddf08d1f-852b-4246-852e-0bd0b658043d
+    - text: 'PromotionRecommended logic combines multiple columns and requires them
+        to be numeric/comparable and non-null: PerformanceRating, YearsSinceLastPromotion,
+        LevelPercentile, and JobLevel. Specifically, these columns must be numeric
+        (or coerceable to numeric) and non-null for rows where promotion decisions
+        are expected to resolve (so the expression (PerformanceRating >= 4) & (YearsSinceLastPromotion
+        >= 2) & (LevelPercentile >= 0.85) & (JobLevel < max(JobLevel)) is well-defined).
+        Additionally, JobLevel must be on an ordinal/incremental scale because later
+        code computes NewJobLevel = JobLevel + 1.'
+      sources:
+      - start_line: 90
+        end_line: 95
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      uid: f7d42a01-eeb9-4183-b8e1-4528ec1992b1
+    - text: 'Next-band lower-bound logic expects next_band_lower_bound(SalarySlab)
+        to provide a non-null integer for slabs that have a next band. Concretely:
+        if SalarySlab is one of ''Upto 5k'', ''5k-10k'', or ''10k-15k'', then NextBandMin
+        must be non-null and > 0. This is required because for promotable rows the
+        code uses NextBandMin to raise new income to at least the next-band minimum.'
+      sources:
+      - start_line: 34
+        end_line: 41
+        file: ''
+      - start_line: 101
+        end_line: 111
+        file: ''
+      uid: 8fc5846c-d866-46fc-a490-a6ea90e58253
+    - text: 'NewMonthlyIncome is used to derive NewSalarySlab via assign_salary_slab.
+        Therefore NewMonthlyIncome must be non-null (not NA) and a valid numeric value
+        so that assign_salary_slab returns a proper slab string. Enforce: NewMonthlyIncome
+        IS NOT NULL and NewMonthlyIncome is a finite number.'
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 112
+        end_line: 113
+        file: ''
+      uid: 2cdecc33-1d1d-47c2-98f0-424ac8a9763c
+  YearsSinceLastPromotion:
+    code:
+    - suggestion: '.hasDataType(''YearsSinceLastPromotion'', ''Numeric'', lambda x:
+        x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''YearsSinceLastPromotion'',
+        ''Numeric'', lambda x: x == 1.0)'
+      level: error
+      uid: 16dc8075-dcb1-4b9b-80b0-37006859ad27
+      source_assumptions:
+      - 1abefa8d-b882-43c2-b75f-a861d8ced8f3
+    - suggestion: '.hasCompleteness(''YearsSinceLastPromotion'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b95f9284-6de5-48e4-82d3-77e175294050
+      source_assumptions:
+      - d14ada84-97d6-40ed-a5fe-dc60fe20d05d
+    - suggestion: '.isNonNegative(''YearsSinceLastPromotion'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 713a2d9a-268a-4b2a-963c-2ea18c3332ff
+      source_assumptions:
+      - c82aee2a-6a67-4a97-91db-629fad8a1695
+    - suggestion: '.isLessThanOrEqualTo(''YearsSinceLastPromotion'', ''YearsAtCompany'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7b237bd7-3181-4193-846c-c04ce2c4997c
+      source_assumptions:
+      - 503d8f4a-c514-4ba4-af8c-8fc035847419
+    - suggestion: '.satisfies(''CASE WHEN floor(`YearsSinceLastPromotion`) = `YearsSinceLastPromotion`
+        THEN 1 ELSE 0 END'', ''YearsSinceLastPromotion_is_integer'', lambda x: x ==
+        1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d98c0597-d85a-41b4-b511-23701bfb35ef
+      source_assumptions:
+      - a2c82e93-5525-41bc-83a0-105e36b88974
+    assumptions:
+    - text: 'The ''YearsSinceLastPromotion'' column must be numeric (convertible to
+        a numeric type). The code coerces this column with pd.to_numeric(errors=''coerce''),
+        so any non-numeric values in the input will become NULL and break numeric
+        comparisons/arithmetic later (e.g., >= 2 and division). Example validation
+        (Deequ/SQL style): .satisfies("CASE WHEN `YearsSinceLastPromotion` RLIKE ''^[0-9]+$''
+        THEN 1 ELSE 0 END", "YearsSinceLastPromotion_is_numeric_integer", lambda x:
+        x == 1).'
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      uid: 1abefa8d-b882-43c2-b75f-a861d8ced8f3
+    - text: 'The ''YearsSinceLastPromotion'' column should contain no NULL values
+        in the input. The downstream logic performs comparisons (>= 2) and arithmetic
+        that assume presence of a value for each row. Example validation: .satisfies("CASE
+        WHEN `YearsSinceLastPromotion` IS NOT NULL THEN 1 ELSE 0 END", "Non_null_YearsSinceLastPromotion",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: d14ada84-97d6-40ed-a5fe-dc60fe20d05d
+    - text: 'Values in ''YearsSinceLastPromotion'' should be non-negative (>= 0).
+        Negative values would be semantically invalid for ''years since'' and would
+        distort the TenureRatio and TenureAdjPct calculations. Example validation:
+        .satisfies("CASE WHEN `YearsSinceLastPromotion` >= 0 THEN 1 ELSE 0 END", "YearsSinceLastPromotion_non_negative",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 80
+        end_line: 84
+        file: ''
+      uid: c82aee2a-6a67-4a97-91db-629fad8a1695
+    - text: 'Hierarchical consistency: each row''s ''YearsSinceLastPromotion'' should
+        be less than or equal to ''YearsAtCompany'' (YearsSinceLastPromotion <= YearsAtCompany).
+        The TenureRatio calculation and the comment about hierarchical year consistency
+        expect this relation. Example validation: .satisfies("CASE WHEN `YearsSinceLastPromotion`
+        <= `YearsAtCompany` THEN 1 ELSE 0 END", "Promotion_vs_Tenure_consistency",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 80
+        end_line: 84
+        file: ''
+      - start_line: 86
+        end_line: 86
+        file: ''
+      uid: 503d8f4a-c514-4ba4-af8c-8fc035847419
+    - text: 'The column should represent whole years (integers) rather than arbitrary
+        fractions. The business logic treats years as counts (e.g., checking >= 2
+        for promotion eligibility) and the dataset metadata indicates an integral
+        type. Example validation: .satisfies("CASE WHEN floor(`YearsSinceLastPromotion`)
+        = `YearsSinceLastPromotion` THEN 1 ELSE 0 END", "YearsSinceLastPromotion_is_integer",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: a2c82e93-5525-41bc-83a0-105e36b88974
+  '["MonthlyIncome","NewMonthlyIncome","TotalRaisePct"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `PromotionRecommended` = false THEN CASE
+        WHEN `NewMonthlyIncome` = CAST(ROUND(`MonthlyIncome` * (1 + `TotalRaisePct`))
+        AS INTEGER) THEN 1 ELSE 0 END ELSE 1 END", "NewMonthlyIncome matches rounded
+        raise when not promoted", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `PromotionRecommended`
+        = false THEN CASE WHEN `NewMonthlyIncome` = CAST(ROUND(`MonthlyIncome` * (1
+        + `TotalRaisePct`)) AS INTEGER) THEN 1 ELSE 0 END ELSE 1 END", "NewMonthlyIncome
+        matches rounded raise when not promoted", lambda x: x == 1)'' failed on data
+        sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `PromotionRecommended` cannot be
+        resolved. Did you mean one of the following? [`JobInvolvement`, `MonthlyIncome`,
+        `DistanceFromHome`, `EducationField`, `EmployeeCount`].; line 1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN (''PromotionRecommended = false) THEN CASE
+        WHEN (''NewMonthlyIncome = cast(''ROUND((MonthlyIncome#411L * (1 + ''TotalRaisePct)))
+        as int)) THEN 1 ELSE 0 END ELSE 1 END as int)) AS sum(CAST(CASE WHEN (PromotionRecommended
+        = false) THEN CASE WHEN (NewMonthlyIncome = CAST(ROUND((MonthlyIncome * (1
+        + TotalRaisePct))) AS INT)) THEN 1 ELSE 0 END ELSE 1 END AS INT))#642231,
+        count(1) AS count(1)#642232L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 07255ce5-e276-4de2-945f-45d1e8798ab9
+      source_assumptions:
+      - d5c29128-7921-4e12-b3df-10bd2587289c
+    - suggestion: '.satisfies("CASE WHEN `PromotionRecommended` = true AND `NextBandMin`
+        IS NOT NULL THEN CASE WHEN `NewMonthlyIncome` = (CASE WHEN CAST(ROUND(`MonthlyIncome`
+        * (1 + `TotalRaisePct`)) AS INTEGER) >= `NextBandMin` THEN CAST(ROUND(`MonthlyIncome`
+        * (1 + `TotalRaisePct`)) AS INTEGER) ELSE `NextBandMin` END) THEN 1 ELSE 0
+        END ELSE 1 END", "NewMonthlyIncome equals max(rounded raise, NextBandMin)
+        when promoted and NextBandMin exists", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `PromotionRecommended`
+        = true AND `NextBandMin` IS NOT NULL THEN CASE WHEN `NewMonthlyIncome` = (CASE
+        WHEN CAST(ROUND(`MonthlyIncome` * (1 + `TotalRaisePct`)) AS INTEGER) >= `NextBandMin`
+        THEN CAST(ROUND(`MonthlyIncome` * (1 + `TotalRaisePct`)) AS INTEGER) ELSE
+        `NextBandMin` END) THEN 1 ELSE 0 END ELSE 1 END", "NewMonthlyIncome equals
+        max(rounded raise, NextBandMin) when promoted and NextBandMin exists", lambda
+        x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `PromotionRecommended` cannot be resolved. Did you mean one of the following?
+        [`JobInvolvement`, `MonthlyIncome`, `DistanceFromHome`, `EducationField`,
+        `EmployeeCount`].; line 1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN ((''PromotionRecommended = true) AND isnotnull(''NextBandMin))
+        THEN CASE WHEN (''NewMonthlyIncome = CASE WHEN (cast(''ROUND((MonthlyIncome#411L
+        * (1 + ''TotalRaisePct))) as int) >= ''NextBandMin) THEN cast(''ROUND((MonthlyIncome#411L
+        * (1 + ''TotalRaisePct))) as int) ELSE ''NextBandMin END) THEN 1 ELSE 0 END
+        ELSE 1 END as int)) AS sum(CAST(CASE WHEN ((PromotionRecommended = true) AND
+        (NextBandMin IS NOT NULL)) THEN CASE WHEN (NewMonthlyIncome = CASE WHEN (CAST(ROUND((MonthlyIncome
+        * (1 + TotalRaisePct))) AS INT) >= NextBandMin) THEN CAST(ROUND((MonthlyIncome
+        * (1 + TotalRaisePct))) AS INT) ELSE NextBandMin END) THEN 1 ELSE 0 END ELSE
+        1 END AS INT))#642329, count(1) AS count(1)#642330L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 92ac09ca-27e1-4d86-8fb7-4399723c5a9b
+      source_assumptions:
+      - 7dc5d0a6-f493-4394-ba04-f1151568fe39
+    - suggestion: '.satisfies("CASE WHEN `TotalRaisePct` >= 0.0 AND `TotalRaisePct`
+        <= 0.20 THEN 1 ELSE 0 END", "TotalRaisePct within [0.0, 0.20]", lambda x:
+        x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `TotalRaisePct` >= 0.0
+        AND `TotalRaisePct` <= 0.20 THEN 1 ELSE 0 END", "TotalRaisePct within [0.0,
+        0.20]", lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `TotalRaisePct` cannot be resolved. Did you mean one of the following? [`DailyRate`,
+        `HourlyRate`, `MonthlyRate`, `Attrition`, `JobRole`].; line 1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN ((''TotalRaisePct >= 0.0) AND (''TotalRaisePct
+        <= 0.20)) THEN 1 ELSE 0 END as int)) AS sum(CAST(CASE WHEN ((TotalRaisePct
+        >= 0.0) AND (TotalRaisePct <= 0.20)) THEN 1 ELSE 0 END AS INT))#642141, count(1)
+        AS count(1)#642142L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 55f150a1-0a13-4038-bb4b-e20bea192431
+      source_assumptions:
+      - 22556b69-d3cb-4100-a48f-b14ee90057aa
+    - suggestion: '.satisfies("CASE WHEN `MonthlyIncome` IS NULL THEN 1 ELSE CASE
+        WHEN `NewMonthlyIncome` >= `MonthlyIncome` THEN 1 ELSE 0 END END", "NewMonthlyIncome
+        is not less than MonthlyIncome", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `MonthlyIncome` IS NULL
+        THEN 1 ELSE CASE WHEN `NewMonthlyIncome` >= `MonthlyIncome` THEN 1 ELSE 0
+        END END", "NewMonthlyIncome is not less than MonthlyIncome", lambda x: x ==
+        1)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `NewMonthlyIncome` cannot be resolved.
+        Did you mean one of the following? [`MonthlyIncome`, `MonthlyRate`, `HourlyRate`,
+        `Attrition`, `DailyRate`].; line 1 pos 56;
+
+        ''Aggregate [sum(cast(CASE WHEN isnull(MonthlyIncome#411L) THEN 1 ELSE CASE
+        WHEN (''NewMonthlyIncome >= MonthlyIncome#411L) THEN 1 ELSE 0 END END as int))
+        AS sum(CAST(CASE WHEN (MonthlyIncome IS NULL) THEN 1 ELSE CASE WHEN (NewMonthlyIncome
+        >= MonthlyIncome) THEN 1 ELSE 0 END END AS INT))#642184, count(1) AS count(1)#642185L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 068a16b7-af8c-46aa-a94f-5750344e2c09
+      source_assumptions:
+      - c15be4c8-73b2-44f1-8996-3f405157e0ec
+    - suggestion: '.satisfies("CASE WHEN `TotalRaisePct` = 0.0 AND `PromotionRecommended`
+        = false THEN CASE WHEN `NewMonthlyIncome` = `MonthlyIncome` THEN 1 ELSE 0
+        END ELSE 1 END", "No change in income when TotalRaisePct == 0.0 and not promoted",
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `TotalRaisePct` = 0.0
+        AND `PromotionRecommended` = false THEN CASE WHEN `NewMonthlyIncome` = `MonthlyIncome`
+        THEN 1 ELSE 0 END ELSE 1 END", "No change in income when TotalRaisePct ==
+        0.0 and not promoted", lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `TotalRaisePct` cannot be resolved. Did you mean one of the following? [`DailyRate`,
+        `HourlyRate`, `MonthlyRate`, `Attrition`, `JobRole`].; line 1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN ((''TotalRaisePct = 0.0) AND (''PromotionRecommended
+        = false)) THEN CASE WHEN (''NewMonthlyIncome = MonthlyIncome#411L) THEN 1
+        ELSE 0 END ELSE 1 END as int)) AS sum(CAST(CASE WHEN ((TotalRaisePct = 0.0)
+        AND (PromotionRecommended = false)) THEN CASE WHEN (NewMonthlyIncome = MonthlyIncome)
+        THEN 1 ELSE 0 END ELSE 1 END AS INT))#642143, count(1) AS count(1)#642144L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: 34ca4660-6299-4987-b8e5-a6eea407ba12
+      source_assumptions:
+      - 2642013c-9f37-448b-8c4a-512502dc596b
+    assumptions:
+    - text: 'For rows where PromotionRecommended is False (i.e. not in the promo_mask),
+        ''NewMonthlyIncome'' should equal round(''MonthlyIncome'' * (1 + ''TotalRaisePct''))
+        and be stored as an integer. This can be expressed as: For rows with PromotionRecommended
+        == False -> NewMonthlyIncome == round(MonthlyIncome * (1 + TotalRaisePct)).'
+      sources:
+      - start_line: 103
+        end_line: 112
+        file: ''
+      uid: d5c29128-7921-4e12-b3df-10bd2587289c
+    - text: 'For rows where PromotionRecommended is True and a next-band lower bound
+        exists (NextBandMin not null), ''NewMonthlyIncome'' should be the maximum
+        of the rounded raised income and the next-band minimum: NewMonthlyIncome ==
+        max( round(MonthlyIncome * (1 + TotalRaisePct)), NextBandMin ).'
+      sources:
+      - start_line: 101
+        end_line: 111
+        file: ''
+      uid: 7dc5d0a6-f493-4394-ba04-f1151568fe39
+    - text: '''TotalRaisePct'' is bounded to the closed interval [0.0, 0.20]. Consequently
+        the computed raised income MonthlyIncome * (1 + TotalRaisePct) should never
+        apply a negative reduction. (Constraint source: clipping of TotalRaisePct.)'
+      sources:
+      - start_line: 97
+        end_line: 99
+        file: ''
+      uid: 22556b69-d3cb-4100-a48f-b14ee90057aa
+    - text: 'Because TotalRaisePct is clipped to be >= 0, for all rows NewMonthlyIncome
+        should be >= MonthlyIncome (after accounting for rounding and possible promotion
+        band boosting). In other words: NewMonthlyIncome >= MonthlyIncome for every
+        record.'
+      sources:
+      - start_line: 99
+        end_line: 111
+        file: ''
+      uid: c15be4c8-73b2-44f1-8996-3f405157e0ec
+    - text: If TotalRaisePct == 0.0 and PromotionRecommended is False, then NewMonthlyIncome
+        should equal MonthlyIncome exactly (since round(MonthlyIncome * 1.0) == MonthlyIncome).
+      sources:
+      - start_line: 97
+        end_line: 112
+        file: ''
+      uid: 2642013c-9f37-448b-8c4a-512502dc596b
+  '["MonthlyIncome","SalarySlab"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN (`MonthlyIncome` <= 5000 AND `SalarySlab`
+        = ''Upto 5k'') OR (`MonthlyIncome` > 5000 AND `MonthlyIncome` <= 10000 AND
+        `SalarySlab` = ''5k-10k'') OR (`MonthlyIncome` > 10000 AND `MonthlyIncome`
+        <= 15000 AND `SalarySlab` = ''10k-15k'') OR (`MonthlyIncome` > 15000 AND `SalarySlab`
+        = ''15k+'') THEN 1 ELSE 0 END", "SalarySlab matches MonthlyIncome thresholds",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 37fa4960-641a-43a2-9312-55310ba606b1
+      source_assumptions:
+      - 14eef552-acdd-47b2-9445-35d7801137a1
+    - suggestion: '.satisfies("CASE WHEN `SalarySlab` = ''15k+'' THEN CASE WHEN `MonthlyIncome`
+        > 15000 THEN 1 ELSE 0 END ELSE 1 END", "15k+ slab implies MonthlyIncome >
+        15000", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 87f80504-647b-47a3-b0d0-ce5db59abd25
+      source_assumptions:
+      - 6b3abe78-f308-4d7b-ac48-08e6bd47bb59
+    - suggestion: '.satisfies("CASE WHEN `SalarySlab` IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'')
+        AND `BandMidpoint` IS NOT NULL AND `BandMidpoint` > 0 THEN 1 ELSE 0 END",
+        "BandMidpoint present and positive for all known SalarySlab values", lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `SalarySlab` IN (''Upto
+        5k'',''5k-10k'',''10k-15k'',''15k+'') AND `BandMidpoint` IS NOT NULL AND `BandMidpoint`
+        > 0 THEN 1 ELSE 0 END", "BandMidpoint present and positive for all known SalarySlab
+        values", lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `BandMidpoint` cannot be resolved. Did you mean one of the following? [`Attrition`,
+        `Education`, `StandardHours`, `id`, `AgeGroup`].; line 1 pos 68;
+
+        ''Aggregate [sum(cast(CASE WHEN ((SalarySlab#412 IN (Upto 5k,5k-10k,10k-15k,15k+)
+        AND isnotnull(''BandMidpoint)) AND (''BandMidpoint > 0)) THEN 1 ELSE 0 END
+        as int)) AS sum(CAST(CASE WHEN (((SalarySlab IN (Upto 5k, 5k-10k, 10k-15k,
+        15k+)) AND (BandMidpoint IS NOT NULL)) AND (BandMidpoint > 0)) THEN 1 ELSE
+        0 END AS INT))#642574, count(1) AS count(1)#642576L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: bf08e4bd-03fb-48e6-9ddd-937326f84c8a
+      source_assumptions:
+      - 61d3c0ec-7b05-46d1-b63c-8cc59ba8976d
+    - suggestion: '.satisfies("CASE WHEN `PromotionRecommended` = true AND `NextBandMin`
+        IS NOT NULL THEN CASE WHEN `NewMonthlyIncome` >= `NextBandMin` THEN 1 ELSE
+        0 END ELSE 1 END", "When promotion recommended and next-band exists, NewMonthlyIncome
+        >= NextBandMin", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `PromotionRecommended`
+        = true AND `NextBandMin` IS NOT NULL THEN CASE WHEN `NewMonthlyIncome` >=
+        `NextBandMin` THEN 1 ELSE 0 END ELSE 1 END", "When promotion recommended and
+        next-band exists, NewMonthlyIncome >= NextBandMin", lambda x: x == 1)'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `PromotionRecommended` cannot be
+        resolved. Did you mean one of the following? [`JobInvolvement`, `MonthlyIncome`,
+        `DistanceFromHome`, `EducationField`, `EmployeeCount`].; line 1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN ((''PromotionRecommended = true) AND isnotnull(''NextBandMin))
+        THEN CASE WHEN (''NewMonthlyIncome >= ''NextBandMin) THEN 1 ELSE 0 END ELSE
+        1 END as int)) AS sum(CAST(CASE WHEN ((PromotionRecommended = true) AND (NextBandMin
+        IS NOT NULL)) THEN CASE WHEN (NewMonthlyIncome >= NextBandMin) THEN 1 ELSE
+        0 END ELSE 1 END AS INT))#642575, count(1) AS count(1)#642578L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: baffe84f-0486-4a79-b826-0c04b91cd99e
+      source_assumptions:
+      - f1139b7f-3ee2-4861-8a0a-eea48adb9dbd
+    assumptions:
+    - text: 'SalarySlab must be consistent with MonthlyIncome according to the threshold
+        logic in assign_salary_slab. Concretely: if MonthlyIncome <= 5000 then SalarySlab
+        == ''Upto 5k''; if 5000 < MonthlyIncome <= 10000 then SalarySlab == ''5k-10k'';
+        if 10000 < MonthlyIncome <= 15000 then SalarySlab == ''10k-15k''; otherwise
+        SalarySlab == ''15k+''. This can be enforced as a single predicate: SalarySlab
+        = CASE WHEN MonthlyIncome <= 5000 THEN ''Upto 5k'' WHEN MonthlyIncome <= 10000
+        THEN ''5k-10k'' WHEN MonthlyIncome <= 15000 THEN ''10k-15k'' ELSE ''15k+''
+        END.'
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 68
+        end_line: 71
+        file: ''
+      uid: 14eef552-acdd-47b2-9445-35d7801137a1
+    - text: For rows labeled with SalarySlab == '15k+', MonthlyIncome should be greater
+        than 15000 (i.e., MonthlyIncome > 15000). The code treats any income >15000
+        as '15k+' and also uses the '15k+' rows' MonthlyIncome median as the band
+        midpoint.
+      sources:
+      - start_line: 16
+        end_line: 19
+        file: ''
+      - start_line: 22
+        end_line: 31
+        file: ''
+      uid: 6b3abe78-f308-4d7b-ac48-08e6bd47bb59
+    - text: The mapping from SalarySlab to BandMidpoint must yield a non-null, positive
+        value for every row so that CompaRatio = MonthlyIncome / BandMidpoint is defined.
+        In other words, for all rows df['SalarySlab'] must map to a BandMidpoint and
+        BandMidpoint > 0.
+      sources:
+      - start_line: 22
+        end_line: 31
+        file: ''
+      - start_line: 68
+        end_line: 70
+        file: ''
+      uid: 61d3c0ec-7b05-46d1-b63c-8cc59ba8976d
+    - text: When a promotion is recommended and a next-band minimum exists (i.e.,
+        PromotionRecommended == True AND NextBandMin is not null), NewMonthlyIncome
+        must be at least NextBandMin. The code enforces NewMonthlyIncome = max(rounded_raised_income,
+        NextBandMin) for these rows.
+      sources:
+      - start_line: 34
+        end_line: 41
+        file: ''
+      - start_line: 101
+        end_line: 111
+        file: ''
+      - start_line: 112
+        end_line: 113
+        file: ''
+      uid: f1139b7f-3ee2-4861-8a0a-eea48adb9dbd
+  '["NewMonthlyIncome","NextBandMin","PromotionRecommended"]':
+    code:
+    - suggestion: '.satisfies("(NOT PromotionRecommended) OR (NextBandMin IS NULL)
+        OR (NewMonthlyIncome >= NextBandMin)", "Promotion band minimum respected",
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(NOT PromotionRecommended) OR (NextBandMin
+        IS NULL) OR (NewMonthlyIncome >= NextBandMin)", "Promotion band minimum respected",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `PromotionRecommended` cannot be resolved. Did you mean one of the following?
+        [`JobInvolvement`, `MonthlyIncome`, `DistanceFromHome`, `EducationField`,
+        `EmployeeCount`].; line 1 pos 5;
+
+        ''Aggregate [sum(cast(((NOT ''PromotionRecommended OR isnull(''NextBandMin))
+        OR (''NewMonthlyIncome >= ''NextBandMin)) as int)) AS sum(CAST((((NOT PromotionRecommended)
+        OR (NextBandMin IS NULL)) OR (NewMonthlyIncome >= NextBandMin)) AS INT))#641741,
+        count(1) AS count(1)#641742L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 14e0b345-5e93-42db-a702-9f432228fe46
+      source_assumptions:
+      - e271a734-b220-42f1-aa8a-33361c2eb1b9
+    - suggestion: '.satisfies("(MonthlyIncome IS NULL) OR (NewMonthlyIncome IS NULL)
+        OR (NewMonthlyIncome >= MonthlyIncome)", "NewMonthlyIncome >= MonthlyIncome
+        when both present", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(MonthlyIncome IS NULL) OR (NewMonthlyIncome
+        IS NULL) OR (NewMonthlyIncome >= MonthlyIncome)", "NewMonthlyIncome >= MonthlyIncome
+        when both present", lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `NewMonthlyIncome` cannot be resolved. Did you mean one of the following?
+        [`MonthlyIncome`, `MonthlyRate`, `HourlyRate`, `Attrition`, `DailyRate`].;
+        line 1 pos 28;
+
+        ''Aggregate [sum(cast(((isnull(MonthlyIncome#411L) OR isnull(''NewMonthlyIncome))
+        OR (''NewMonthlyIncome >= MonthlyIncome#411L)) as int)) AS sum(CAST((((MonthlyIncome
+        IS NULL) OR (NewMonthlyIncome IS NULL)) OR (NewMonthlyIncome >= MonthlyIncome))
+        AS INT))#641743, count(1) AS count(1)#641744L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 5d0c1259-0fdf-4583-afd9-b1db3cd387c3
+      source_assumptions:
+      - 646f0783-74b6-48f4-b084-562e37c28681
+    - suggestion: '.satisfies("((SalarySlab IN (''Upto 5k'',''5k-10k'',''10k-15k'')
+        AND NextBandMin IS NOT NULL) OR (SalarySlab NOT IN (''Upto 5k'',''5k-10k'',''10k-15k'')
+        AND NextBandMin IS NULL))", "NextBandMin consistent with SalarySlab membership",
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("((SalarySlab IN (''Upto 5k'',''5k-10k'',''10k-15k'')
+        AND NextBandMin IS NOT NULL) OR (SalarySlab NOT IN (''Upto 5k'',''5k-10k'',''10k-15k'')
+        AND NextBandMin IS NULL))", "NextBandMin consistent with SalarySlab membership",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `NextBandMin` cannot be resolved. Did you mean one of the following? [`Gender`,
+        `Attrition`, `Education`, `id`, `Age`].; line 1 pos 51;
+
+        ''Aggregate [sum(cast(((SalarySlab#412 IN (Upto 5k,5k-10k,10k-15k) AND isnotnull(''NextBandMin))
+        OR (NOT SalarySlab#412 IN (Upto 5k,5k-10k,10k-15k) AND isnull(''NextBandMin)))
+        as int)) AS sum(CAST((((SalarySlab IN (Upto 5k, 5k-10k, 10k-15k)) AND (NextBandMin
+        IS NOT NULL)) OR ((NOT (SalarySlab IN (Upto 5k, 5k-10k, 10k-15k))) AND (NextBandMin
+        IS NULL))) AS INT))#641738, count(1) AS count(1)#641739L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: 5b089ba8-9d32-4cc6-8b8e-ed28645bbb89
+      source_assumptions:
+      - 0549f2a2-a717-415a-b306-dc97cd7c43a1
+    - suggestion: '.satisfies("((PromotionRecommended AND NewJobLevel = JobLevel +
+        1) OR (NOT PromotionRecommended AND NewJobLevel = JobLevel))", "NewJobLevel
+        correctly reflects promotions", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("((PromotionRecommended AND NewJobLevel
+        = JobLevel + 1) OR (NOT PromotionRecommended AND NewJobLevel = JobLevel))",
+        "NewJobLevel correctly reflects promotions", lambda x: x == 1)'' failed on
+        data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `PromotionRecommended` cannot be
+        resolved. Did you mean one of the following? [`JobInvolvement`, `MonthlyIncome`,
+        `DistanceFromHome`, `EducationField`, `EmployeeCount`].; line 1 pos 2;
+
+        ''Aggregate [sum(cast(((''PromotionRecommended AND (''NewJobLevel = (JobLevel#407L
+        + cast(1 as bigint)))) OR (NOT ''PromotionRecommended AND (''NewJobLevel =
+        JobLevel#407L))) as int)) AS sum(CAST(((PromotionRecommended AND (NewJobLevel
+        = (JobLevel + 1))) OR ((NOT PromotionRecommended) AND (NewJobLevel = JobLevel)))
+        AS INT))#641737, count(1) AS count(1)#641740L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 8e3e52c7-72dc-494f-b3c0-a62accff51fe
+      source_assumptions:
+      - cbb16e1c-ff6e-4669-8c94-8619c82a4d25
+    assumptions:
+    - text: 'For any row where PromotionRecommended is True and NextBandMin is not
+        null, NewMonthlyIncome must be greater than or equal to NextBandMin. The code
+        builds promo_mask = (PromotionRecommended & NextBandMin.notna()) and then
+        sets new_income[promo_mask] = max(new_income[promo_mask], NextBandMin[promo_mask])
+        before writing NewMonthlyIncome. Example Deequ-style predicate: satisfy the
+        condition ''(NOT PromotionRecommended) OR (NextBandMin IS NULL) OR (NewMonthlyIncome
+        >= NextBandMin)''.'
+      sources:
+      - start_line: 106
+        end_line: 111
+        file: ''
+      - start_line: 112
+        end_line: 112
+        file: ''
+      uid: e271a734-b220-42f1-aa8a-33361c2eb1b9
+    - text: 'For rows with non-null MonthlyIncome and non-null NewMonthlyIncome, NewMonthlyIncome
+        must be >= MonthlyIncome. TotalRaisePct is clipped to a lower bound of 0.0
+        and new_income = MonthlyIncome * (1.0 + TotalRaisePct) (rounded), so the computed
+        new income cannot be lower than the original monthly income. Example Deequ
+        predicate: ''(MonthlyIncome IS NULL) OR (NewMonthlyIncome IS NULL) OR (NewMonthlyIncome
+        >= MonthlyIncome)''.'
+      sources:
+      - start_line: 99
+        end_line: 99
+        file: ''
+      - start_line: 103
+        end_line: 104
+        file: ''
+      - start_line: 112
+        end_line: 112
+        file: ''
+      uid: 646f0783-74b6-48f4-b084-562e37c28681
+    - text: 'NextBandMin is non-null only for salary slabs that have a defined next-band
+        lower bound. The next_band_lower_bound function returns numeric lower bounds
+        for ''Upto 5k'', ''5k-10k'', and ''10k-15k'' and returns None for ''15k+''
+        (and any other unspecified slab), so NextBandMin should be non-null exactly
+        when SalarySlab is one of [''Upto 5k'', ''5k-10k'', ''10k-15k''] and null
+        otherwise. Example Deequ predicate: ''(SalarySlab IN ("Upto 5k","5k-10k","10k-15k")
+        AND NextBandMin IS NOT NULL) OR (SalarySlab NOT IN (...) AND NextBandMin IS
+        NULL)''.'
+      sources:
+      - start_line: 34
+        end_line: 41
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 0549f2a2-a717-415a-b306-dc97cd7c43a1
+    - text: 'When PromotionRecommended is True, NewJobLevel must equal JobLevel +
+        1; when PromotionRecommended is False, NewJobLevel must equal JobLevel. The
+        code sets NewJobLevel = np.where(PromotionRecommended, JobLevel + 1, JobLevel).
+        Example Deequ predicate: ''(PromotionRecommended AND NewJobLevel = JobLevel
+        + 1) OR (NOT PromotionRecommended AND NewJobLevel = JobLevel)''.'
+      sources:
+      - start_line: 90
+        end_line: 95
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      uid: cbb16e1c-ff6e-4669-8c94-8619c82a4d25
+  '["NextBandMin","SalarySlab"]':
+    code: []
+    assumptions:
+    - text: 'SalarySlab must contain only the recognized categories used by the banding
+        logic: ''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+''.
+
+        Suggested Deequ constraint: .isContainedIn(''SalarySlab'', [''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''])'
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 34
+        end_line: 41
+        file: ''
+      uid: 0ba6278b-522a-4522-81b5-9a59833da737
+    - text: 'For any row with MonthlyIncome not null, the BandMidpoint value (mapped
+        from SalarySlab) must be present and positive because MonthlyIncome is divided
+        by BandMidpoint to compute CompaRatio.
+
+        Suggested Deequ constraints:
+
+        - .where("MonthlyIncome IS NOT NULL").hasCompleteness(''BandMidpoint'', 1.0)
+
+        - .where("MonthlyIncome IS NOT NULL").isGreaterThan(''BandMidpoint'', 0)
+
+        (You can combine into one conditional predicate in Deequ: .satisfies("NOT
+        (MonthlyIncome IS NOT NULL) OR BandMidpoint > 0", ''bandmid_positive_for_income''))'
+      sources:
+      - start_line: 22
+        end_line: 31
+        file: ''
+      - start_line: 68
+        end_line: 71
+        file: ''
+      uid: d2859afa-8b01-41d2-b067-7588d5a399ed
+    - text: 'NextBandMin must follow the explicit mapping from SalarySlab defined
+        in next_band_lower_bound: ''Upto 5k'' -> 5001, ''5k-10k'' -> 10001, ''10k-15k''
+        -> 15001, and ''15k+'' -> null. Rows must respect that mapping.
+
+        Suggested Deequ constraint (single predicate): .satisfies("(SalarySlab = ''Upto
+        5k'' AND NextBandMin = 5001) OR (SalarySlab = ''5k-10k'' AND NextBandMin =
+        10001) OR (SalarySlab = ''10k-15k'' AND NextBandMin = 15001) OR (SalarySlab
+        = ''15k+'' AND NextBandMin IS NULL)", ''nextband_mapping_consistency'')'
+      sources:
+      - start_line: 34
+        end_line: 41
+        file: ''
+      - start_line: 101
+        end_line: 111
+        file: ''
+      uid: e7792a94-7145-45a4-b79e-03e902e97628
+    - text: 'If a row is marked for promotion (PromotionRecommended = true) and NextBandMin
+        is not null, the post-raise NewMonthlyIncome must be >= NextBandMin (the code
+        forces the new income up to at least the next band''s minimum).
+
+        Suggested Deequ constraint: .satisfies("NOT (PromotionRecommended = true AND
+        NextBandMin IS NOT NULL) OR NewMonthlyIncome >= NextBandMin", ''promo_boost_enforced'')'
+      sources:
+      - start_line: 103
+        end_line: 113
+        file: ''
+      - start_line: 106
+        end_line: 111
+        file: ''
+      uid: 5b93b8e0-5dc2-4e4c-86bf-61c4b76ad93a
+    - text: "SalarySlab should be consistent with the reported MonthlyIncome according\
+        \ to the slab boundaries used by assign_salary_slab: \n- If SalarySlab = 'Upto\
+        \ 5k' then MonthlyIncome <= 5000;\n- If SalarySlab = '5k-10k' then 5001 <=\
+        \ MonthlyIncome <= 10000;\n- If SalarySlab = '10k-15k' then 10001 <= MonthlyIncome\
+        \ <= 15000;\n- If SalarySlab = '15k+' then MonthlyIncome >= 15001.\nSuggested\
+        \ Deequ constraint: .satisfies(\"(SalarySlab = 'Upto 5k' AND MonthlyIncome\
+        \ <= 5000) OR (SalarySlab = '5k-10k' AND MonthlyIncome BETWEEN 5001 AND 10000)\
+        \ OR (SalarySlab = '10k-15k' AND MonthlyIncome BETWEEN 10001 AND 15000) OR\
+        \ (SalarySlab = '15k+' AND MonthlyIncome >= 15001)\", 'slab_income_consistency')"
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 55
+        end_line: 66
+        file: ''
+      uid: 496fdcda-0500-4966-90ba-7fce5a83e1e0
+  PerformanceRating:
+    code:
+    - suggestion: '.hasPattern(''PerformanceRating'', ''^-?[0-9]+$'', lambda x: x
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasPattern(''PerformanceRating'', ''^-?[0-9]+$'',
+        lambda x: x == 1.0)'' failed on data sample: Expected type of column PerformanceRating
+        to be StringType, but found LongType instead!'
+      level: error
+      uid: bd129df6-fe39-403e-a6b8-40128db9b698
+      source_assumptions:
+      - 62da82a0-a835-4b9f-9e2c-c21641210244
+      - c23eed63-b460-40b9-9091-02bdc76dff02
+    - suggestion: .isComplete('PerformanceRating')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2cbbc86c-6190-472e-9a26-bbdf650b0b9b
+      source_assumptions:
+      - ec39f67d-3a0b-4d39-b4ce-4aa877b330b1
+    - suggestion: '.hasMin(''PerformanceRating'', lambda x: x >= 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a59ef1d0-a993-4d22-9b86-6fde78211063
+      source_assumptions:
+      - c23eed63-b460-40b9-9091-02bdc76dff02
+    - suggestion: '.hasMax(''PerformanceRating'', lambda x: x <= 5)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7a42ce24-8e8f-4a03-b6b7-6416948ea55b
+      source_assumptions:
+      - c23eed63-b460-40b9-9091-02bdc76dff02
+    - suggestion: '.isContainedIn(''PerformanceRating'', [3, 4], lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: "Unable to instantiate constraint '.isContainedIn('PerformanceRating',\
+        \ [3, 4], lambda x: x >= 0.99)': An error occurred while calling None.None.\
+        \ Trace:\npy4j.Py4JException: Cannot convert java.lang.Integer to java.lang.String\n\
+        \tat py4j.commands.ArrayCommand.convertArgument(ArrayCommand.java:166)\n\t\
+        at py4j.commands.ArrayCommand.setArray(ArrayCommand.java:144)\n\tat py4j.commands.ArrayCommand.execute(ArrayCommand.java:97)\n\
+        \tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:840)\n\n"
+      level: warning
+      uid: 545e85c0-d131-4902-b857-4fbb5e75d7e3
+      source_assumptions:
+      - f77eb6a7-9cf0-4121-a236-8ce2d8a5210b
+    assumptions:
+    - text: 'The ''PerformanceRating'' column must be convertible to numeric (integers).
+        The code explicitly coerces this column with pd.to_numeric(errors=''coerce''),
+        so non-numeric input will be turned into nulls and will change downstream
+        behavior (e.g., comparisons and mapping). Example check: require every value
+        to parse as a number (or match an integer regex).'
+      sources:
+      - start_line: 55
+        end_line: 65
+        file: ''
+      uid: 62da82a0-a835-4b9f-9e2c-c21641210244
+    - text: 'The ''PerformanceRating'' column should not contain nulls in the input.
+        The dataset shows completeness 1.0, and downstream logic (promotion test PerformanceRating
+        >= 4 and mapping to base raise) assumes ratings are present; nulls will be
+        mapped to 0.0 for BaseRaisePct and will fail the >= 4 promotion test. Example
+        check: assert `PerformanceRating` IS NOT NULL for all rows.'
+      sources:
+      - start_line: 55
+        end_line: 65
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      - start_line: 72
+        end_line: 73
+        file: ''
+      uid: ec39f67d-3a0b-4d39-b4ce-4aa877b330b1
+    - text: 'The ''PerformanceRating'' values should be integer ratings within a sensible
+        performance scale (e.g., 1 through 5). The code treats higher numbers as better
+        (it checks >= 4 for promotion logic) and maps specific integer keys (3 and
+        4) to raise percentages. Example check: require integer values and enforce
+        1 <= PerformanceRating <= 5.'
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      - start_line: 55
+        end_line: 65
+        file: ''
+      uid: c23eed63-b460-40b9-9091-02bdc76dff02
+    - text: 'Based on the provided dataset histogram, the expected domain for ''PerformanceRating''
+        is a small discrete set (currently only 3 and 4). Inputs should either be
+        restricted to the known expected values (3 and 4) or outliers should be rare/flagged,
+        because the mapping only defines raise behavior for 3 and 4 and the promotion
+        threshold depends on numeric ordering. Example check: assert PerformanceRating
+        IN (3, 4) (or at least that >= 99% of rows are in {3,4}, and any other values
+        are investigated).'
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      - start_line: 91
+        end_line: 91
+        file: ''
+      uid: f77eb6a7-9cf0-4121-a236-8ce2d8a5210b
+  SalarySlab:
+    code:
+    - suggestion: .isComplete("SalarySlab")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5dac59cc-d17b-42af-a8ec-e827e3ab350f
+      source_assumptions:
+      - 84d17292-6341-4df5-8be1-8b92c87d60ed
+    - suggestion: '.satisfies("TRIM(`SalarySlab`) = `SalarySlab` AND `SalarySlab`
+        IN (''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+'')", "SalarySlab canonical
+        and exact match", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: eabfd36f-8aed-48b2-b71a-784af3325420
+      source_assumptions:
+      - 5d76afc3-08b1-4c76-b20b-69385abc061e
+      - 54444f86-49fd-48d2-a14d-5304ddf185e1
+    - suggestion: '.satisfies("CASE WHEN `SalarySlab` = ''Upto 5k'' AND `MonthlyIncome`
+        <= 5000 THEN 1 WHEN `SalarySlab` = ''5k-10k'' AND `MonthlyIncome` >= 5001
+        AND `MonthlyIncome` <= 10000 THEN 1 WHEN `SalarySlab` = ''10k-15k'' AND `MonthlyIncome`
+        >= 10001 AND `MonthlyIncome` <= 15000 THEN 1 WHEN `SalarySlab` = ''15k+''
+        AND `MonthlyIncome` > 15000 THEN 1 ELSE 0 END", "SalarySlab vs MonthlyIncome
+        consistency", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 13a0fcfe-811a-43e8-a2d8-ba63e1d5bb53
+      source_assumptions:
+      - 6e475635-023e-4fd8-b896-5f886983d838
+    - suggestion: '.satisfies("`SalarySlab` = ''15k+'' AND `MonthlyIncome` IS NOT
+        NULL", "Top-band has at least one numeric MonthlyIncome", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 94bd33f3-71f1-4c98-8ae4-5a45cb905aca
+      source_assumptions:
+      - a226e188-5287-4cac-9ccd-8c07ae92e167
+    assumptions:
+    - text: 'SalarySlab must be non-null for input rows. The code maps and groups
+        by SalarySlab (e.g. get_band_midpoints, df[''SalarySlab''].map(...)) and expects
+        that column to exist and be populated. A validation rule could be: all rows
+        have `SalarySlab` IS NOT NULL.'
+      sources:
+      - start_line: 22
+        end_line: 31
+        file: ''
+      - start_line: 68
+        end_line: 70
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 84d17292-6341-4df5-8be1-8b92c87d60ed
+    - text: 'SalarySlab must contain only the canonical category labels exactly as
+        spelled/cased: "Upto 5k", "5k-10k", "10k-15k", or "15k+". The code uses these
+        exact strings for midpoint lookup and next-band logic, so unexpected values
+        (extra categories, different casing, or trailing whitespace) will cause BandMidpoint/NextBandMin
+        to be missing and change downstream calculations. A validation rule could
+        be: `SalarySlab` IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'').'
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      - start_line: 34
+        end_line: 41
+        file: ''
+      - start_line: 68
+        end_line: 70
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 5d76afc3-08b1-4c76-b20b-69385abc061e
+    - text: 'SalarySlab should be consistent with MonthlyIncome ranges implied by
+        the code. For accurate band-based calculations the label should match the
+        person''s monthly income: "Upto 5k" => MonthlyIncome <= 5000; "5k-10k" =>
+        5001 <= MonthlyIncome <= 10000; "10k-15k" => 10001 <= MonthlyIncome <= 15000;
+        "15k+" => MonthlyIncome > 15000. This can be expressed as conditional checks
+        (e.g. CASE WHEN SalarySlab=''Upto 5k'' THEN MonthlyIncome <= 5000 ELSE ...).'
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 34
+        end_line: 41
+        file: ''
+      - start_line: 69
+        end_line: 70
+        file: ''
+      uid: 6e475635-023e-4fd8-b896-5f886983d838
+    - text: For reliable BandMidpoint for the top band, there should ideally be at
+        least one row with SalarySlab == '15k+' and a non-null numeric MonthlyIncome
+        to compute a median. If none exist (or their MonthlyIncome is null/non-numeric),
+        the code falls back to a default midpoint of 17500.0. A validation could assert
+        either (count(SalarySlab='15k+' AND MonthlyIncome IS NOT NULL) > 0) or accept
+        the fallback behavior explicitly.
+      sources:
+      - start_line: 23
+        end_line: 31
+        file: ''
+      - start_line: 55
+        end_line: 66
+        file: ''
+      uid: a226e188-5287-4cac-9ccd-8c07ae92e167
+    - text: SalarySlab values must match exactly (no leading/trailing whitespace or
+        unexpected characters). The code uses equality and dict/map lookups (e.g.
+        df['SalarySlab'] == '15k+' and .map(band_mid)), which are sensitive to exact
+        string matches. A validation rule could trim and compare or enforce a regex
+        like ^(Upto 5k|5k-10k|10k-15k|15k\+)$.
+      sources:
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 68
+        end_line: 70
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 54444f86-49fd-48d2-a14d-5304ddf185e1
+  TotalWorkingYears:
+    code:
+    - suggestion: '.satisfies("TRY_CAST(`TotalWorkingYears` AS DOUBLE) IS NOT NULL",
+        "TotalWorkingYears_parseable", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3e61762a-c648-4f74-ab66-d936f7c02e35
+      source_assumptions:
+      - c15f1349-94cc-42af-8aba-8397d558a15c
+    - suggestion: .isComplete("TotalWorkingYears")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2f9fca2c-8d15-48ea-8699-8e2ede5e2783
+      source_assumptions:
+      - f27504a8-945d-4452-89a2-2164e7b3de57
+    - suggestion: '.satisfies("`TotalWorkingYears` = FLOOR(`TotalWorkingYears`)",
+        "TotalWorkingYears_integer", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 07ae681e-eade-40da-b862-48296bc2d7c6
+      source_assumptions:
+      - ea9958e5-f112-4f83-84e9-5be2db8a934f
+    - suggestion: '.satisfies("`TotalWorkingYears` >= 0 AND `TotalWorkingYears` <=
+        60", "TotalWorkingYears_reasonable_range", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c28fc18e-b23f-46a5-8625-01204f619f84
+      source_assumptions:
+      - 7d02cfc3-80bd-46bd-9bc7-7aa7b3a69032
+    - suggestion: '.satisfies("`TotalWorkingYears` >= `YearsAtCompany`", "TotalWorkingYears_ge_YearsAtCompany",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4f56fd3a-c884-492c-ac9e-e5f5511109c9
+      source_assumptions:
+      - 7427cbcc-96a1-4b0a-b32f-f489a918efcc
+    assumptions:
+    - text: 'TotalWorkingYears must be parseable as a numeric value for every input
+        row. The code applies pd.to_numeric(..., errors=''coerce'') to this column
+        which would produce NaN for non-numeric strings; the pipeline does not subsequently
+        fill or handle those NaNs for this column. Validation rule example: assert
+        all rows satisfy TRY_CAST(TotalWorkingYears AS DOUBLE) IS NOT NULL (or in
+        Deequ: .isComplete(''TotalWorkingYears'') after ensuring parseability).'
+      sources:
+      - start_line: 55
+        end_line: 66
+        file: ''
+      uid: c15f1349-94cc-42af-8aba-8397d558a15c
+    - text: 'TotalWorkingYears should not be missing in the input (completeness =
+        100%). The column is retained in the final output and is not filled when coercion
+        produces NaN, so the input should contain a value for every row. Validation
+        rule example: all rows satisfy TotalWorkingYears IS NOT NULL.'
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 116
+        end_line: 132
+        file: ''
+      - start_line: 55
+        end_line: 66
+        file: ''
+      uid: f27504a8-945d-4452-89a2-2164e7b3de57
+    - text: 'TotalWorkingYears should represent whole years (integer-valued). Although
+        the script coerces to numeric, downstream logic and reporting expect year
+        counts (no fractional years). Validation rule example: assert TotalWorkingYears
+        = FLOOR(TotalWorkingYears) for all rows (or check modulo 1 == 0).'
+      sources:
+      - start_line: 55
+        end_line: 66
+        file: ''
+      - start_line: 116
+        end_line: 132
+        file: ''
+      uid: ea9958e5-f112-4f83-84e9-5be2db8a934f
+    - text: 'TotalWorkingYears must be non-negative and within a reasonable human
+        working-life range (e.g., 0 <= TotalWorkingYears <= 60). The code does not
+        guard against negative or implausibly large values. Validation rule example:
+        assert 0 <= TotalWorkingYears AND TotalWorkingYears <= 60 for all rows.'
+      sources:
+      - start_line: 55
+        end_line: 66
+        file: ''
+      - start_line: 116
+        end_line: 132
+        file: ''
+      uid: 7d02cfc3-80bd-46bd-9bc7-7aa7b3a69032
+    - text: 'TotalWorkingYears should be consistent with YearsAtCompany: specifically,
+        TotalWorkingYears >= YearsAtCompany for each row. The code computes tenure-derived
+        ratios using YearsAtCompany and YearsSinceLastPromotion and relies on hierarchical
+        year consistency; TotalWorkingYears should at least cover tenure at the current
+        company. Validation rule example: assert TotalWorkingYears >= YearsAtCompany
+        for all rows.'
+      sources:
+      - start_line: 80
+        end_line: 84
+        file: ''
+      - start_line: 55
+        end_line: 66
+        file: ''
+      - start_line: 116
+        end_line: 124
+        file: ''
+      uid: 7427cbcc-96a1-4b0a-b32f-f489a918efcc
+  '["TotalWorkingYears","YearsAtCompany"]':
+    code: []
+    assumptions:
+    - text: 'For every record, YearsSinceLastPromotion must be less than or equal
+        to YearsAtCompany. This guarantees the TenureRatio calculation (YearsSinceLastPromotion
+        / YearsAtCompany) is logically consistent (you cannot have been promoted more
+        recently than your tenure at the company). Actionable constraint examples:
+        a row-level predicate YearsSinceLastPromotion <= YearsAtCompany, or a Deequ-style
+        check such as .satisfies(''YearsSinceLastPromotion <= YearsAtCompany'', ''promotion_vs_tenure'').'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      - start_line: 55
+        end_line: 66
+        file: ''
+      uid: f24bf048-72ab-440d-801b-24e2c3785a09
+    - text: 'For every record, YearsAtCompany must be less than or equal to TotalWorkingYears.
+        TotalWorkingYears represents total career duration and should be at least
+        the years spent at the current company. Actionable constraint examples: row-level
+        predicate YearsAtCompany <= TotalWorkingYears, or Deequ-style .isLessThanOrEqual(''YearsAtCompany'',
+        ''TotalWorkingYears'') / .isGreaterThanOrEqual(''TotalWorkingYears'',''YearsAtCompany'').'
+      sources:
+      - start_line: 55
+        end_line: 66
+        file: ''
+      - start_line: 116
+        end_line: 124
+        file: ''
+      uid: 80185835-a7d9-4c09-a296-7b985e6f4596
+    - text: 'If YearsSinceLastPromotion > 0 then YearsAtCompany must be > 0 (equivalently,
+        YearsAtCompany == 0 implies YearsSinceLastPromotion == 0). This guards against
+        division-by-zero logic and preserves temporal consistency. Actionable constraint
+        examples: .satisfies(''YearsAtCompany > 0 OR YearsSinceLastPromotion == 0'',
+        ''tenure_promotion_zero_guard'') or a row-level predicate (YearsSinceLastPromotion
+        == 0) OR (YearsAtCompany > 0).'
+      sources:
+      - start_line: 81
+        end_line: 84
+        file: ''
+      - start_line: 55
+        end_line: 66
+        file: ''
+      uid: df424df9-fb93-44bd-9d5c-9cff2f718bb9
+  '["YearsAtCompany","YearsSinceLastPromotion"]':
+    code:
+    - suggestion: '.satisfies("YearsAtCompany >= 0 AND YearsSinceLastPromotion >=
+        0 AND YearsSinceLastPromotion <= YearsAtCompany", "tenure_consistency_non_negative",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b83cf397-102a-4453-9f28-37c2ec447974
+      source_assumptions:
+      - a98b95c1-59c7-4961-a3f3-6d962efce567
+      - 46926016-8c44-4842-9b6a-dc111a4fe024
+    - suggestion: '.satisfies("NOT (YearsAtCompany == 0 AND YearsSinceLastPromotion
+        > 0)", "zero_tenure_promo_inconsistency", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c192e12c-1195-400f-95b7-4a119fc964d9
+      source_assumptions:
+      - b793a54f-8f13-4d83-ad94-56c85ab0da1a
+    assumptions:
+    - text: 'For every record, YearsSinceLastPromotion must be between 0 and YearsAtCompany
+        (inclusive). Formally: 0 <= YearsSinceLastPromotion <= YearsAtCompany. This
+        guarantees the TenureRatio calculation (YearsSinceLastPromotion / YearsAtCompany)
+        is meaningful and bounded. Example Deequ constraint: .satisfies("YearsSinceLastPromotion
+        >= 0 AND YearsSinceLastPromotion <= YearsAtCompany", "years_since_promo_le_years_at_company").'
+      sources:
+      - start_line: 55
+        end_line: 64
+        file: ''
+      - start_line: 80
+        end_line: 83
+        file: ''
+      uid: a98b95c1-59c7-4961-a3f3-6d962efce567
+    - text: 'If YearsAtCompany == 0 then YearsSinceLastPromotion must be 0 (you cannot
+        have a positive YearsSinceLastPromotion with zero tenure). Equivalent constraint:
+        NOT (YearsAtCompany == 0 AND YearsSinceLastPromotion > 0). Example Deequ constraint:
+        .satisfies("NOT (YearsAtCompany == 0 AND YearsSinceLastPromotion > 0)", "zero_tenure_promo_inconsistency").'
+      sources:
+      - start_line: 80
+        end_line: 83
+        file: ''
+      - start_line: 90
+        end_line: 94
+        file: ''
+      uid: b793a54f-8f13-4d83-ad94-56c85ab0da1a
+    - text: 'Both YearsAtCompany and YearsSinceLastPromotion should be non-negative
+        for all records (YearsAtCompany >= 0 AND YearsSinceLastPromotion >= 0). This
+        prevents negative-tenure values that would invalidate division and business
+        logic. Example Deequ constraint: .satisfies("YearsAtCompany >= 0 AND YearsSinceLastPromotion
+        >= 0", "non_negative_tenure_fields").'
+      sources:
+      - start_line: 55
+        end_line: 64
+        file: ''
+      - start_line: 80
+        end_line: 83
+        file: ''
+      uid: 46926016-8c44-4842-9b6a-dc111a4fe024
+column_data_flow_locations:
+  '["MonthlyIncome","SalarySlab"]': []
+  '["YearsAtCompany","YearsSinceLastPromotion"]':
+  - start_line: 8
+    end_line: 19
+    file: ''
+  - start_line: 22
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 41
+    file: ''
+  - start_line: 53
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 78
+    file: ''
+  - start_line: 80
+    end_line: 84
+    file: ''
+  - start_line: 86
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 105
+    file: ''
+  - start_line: 106
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 137
+    file: ''
+  '["TotalWorkingYears","YearsAtCompany"]': []
+  '["JobLevel","MonthlyIncome","PerformanceRating","YearsSinceLastPromotion"]':
+  - start_line: 4
+    end_line: 5
+    file: ''
+  - start_line: 8
+    end_line: 19
+    file: ''
+  - start_line: 22
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 41
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 53
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 141
+    file: ''
+  '["NextBandMin","SalarySlab"]': []
+  '["NewMonthlyIncome","NextBandMin","PromotionRecommended"]': []
+  '["MonthlyIncome","NewMonthlyIncome","TotalRaisePct"]': []
+  '["BaseRaisePct","PerformanceRating"]':
+  - start_line: 1
+    end_line: 5
+    file: ''
+  - start_line: 8
+    end_line: 19
+    file: ''
+  - start_line: 22
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 41
+    file: ''
+  - start_line: 44
+    end_line: 54
+    file: ''
+  - start_line: 55
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 141
+    file: ''
+  EmpID:
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  JobLevel:
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 58
+    end_line: 58
+    file: ''
+  - start_line: 64
+    end_line: 65
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 94
+    end_line: 94
+    file: ''
+  - start_line: 114
+    end_line: 114
+    file: ''
+  - start_line: 118
+    end_line: 118
+    file: ''
+  - start_line: 133
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  SalarySlab:
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 68
+    end_line: 70
+    file: ''
+  - start_line: 75
+    end_line: 78
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 99
+    file: ''
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 111
+    file: ''
+  - start_line: 112
+    end_line: 113
+    file: ''
+  - start_line: 133
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  MonthlyIncome:
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 66
+    file: ''
+  - start_line: 68
+    end_line: 70
+    file: ''
+  - start_line: 75
+    end_line: 78
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 99
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 136
+    end_line: 137
+    file: ''
+  PerformanceRating:
+  - start_line: 59
+    end_line: 65
+    file: ''
+  - start_line: 72
+    end_line: 137
+    file: ''
+  YearsAtCompany:
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 81
+    end_line: 83
+    file: ''
+  - start_line: 122
+    end_line: 134
+    file: ''
+  TotalWorkingYears:
+  - start_line: 61
+    end_line: 141
+    file: ''
+  YearsSinceLastPromotion:
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 81
+    end_line: 84
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 99
+    file: ''
+  - start_line: 103
+    end_line: 105
+    file: ''
+  - start_line: 106
+    end_line: 111
+    file: ''
+  - start_line: 112
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 132
+    file: ''
+  - start_line: 133
+    end_line: 134
+    file: ''
+  - start_line: 136
+    end_line: 137
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.0042855
+    total_tokens: 10611
+    prompt_tokens: 9678
+    completion_tokens: 933
+  data_flow_inspection:
+    cost: 0.06892125
+    total_tokens: 50551
+    prompt_tokens: 18389
+    completion_tokens: 32162
+  column_correlation_discovery:
+    cost: 0.006757750000000001
+    total_tokens: 5499
+    prompt_tokens: 2423
+    completion_tokens: 3076
+  multi_column_data_flow_inspection:
+    cost: 0.051445750000000005
+    total_tokens: 42781
+    prompt_tokens: 19495
+    completion_tokens: 23286
+  multi_column_assumption_generation:
+    cost: 0.054353000000000005
+    total_tokens: 46437
+    prompt_tokens: 22012
+    completion_tokens: 24425
+  multi_column_code_generation:
+    cost: 0.050698799999999995
+    total_tokens: 56803
+    prompt_tokens: 34976
+    completion_tokens: 21827
+  single_column_assumption_generation:
+    cost: 0.05328575
+    total_tokens: 49784
+    prompt_tokens: 26447
+    completion_tokens: 23337
+  single_column_code_generation:
+    cost: 0.04948640000000001
+    total_tokens: 69537
+    prompt_tokens: 50008
+    completion_tokens: 19529

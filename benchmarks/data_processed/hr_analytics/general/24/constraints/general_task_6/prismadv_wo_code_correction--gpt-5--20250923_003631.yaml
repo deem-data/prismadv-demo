@@ -1,0 +1,1987 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  AgeGroup:
+    code:
+    - suggestion: .isComplete('AgeGroup')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ef746663-9cc6-440e-82af-586df4a8ecfd
+      source_assumptions:
+      - 2258fa53-d8a8-477a-874a-d0f8da196917
+    - suggestion: '.isContainedIn(''AgeGroup'', [''18-25'', ''26-35'', ''36-45'',
+        ''46-55'', ''55+''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 824f7d6d-0327-443c-8309-0885f42193a1
+      source_assumptions:
+      - 1294706f-2425-4bc9-9997-c6ed2262d3e2
+      - 58ee0735-98cf-42f1-b878-14eb275d6c8b
+    - suggestion: '.hasDataType(''AgeGroup'', ConstrainableDataTypes.String, lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''AgeGroup'',
+        ConstrainableDataTypes.String, lambda x: x == 1.0)'
+      level: warning
+      uid: c781a0a1-39f7-4663-bec3-963f13ae381f
+      source_assumptions:
+      - 8d5ac9c6-f2c5-4bd7-8b88-1b48e1094f52
+    assumptions:
+    - text: 'AgeGroup must be complete (no nulls or missing values) for all rows,
+        because it is mapped to a numeric weight and then used in arithmetic to compute
+        AttritionRiskScore; null or unmapped values would propagate NaN into the risk
+        score and RiskTier and are written to output without handling. We could represent
+        this as: Deequ hasCompleteness(''AgeGroup'', lambda x: x == 1.0) or Great
+        Expectations expect_column_values_to_not_be_null.'
+      sources:
+      - start_line: 35
+        end_line: 42
+        file: ''
+      - start_line: 63
+        end_line: 72
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 2258fa53-d8a8-477a-874a-d0f8da196917
+    - text: 'AgeGroup values must be restricted to the allowed set {''18-25'', ''26-35'',
+        ''36-45'', ''46-55'', ''55+''}, because the code maps only these categories
+        to age_weight; any other value would map to NaN and break the risk computation.
+        We could represent this as: Deequ isContainedIn(''AgeGroup'', [''18-25'',''26-35'',''36-45'',''46-55'',''55+''],
+        lambda x: x == 1.0) or GE expect_column_values_to_be_in_set with the same
+        set and mostly/strictly 100% success.'
+      sources:
+      - start_line: 35
+        end_line: 42
+        file: ''
+      - start_line: 63
+        end_line: 72
+        file: ''
+      uid: 1294706f-2425-4bc9-9997-c6ed2262d3e2
+    - text: 'AgeGroup values must exactly match the expected labels (case, punctuation,
+        and no leading/trailing whitespace) because the mapping relies on exact string
+        equality (e.g., ''55+'' includes a ''+'' and will not match variants like
+        ''55 +'', ''55-plus'', or ''55+ ''). We could represent this as: Deequ satisfies("CASE
+        WHEN TRIM(`AgeGroup`) REGEXP ''^(18-25|26-35|36-45|46-55|55\+)$'' THEN 1 ELSE
+        0 END", "Canonical AgeGroup labels", lambda x: x == 1.0) or GE expect_column_values_to_match_regex
+        ''^(18-25|26-35|36-45|46-55|55\+)$''.'
+      sources:
+      - start_line: 35
+        end_line: 42
+        file: ''
+      uid: 58ee0735-98cf-42f1-b878-14eb275d6c8b
+    - text: 'AgeGroup should be a string/categorical field (not numeric ages), since
+        the mapping keys are strings and equality is performed on string labels. We
+        could represent this as: Deequ hasDataType(''AgeGroup'', ConstrainableDataTypes.String)
+        or GE expect_column_values_to_be_of_type(''str'')/expect_column_values_to_be_in_type_list
+        with string types.'
+      sources:
+      - start_line: 35
+        end_line: 42
+        file: ''
+      uid: 8d5ac9c6-f2c5-4bd7-8b88-1b48e1094f52
+  Attrition:
+    code:
+    - suggestion: '.hasCompleteness(''Attrition'', lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 79b17c30-2662-4ed4-9fae-f5fb0b5d9af6
+      source_assumptions:
+      - 71124893-97b7-436e-8b31-b81306eb895c
+    - suggestion: .isContainedIn('Attrition', ['Yes','No'])
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5623740c-350f-4ca1-80ec-85bb6722973f
+      source_assumptions:
+      - 48718d84-408b-4f48-8d6c-c0c1fa098e5a
+    - suggestion: '.satisfies("CASE WHEN `Attrition` = ''Yes'' THEN 1 ELSE 0 END",
+        "Attrition Yes rate in expected band", lambda p: p >= 0.10 and p <= 0.30)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e903422f-0949-4df7-bbc2-589a94d18d7e
+      source_assumptions:
+      - 4a46bd19-aceb-45b8-8e98-0beb091ed313
+    assumptions:
+    - text: 'Attrition must be present for all rows (no nulls). This avoids silently
+        biasing yes_rate because nulls would be treated as non-''Yes'' and depress
+        the baseline. Deequ: .hasCompleteness(''Attrition'', lambda v: v == 1.0)'
+      sources:
+      - start_line: 60
+        end_line: 61
+        file: ''
+      uid: 71124893-97b7-436e-8b31-b81306eb895c
+    - text: 'Attrition values must be exactly one of {''Yes'', ''No''} (case-sensitive,
+        no leading/trailing whitespace). Any other value would be treated as ''No''
+        by the equality check and distort the baseline. Deequ: .isContainedIn(''Attrition'',
+        [''Yes'',''No''])'
+      sources:
+      - start_line: 60
+        end_line: 60
+        file: ''
+      uid: 48718d84-408b-4f48-8d6c-c0c1fa098e5a
+    - text: 'Both classes must be present (at least one ''Yes'' and at least one ''No'')
+        so the baseline odds are meaningful. Deequ (share of ''Yes'' not 0 or 1):
+        .satisfies("CASE WHEN `Attrition` = ''Yes'' THEN 1 ELSE 0 END", ''Attrition
+        has both classes'', lambda p: p > 0.0 and p < 1.0)'
+      sources:
+      - start_line: 61
+        end_line: 74
+        file: ''
+      uid: 9fc635f6-1298-485a-bccf-1a90458b920c
+    - text: 'The proportion of ''Yes'' in Attrition should be within a reasonable
+        band near the historical baseline to keep the intercept stable; expected 0.10
+        <= share_of_Yes <= 0.30 (current data ~0.179). Deequ: .satisfies("CASE WHEN
+        `Attrition` = ''Yes'' THEN 1 ELSE 0 END", ''Attrition Yes rate in expected
+        band'', lambda p: p >= 0.10 and p <= 0.30)'
+      sources:
+      - start_line: 61
+        end_line: 74
+        file: ''
+      uid: 4a46bd19-aceb-45b8-8e98-0beb091ed313
+  '["AgeGroup","Attrition","DistanceFromHome","JobSatisfaction","OverTime","WorkLifeBalance","YearsWithCurrManager"]':
+    code:
+    - suggestion: '.satisfies("ABS(recommended_percent - (PercentSalaryHike + CASE
+        WHEN PerformanceRating = 4 THEN 2.0 WHEN PerformanceRating = 3 THEN 0.0 ELSE
+        NULL END)) < 1e-6", "recommended_percent_formula", lambda v: v == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("ABS(recommended_percent - (PercentSalaryHike
+        + CASE WHEN PerformanceRating = 4 THEN 2.0 WHEN PerformanceRating = 3 THEN
+        0.0 ELSE NULL END)) < 1e-6", "recommended_percent_formula", lambda v: v ==
+        1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `recommended_percent` cannot be resolved.
+        Did you mean one of the following? [`Gender`, `JobInvolvement`, `Department`,
+        `EmployeeCount`, `NumCompaniesWorked`].; line 1 pos 4;
+
+        ''Aggregate [sum(cast((''ABS((''recommended_percent - (cast(PercentSalaryHike#573L
+        as decimal(20,0)) + CASE WHEN (PerformanceRating#574L = cast(4 as bigint))
+        THEN 2.0 WHEN (PerformanceRating#574L = cast(3 as bigint)) THEN cast(0.0 as
+        decimal(2,1)) ELSE cast(null as decimal(2,1)) END))) < 1.0E-6) as int)) AS
+        sum(CAST((ABS((recommended_percent - (PercentSalaryHike + CASE WHEN (PerformanceRating
+        = 4) THEN 2.0 WHEN (PerformanceRating = 3) THEN 0.0 ELSE NULL END))) < 1.0E-6)
+        AS INT))#641627, count(1) AS count(1)#641628L]
+
+        +- LogicalRDD [id#546L, EmpID#547, Age#548L, AgeGroup#549, Attrition#550,
+        BusinessTravel#551, DailyRate#552L, Department#553, DistanceFromHome#554L,
+        Education#555L, EducationField#556, EmployeeCount#557L, EmployeeNumber#558L,
+        EnvironmentSatisfaction#559L, Gender#560, HourlyRate#561L, JobInvolvement#562L,
+        JobLevel#563L, JobRole#564, JobSatisfaction#565L, MaritalStatus#566, MonthlyIncome#567L,
+        SalarySlab#568, MonthlyRate#569L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: d8777df3-8edd-47f3-a330-adf9ad448330
+      source_assumptions:
+      - 758f252b-10ab-4764-828a-80b1aa82bcaf
+    - suggestion: '.satisfies("cap_percent = CASE WHEN SalarySlab = ''Upto 5k'' THEN
+        20.0 WHEN SalarySlab = ''5k-10k'' THEN 15.0 WHEN SalarySlab = ''10k-15k''
+        THEN 12.0 WHEN SalarySlab = ''15k+'' THEN 10.0 ELSE NULL END", "cap_percent_mapping",
+        lambda v: v == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("cap_percent = CASE WHEN SalarySlab
+        = ''Upto 5k'' THEN 20.0 WHEN SalarySlab = ''5k-10k'' THEN 15.0 WHEN SalarySlab
+        = ''10k-15k'' THEN 12.0 WHEN SalarySlab = ''15k+'' THEN 10.0 ELSE NULL END",
+        "cap_percent_mapping", lambda v: v == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `cap_percent` cannot be resolved. Did you mean one of the following? [`Department`,
+        `Gender`, `JobLevel`, `Over18`, `Age`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''cap_percent = CASE WHEN (SalarySlab#568 = Upto 5k)
+        THEN 20.0 WHEN (SalarySlab#568 = 5k-10k) THEN 15.0 WHEN (SalarySlab#568 =
+        10k-15k) THEN 12.0 WHEN (SalarySlab#568 = 15k+) THEN 10.0 ELSE cast(null as
+        decimal(3,1)) END) as int)) AS sum(CAST((cap_percent = CASE WHEN (SalarySlab
+        = Upto 5k) THEN 20.0 WHEN (SalarySlab = 5k-10k) THEN 15.0 WHEN (SalarySlab
+        = 10k-15k) THEN 12.0 WHEN (SalarySlab = 15k+) THEN 10.0 ELSE NULL END) AS
+        INT))#641625, count(1) AS count(1)#641626L]
+
+        +- LogicalRDD [id#546L, EmpID#547, Age#548L, AgeGroup#549, Attrition#550,
+        BusinessTravel#551, DailyRate#552L, Department#553, DistanceFromHome#554L,
+        Education#555L, EducationField#556, EmployeeCount#557L, EmployeeNumber#558L,
+        EnvironmentSatisfaction#559L, Gender#560, HourlyRate#561L, JobInvolvement#562L,
+        JobLevel#563L, JobRole#564, JobSatisfaction#565L, MaritalStatus#566, MonthlyIncome#567L,
+        SalarySlab#568, MonthlyRate#569L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: dd567da3-69db-49c8-8480-250ee0405bd4
+      source_assumptions:
+      - 758f252b-10ab-4764-828a-80b1aa82bcaf
+    - suggestion: '.satisfies("approved_percent = LEAST(recommended_percent, cap_percent)",
+        "approved_percent_is_min", lambda v: v == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("approved_percent = LEAST(recommended_percent,
+        cap_percent)", "approved_percent_is_min", lambda v: v == 1.0)'' failed on
+        data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `approved_percent` cannot be resolved.
+        Did you mean one of the following? [`Department`, `EmployeeCount`, `EmployeeNumber`,
+        `Gender`, `JobInvolvement`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''approved_percent = ''LEAST(''recommended_percent,
+        ''cap_percent)) as int)) AS sum(CAST((approved_percent = LEAST(recommended_percent,
+        cap_percent)) AS INT))#641208, count(1) AS count(1)#641209L]
+
+        +- LogicalRDD [id#546L, EmpID#547, Age#548L, AgeGroup#549, Attrition#550,
+        BusinessTravel#551, DailyRate#552L, Department#553, DistanceFromHome#554L,
+        Education#555L, EducationField#556, EmployeeCount#557L, EmployeeNumber#558L,
+        EnvironmentSatisfaction#559L, Gender#560, HourlyRate#561L, JobInvolvement#562L,
+        JobLevel#563L, JobRole#564, JobSatisfaction#565L, MaritalStatus#566, MonthlyIncome#567L,
+        SalarySlab#568, MonthlyRate#569L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 2575df77-fc24-4040-8727-50fbb33f47f8
+      source_assumptions:
+      - 758f252b-10ab-4764-828a-80b1aa82bcaf
+    - suggestion: '.satisfies("ABS(approved_amount - (MonthlyIncome * (approved_percent
+        / 100.0))) <= 0.01", "approved_amount_formula", lambda v: v == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("ABS(approved_amount - (MonthlyIncome
+        * (approved_percent / 100.0))) <= 0.01", "approved_amount_formula", lambda
+        v: v == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `approved_amount` cannot be resolved. Did you mean one of the following? [`EmployeeCount`,
+        `AgeGroup`, `EmployeeNumber`, `OverTime`, `Attrition`].; line 1 pos 4;
+
+        ''Aggregate [sum(cast((''ABS((''approved_amount - (MonthlyIncome#567L * (''approved_percent
+        / 100.0)))) <= 0.01) as int)) AS sum(CAST((ABS((approved_amount - (MonthlyIncome
+        * (approved_percent / 100.0)))) <= 0.01) AS INT))#641314, count(1) AS count(1)#641315L]
+
+        +- LogicalRDD [id#546L, EmpID#547, Age#548L, AgeGroup#549, Attrition#550,
+        BusinessTravel#551, DailyRate#552L, Department#553, DistanceFromHome#554L,
+        Education#555L, EducationField#556, EmployeeCount#557L, EmployeeNumber#558L,
+        EnvironmentSatisfaction#559L, Gender#560, HourlyRate#561L, JobInvolvement#562L,
+        JobLevel#563L, JobRole#564, JobSatisfaction#565L, MaritalStatus#566, MonthlyIncome#567L,
+        SalarySlab#568, MonthlyRate#569L, ... 15 more fields], false
+
+        '
+      level: error
+      uid: 1f8fdf80-8171-477c-a9fe-f010d757b051
+      source_assumptions:
+      - 758f252b-10ab-4764-828a-80b1aa82bcaf
+    - suggestion: '.satisfies("AgeGroup IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')",
+        "agegroup_domain", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e82fcc2a-c720-4a13-8ff5-84ad58af4f6a
+      source_assumptions:
+      - 08488ed8-8f8c-4a7a-9d92-5833632e404f
+    - suggestion: '.satisfies("(RiskTier = ''Low'' AND AttritionRiskScore >= 0.0 AND
+        AttritionRiskScore < 0.4) OR (RiskTier = ''Medium'' AND AttritionRiskScore
+        >= 0.4 AND AttritionRiskScore < 0.6) OR (RiskTier = ''High'' AND AttritionRiskScore
+        >= 0.6 AND AttritionRiskScore <= 1.0)", "risk_tier_binning_consistency", lambda
+        v: v == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(RiskTier = ''Low'' AND AttritionRiskScore
+        >= 0.0 AND AttritionRiskScore < 0.4) OR (RiskTier = ''Medium'' AND AttritionRiskScore
+        >= 0.4 AND AttritionRiskScore < 0.6) OR (RiskTier = ''High'' AND AttritionRiskScore
+        >= 0.6 AND AttritionRiskScore <= 1.0)", "risk_tier_binning_consistency", lambda
+        v: v == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `RiskTier` cannot be resolved. Did you mean one of the following? [`Age`,
+        `Gender`, `OverTime`, `id`, `EmpID`].; line 1 pos 1;
+
+        ''Aggregate [sum(cast((((((''RiskTier = Low) AND (''AttritionRiskScore >=
+        0.0)) AND (''AttritionRiskScore < 0.4)) OR (((''RiskTier = Medium) AND (''AttritionRiskScore
+        >= 0.4)) AND (''AttritionRiskScore < 0.6))) OR (((''RiskTier = High) AND (''AttritionRiskScore
+        >= 0.6)) AND (''AttritionRiskScore <= 1.0))) as int)) AS sum(CAST((((((RiskTier
+        = Low) AND (AttritionRiskScore >= 0.0)) AND (AttritionRiskScore < 0.4)) OR
+        (((RiskTier = Medium) AND (AttritionRiskScore >= 0.4)) AND (AttritionRiskScore
+        < 0.6))) OR (((RiskTier = High) AND (AttritionRiskScore >= 0.6)) AND (AttritionRiskScore
+        <= 1.0))) AS INT))#641157, count(1) AS count(1)#641158L]
+
+        +- LogicalRDD [id#546L, EmpID#547, Age#548L, AgeGroup#549, Attrition#550,
+        BusinessTravel#551, DailyRate#552L, Department#553, DistanceFromHome#554L,
+        Education#555L, EducationField#556, EmployeeCount#557L, EmployeeNumber#558L,
+        EnvironmentSatisfaction#559L, Gender#560, HourlyRate#561L, JobInvolvement#562L,
+        JobLevel#563L, JobRole#564, JobSatisfaction#565L, MaritalStatus#566, MonthlyIncome#567L,
+        SalarySlab#568, MonthlyRate#569L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: 8252f532-1416-49ad-9151-929203f42d54
+      source_assumptions:
+      - 74e4901c-fbef-48d8-ae3f-4acb94aee910
+    - suggestion: '.satisfies("OverTime IN (''Yes'',''No'') AND Attrition IN (''Yes'',''No'')",
+        "binary_domain_overtime_attrition", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: aaa47428-0a03-4c23-8cb4-8a549b6ee0ff
+      source_assumptions:
+      - 5c6595b8-6664-4472-89d6-16e68cd098b4
+    - suggestion: '.satisfies("JobSatisfaction IN (1,2,3,4) AND WorkLifeBalance IN
+        (1,2,3,4)", "jsat_wlb_domain", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9af74293-5e89-4357-8aa2-d4e9a5306f37
+      source_assumptions:
+      - 9f0ab58a-bb5d-4b2e-9b0f-ece6c48374a7
+    - suggestion: '.satisfies("YearsWithCurrManager IS NULL OR YearsWithCurrManager
+        >= 0", "mgr_tenure_non_negative_or_null", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a8554ab9-b9ab-471c-8975-fef17b249955
+      source_assumptions:
+      - 449a7a4e-5899-4986-8d25-8b2d44b6dab8
+    assumptions:
+    - text: Department is functionally determined by JobRole (each JobRole maps to
+        exactly one Department). This can be enforced as a functional dependency,
+        e.g., hasFunctionalDependency('JobRole', 'Department').
+      sources:
+      - start_line: 25
+        end_line: 29
+        file: ''
+      uid: 91e82ed1-e98f-4292-be4b-e2eef411aab3
+    - text: 'Merit math across multiple columns must hold: (a) recommended_percent
+        = PercentSalaryHike + rating_bonus(PerformanceRating); (b) cap_percent = cap_map(SalarySlab);
+        (c) approved_percent = min(recommended_percent, cap_percent); (d) approved_amount
+        = MonthlyIncome * (approved_percent / 100.0). Enforceable with row-level constraints
+        such as .satisfies(''recommended_percent = PercentSalaryHike + rating_bonus'',
+        ''recommended_formula''), .satisfies(''approved_percent <= cap_percent'',
+        ''approved_under_cap''), and .satisfies(''approved_amount = MonthlyIncome
+        * approved_percent / 100.0'', ''approved_amount_formula'').'
+      sources:
+      - start_line: 17
+        end_line: 23
+        file: ''
+      uid: cdecce74-bae3-42d3-bd3b-1af941e289f7
+    - text: 'AgeGroup must be in {''18-25'',''26-35'',''36-45'',''46-55'',''55+''}
+        so that age_weight is non-null and usable in risk scoring. In effect: isContainedIn(''AgeGroup'',
+        [...]) and completeness of the derived ''age_weight'' used in raw_score should
+        be 1.0.'
+      sources:
+      - start_line: 35
+        end_line: 42
+        file: ''
+      - start_line: 63
+        end_line: 69
+        file: ''
+      uid: 758f252b-10ab-4764-828a-80b1aa82bcaf
+    - text: 'RiskTier must be consistent with the binning of AttritionRiskScore: RiskTier=''Low''
+        iff 0.0 <= AttritionRiskScore < 0.4; ''Medium'' iff 0.4 <= AttritionRiskScore
+        < 0.6; ''High'' iff 0.6 <= AttritionRiskScore <= 1.0. This can be enforced
+        via a CASE predicate in a satisfies constraint.'
+      sources:
+      - start_line: 74
+        end_line: 78
+        file: ''
+      uid: 08488ed8-8f8c-4a7a-9d92-5833632e404f
+    - text: 'Both OverTime and Attrition use the same binary domain {''Yes'',''No''}:
+        OverTime is compared to ''Yes'' to create ot_flag, and Attrition contributes
+        to yes_rate via (Attrition==''Yes''). Enforce that both columns are contained
+        in {''Yes'',''No''}.'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      - start_line: 60
+        end_line: 61
+        file: ''
+      uid: 74e4901c-fbef-48d8-ae3f-4acb94aee910
+    - text: JobSatisfaction and WorkLifeBalance must both be in {1,2,3,4} to successfully
+        map to penalty weights used in the risk score. Enforce with isContainedIn
+        for each column and, if the derived columns are kept, check that job_penalty
+        = map(JobSatisfaction) and wlb_penalty = map(WorkLifeBalance).
+      sources:
+      - start_line: 50
+        end_line: 53
+        file: ''
+      - start_line: 63
+        end_line: 67
+        file: ''
+      uid: 5c6595b8-6664-4472-89d6-16e68cd098b4
+    - text: YearsWithCurrManager is treated as 0 when null and contributes a fixed
+        penalty when < 1 year. If a derived column is materialized, enforce mgr_penalty
+        = CASE WHEN YearsWithCurrManager IS NULL OR YearsWithCurrManager < 1.0 THEN
+        0.2 ELSE 0.0 END, and ensure this penalty is the one used in raw_score.
+      sources:
+      - start_line: 58
+        end_line: 59
+        file: ''
+      - start_line: 63
+        end_line: 71
+        file: ''
+      uid: 9f0ab58a-bb5d-4b2e-9b0f-ece6c48374a7
+    - text: 'The tenure_ratio feature divides a ''years since promotion'' measure
+        by a ''years at company'' measure after handling nulls/zeros. This implies
+        cross-column constraints on the underlying columns (yac and ysp): both must
+        be numeric and non-negative, and ysp <= yac for all rows; when yac=0 then
+        the effective ratio is 0. These can be enforced as satisfies predicates (e.g.,
+        ''yac >= 0 and ysp >= 0 and ysp <= yac'') and a guarded definition for the
+        ratio.'
+      sources:
+      - start_line: 44
+        end_line: 47
+        file: ''
+      - start_line: 63
+        end_line: 71
+        file: ''
+      uid: 449a7a4e-5899-4986-8d25-8b2d44b6dab8
+  WorkLifeBalance:
+    code:
+    - suggestion: '.satisfies(''CAST(`WorkLifeBalance` AS INT) IN (1,2,3,4)'', ''WLB
+        integer and in domain'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fe303623-12fd-46d3-8db5-20b3f605aa6c
+      source_assumptions:
+      - ae165e10-5a20-4407-8caa-0799588e08f0
+      - 417b1ed6-7168-4014-9a15-31a19f6ce8cc
+    assumptions:
+    - text: 'The ''WorkLifeBalance'' column must be non-null for 100% of input rows;
+        otherwise the mapping to penalties will yield NaNs that propagate into ''AttritionRiskScore''
+        and ''RiskTier''. We could represent this assumption as a deequ constraint
+        like this: .hasCompleteness(''WorkLifeBalance'', lambda x: x == 1.0) or .satisfies(''CASE
+        WHEN `WorkLifeBalance` IS NOT NULL THEN 1 ELSE 0 END'', ''WLB not null'',
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 63
+        end_line: 75
+        file: ''
+      - start_line: 78
+        end_line: 83
+        file: ''
+      uid: 02f1e88e-7921-4d4b-95ab-db693aeeb9ff
+    - text: 'The ''WorkLifeBalance'' values must be restricted to the set {1, 2, 3,
+        4} so that the mapping via wlb_map succeeds for all rows. We could represent
+        this assumption as a deequ constraint like this: .isContainedIn(''WorkLifeBalance'',
+        [1, 2, 3, 4]) or .satisfies(''CASE WHEN `WorkLifeBalance` IN (1,2,3,4) THEN
+        1 ELSE 0 END'', ''WLB domain'', lambda x: x == 1.0).'
+      sources:
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 63
+        end_line: 75
+        file: ''
+      uid: ae165e10-5a20-4407-8caa-0799588e08f0
+    - text: 'The ''WorkLifeBalance'' column should be stored as integers (or be fully
+        castable to integers), not as strings like ''1''/''2'', to ensure dictionary
+        mapping with integer keys works as intended. We could represent this assumption
+        as a deequ constraint like this: .satisfies(''CASE WHEN CAST(`WorkLifeBalance`
+        AS INT) IN (1,2,3,4) THEN 1 ELSE 0 END'', ''WLB integer and in domain'', lambda
+        x: x == 1.0).'
+      sources:
+      - start_line: 51
+        end_line: 53
+        file: ''
+      uid: 417b1ed6-7168-4014-9a15-31a19f6ce8cc
+  YearsWithCurrManager:
+    code:
+    - suggestion: '.hasCompleteness(''YearsWithCurrManager'', lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4cfdedc7-5e35-4b43-a8f2-7bcfd5c69799
+      source_assumptions:
+      - 7772aa29-7c3e-4405-a2d5-749a16b619ad
+    - suggestion: '.hasCompleteness(''YearsWithCurrManager'', lambda x: x >= 0.90)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0d2300a8-e039-4a91-bd6a-13435d7f215b
+      source_assumptions:
+      - 6e02210e-5740-4fac-bf46-4a1ecaf22584
+    - suggestion: '.satisfies(''`YearsWithCurrManager` IS NULL OR CAST(`YearsWithCurrManager`
+        AS DOUBLE) IS NOT NULL'', ''Numeric or NULL YearsWithCurrManager'', lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3e80b0e3-d780-4d5c-866a-04eb53890d5f
+      source_assumptions:
+      - 423fb745-f1ec-4dc2-8ad2-0ba3281c8b01
+    - suggestion: '.satisfies(''(`YearsWithCurrManager` >= 0) OR (`YearsWithCurrManager`
+        IS NULL)'', ''Non-negative YearsWithCurrManager'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ba9af64f-0246-4a8e-a17e-bac3a17a8a4a
+      source_assumptions:
+      - aaa30905-3565-4116-a9a5-ecfe212fa393
+    assumptions:
+    - text: 'The input must include the column ''YearsWithCurrManager''; it is required
+        for the attrition risk computation. (Validation example: expect_column_to_exist
+        or assert column presence before processing.)'
+      sources:
+      - start_line: 58
+        end_line: 59
+        file: ''
+      - start_line: 63
+        end_line: 71
+        file: ''
+      uid: 7772aa29-7c3e-4405-a2d5-749a16b619ad
+    - text: 'The ''YearsWithCurrManager'' column may contain nulls; missing values
+        are imputed as 0 years before use. To avoid biasing risk scores by treating
+        too many unknowns as 0, the column should be mostly complete (e.g., completeness
+        >= 0.90). Deequ example: .hasCompleteness(''YearsWithCurrManager'', _ >= 0.90).'
+      sources:
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: 6e02210e-5740-4fac-bf46-4a1ecaf22584
+    - text: 'All non-null ''YearsWithCurrManager'' values must be numeric (castable
+        to float). Non-numeric placeholders (e.g., ''N/A'') should be represented
+        as nulls. Deequ example: .hasDataType(''YearsWithCurrManager'', ConstrainableDataTypes.Numeric)
+        or .satisfies(''`YearsWithCurrManager` IS NULL OR CAST(`YearsWithCurrManager`
+        AS DOUBLE) IS NOT NULL'', ''Numeric YWCM'', _ == 1.0).'
+      sources:
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: 423fb745-f1ec-4dc2-8ad2-0ba3281c8b01
+    - text: '''YearsWithCurrManager'' should be non-negative, as it represents tenure
+        in years. Validation example: Deequ .satisfies(''(`YearsWithCurrManager` >=
+        0) OR (`YearsWithCurrManager` IS NULL)'', ''Non-negative YWCM'', _ == 1.0)
+        or Great Expectations expect_column_values_to_be_between(min_value=0, allow_nulls=True).'
+      sources:
+      - start_line: 58
+        end_line: 59
+        file: ''
+      uid: aaa30905-3565-4116-a9a5-ecfe212fa393
+  EmpID:
+    code:
+    - suggestion: .isComplete('EmpID')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 77ebdd51-934a-4e01-8e84-5fe19b1d4584
+      source_assumptions:
+      - d22f08ed-2505-4713-b00c-a4f76164aee8
+    - suggestion: .isUnique('EmpID')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4c9ed7ea-b0b2-4a13-b2d0-424304e5e48f
+      source_assumptions:
+      - 9c0cc0c0-8b7d-4f4f-bfb6-3aa13fade7bc
+    - suggestion: '.satisfies(''length(trim(EmpID)) > 0'', ''EmpID non-empty'', lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c90bafe0-198b-4c80-92cb-15925285b844
+      source_assumptions:
+      - 8ebec5a7-3720-4ad1-81dc-2764b81bf454
+    - suggestion: '.satisfies(''EmpID = trim(EmpID)'', ''EmpID trimmed'', lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1c22dc7d-f2c6-48a7-8bf7-50b4e05dff30
+      source_assumptions:
+      - 8ebec5a7-3720-4ad1-81dc-2764b81bf454
+    assumptions:
+    - text: 'The ''EmpID'' column must exist in the input data and contain no null
+        values; otherwise department headcount (which counts non-null EmpID) will
+        be undercounted and exported rows will miss identifiers. Possible validations:
+        Deequ -> .isComplete(''EmpID'') and schema check for column existence; Great
+        Expectations -> expect_column_to_exist(''EmpID'') and expect_column_values_to_not_be_null(''EmpID'').'
+      sources:
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: d22f08ed-2505-4713-b00c-a4f76164aee8
+    - text: 'The ''EmpID'' values should be unique across all rows (one row per employee).
+        Duplicate EmpID values would inflate department headcount and produce ambiguous
+        IDs in the exports. Possible validations: Deequ -> .isUnique(''EmpID''); Great
+        Expectations -> expect_column_values_to_be_unique(''EmpID'').'
+      sources:
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 9c0cc0c0-8b7d-4f4f-bfb6-3aa13fade7bc
+    - text: 'The ''EmpID'' values should be non-empty and trimmed (no leading/trailing
+        whitespace) to avoid accidental duplicates like ''E123'' vs '' E123'' and
+        to ensure meaningful identifiers in the exports. Possible validations: Deequ
+        -> .satisfies("length(trim(`EmpID`)) > 0", "Non-empty EmpID", lambda r: r
+        == 1.0) and .satisfies("`EmpID` = trim(`EmpID`)", "Trimmed EmpID", lambda
+        r: r == 1.0); Great Expectations -> expect_column_values_to_not_match_regex(''EmpID'',
+        ''^\\s*$'') and expect_column_values_to_match_regex(''EmpID'', ''^(?!\\s)(?:.*\\S)?$'').'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 8ebec5a7-3720-4ad1-81dc-2764b81bf454
+  DistanceFromHome:
+    code:
+    - suggestion: '.hasDataType("DistanceFromHome", "Numeric", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("DistanceFromHome",
+        "Numeric", lambda x: x == 1.0)'
+      level: error
+      uid: b0a619fb-6b89-4a44-9051-abd0de70f9fe
+      source_assumptions:
+      - 92ceb6c1-a796-4794-ba23-2cb71a5a07ed
+    - suggestion: .isComplete("DistanceFromHome")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 431ce1a1-72ef-49b4-ac9d-3a083edea6af
+      source_assumptions:
+      - e44b614a-59c6-4cc5-81be-8b30855493b0
+    - suggestion: .isNonNegative("DistanceFromHome")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ccfa756c-b900-4d6c-85b1-11b9eaa42782
+      source_assumptions:
+      - 0a87f8bb-12bb-4b9a-a100-ac356b7248f0
+    - suggestion: '.hasMax("DistanceFromHome", lambda m: (m is not None) and (m ==
+        m) and (m < 1e308))'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 88304275-45d8-478f-b714-14f6764a58fa
+      source_assumptions:
+      - d2174d15-f417-47b2-9cf0-fefc68e9d8de
+    assumptions:
+    - text: 'DistanceFromHome must be numeric (float-castable) for all rows. The code
+        casts the column to float and performs arithmetic without coercion or error
+        handling. We could represent this as a validation rule, for example: Deequ:
+        .satisfies("CASE WHEN CAST(`DistanceFromHome` AS DOUBLE) IS NOT NULL THEN
+        1 ELSE 0 END", "DistanceFromHome numeric", lambda x: x == 1.0) or Great Expectations:
+        expect_column_values_to_be_of_type with allowed types [''int64'',''float64''].'
+      sources:
+      - start_line: 55
+        end_line: 56
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: 92ceb6c1-a796-4794-ba23-2cb71a5a07ed
+    - text: 'DistanceFromHome should not contain null values (completeness = 1.0).
+        Nulls would propagate through normalization and make AttritionRiskScore and
+        RiskTier null. We could represent this as: Deequ: .hasCompleteness("DistanceFromHome",
+        lambda x: x == 1.0) or Great Expectations: expect_column_values_to_not_be_null.'
+      sources:
+      - start_line: 55
+        end_line: 56
+        file: ''
+      - start_line: 74
+        end_line: 78
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: e44b614a-59c6-4cc5-81be-8b30855493b0
+    - text: 'DistanceFromHome values should be non-negative (>= 0), as distances cannot
+        be negative and negative values would distort the normalized feature used
+        in the risk score. We could represent this as: Deequ: .satisfies("`DistanceFromHome`
+        >= 0", "Non-negative DistanceFromHome", lambda x: x == 1.0) or Great Expectations:
+        expect_column_values_to_be_between(min_value=0, max_value=None).'
+      sources:
+      - start_line: 55
+        end_line: 56
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: 0a87f8bb-12bb-4b9a-a100-ac356b7248f0
+    - text: 'DistanceFromHome must have a finite (not NaN/inf) maximum so normalization
+        is well-defined. We could represent this as: Deequ: .isFinite("DistanceFromHome")
+        and .hasMax("DistanceFromHome", lambda m: m is not None) or Great Expectations:
+        expect_column_max_to_be_between(min_value=0, max_value=None).'
+      sources:
+      - start_line: 55
+        end_line: 56
+        file: ''
+      uid: d2174d15-f417-47b2-9cf0-fefc68e9d8de
+  Department:
+    code:
+    - suggestion: .isComplete('Department')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a7296762-e9bc-4b41-8b69-28efef8f07d4
+      source_assumptions:
+      - 633979da-f025-4c88-993e-85d1d899a715
+    - suggestion: '.isContainedIn(''Department'', [''Sales'', ''Research & Development'',
+        ''Human Resources''], lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 92f737f4-f0bd-462d-8a61-cc3ca68dca3b
+      source_assumptions:
+      - ae6ac634-ce9d-402e-aa88-7e337e60cef0
+    - suggestion: '.satisfies("Department = TRIM(Department)", "Department trimmed",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ebb2dc25-7439-49a6-8d33-8e2deb7988dc
+      source_assumptions:
+      - a065df7a-876b-41a8-af4d-321de04241f1
+    - suggestion: '.hasNumberOfDistinctValues(''Department'', lambda c: c <= 3)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Department'',
+        lambda c: c <= 3)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 1b6c17c6-3834-4c17-babb-28748c7a7464
+      source_assumptions:
+      - 892d025c-2c6f-4fd7-9935-79fb222ce8bd
+    - suggestion: '.satisfies("MIN(Department) OVER (PARTITION BY JobRole) = MAX(Department)
+        OVER (PARTITION BY JobRole)", "JobRole -> Department functional dependency",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("MIN(Department) OVER (PARTITION
+        BY JobRole) = MAX(Department) OVER (PARTITION BY JobRole)", "JobRole -> Department
+        functional dependency", lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        It is not allowed to use a window function inside an aggregate function. Please
+        use the inner window function in a sub-query.'
+      level: warning
+      uid: bd131fee-a7fe-4d3d-a951-d4bd2912e478
+      source_assumptions:
+      - a4559f42-fdc8-4a1c-b4c7-ae7755b30c8c
+    assumptions:
+    - text: 'Department must be present (non-null) for all rows. Groupby on Department
+        will drop nulls and the risk export expects this column to exist for every
+        record. Possible rule: Deequ isComplete(''Department'') == 1.0.'
+      sources:
+      - start_line: 26
+        end_line: 29
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 633979da-f025-4c88-993e-85d1d899a715
+    - text: 'Department values should belong to the known organizational set: {''Sales'',
+        ''Research & Development'', ''Human Resources''} in at least 99% of rows to
+        avoid unintended extra budget categories. Possible rule: satisfies("CASE WHEN
+        Department IN (''Sales'',''Research & Development'',''Human Resources'') THEN
+        1 ELSE 0 END", ''Department domain'', lambda x: x >= 0.99).'
+      sources:
+      - start_line: 26
+        end_line: 29
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: ae6ac634-ce9d-402e-aa88-7e337e60cef0
+    - text: 'Department values should be clean strings with no leading/trailing whitespace
+        (and consistent casing) to prevent accidental splitting into multiple groups.
+        Possible rule: satisfies(''CASE WHEN Department = TRIM(Department) THEN 1
+        ELSE 0 END'', ''Department trimmed'', lambda x: x == 1.0).'
+      sources:
+      - start_line: 26
+        end_line: 29
+        file: ''
+      uid: a065df7a-876b-41a8-af4d-321de04241f1
+    - text: 'The number of distinct Department values should not exceed 3 (as historically
+        observed), to keep budget reporting stable. Possible rule: hasNumberOfDistinctValues(''Department'',
+        lambda c: c <= 3).'
+      sources:
+      - start_line: 26
+        end_line: 29
+        file: ''
+      uid: 892d025c-2c6f-4fd7-9935-79fb222ce8bd
+    - text: 'Each JobRole should map to exactly one Department (functional dependency
+        JobRole -> Department) to maintain Department/JobRole consistency in budgeting.
+        Possible rule: fraction of JobRole groups where count_distinct(Department)
+        == 1 is 1.0.'
+      sources:
+      - start_line: 25
+        end_line: 29
+        file: ''
+      uid: a4559f42-fdc8-4a1c-b4c7-ae7755b30c8c
+  '["Department","JobRole"]':
+    code:
+    - suggestion: '.satisfies("((`JobRole` = ''Sales Executive'' AND `Department`
+        = ''Sales'') OR (`JobRole` = ''Sales Representative'' AND `Department` = ''Sales'')
+        OR (`JobRole` = ''Human Resources'' AND `Department` = ''Human Resources'')
+        OR (`JobRole` IN (''Research Scientist'',''Laboratory Technician'',''Manufacturing
+        Director'',''Healthcare Representative'',''Research Director'',''Manager'')
+        AND `Department` = ''Research & Development''))", "valid_role_dept_pairs",
+        lambda v: v == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("((`JobRole` = ''Sales Executive''
+        AND `Department` = ''Sales'') OR (`JobRole` = ''Sales Representative'' AND
+        `Department` = ''Sales'') OR (`JobRole` = ''Human Resources'' AND `Department`
+        = ''Human Resources'') OR (`JobRole` IN (''Research Scientist'',''Laboratory
+        Technician'',''Manufacturing Director'',''Healthcare Representative'',''Research
+        Director'',''Manager'') AND `Department` = ''Research & Development''))",
+        "valid_role_dept_pairs", lambda v: v == 1.0)'' failed on data sample: Value:
+        0.9739229024943311 does not meet the constraint requirement!'
+      level: error
+      uid: 8d16730b-9e44-4bda-87c5-ddcbf7386b4b
+      source_assumptions:
+      - 217ee20f-6a7c-457e-89ae-74fbf5a0aadd
+      - d3b12ec2-12e3-4901-bc5d-09a7ab3ddc6f
+    - suggestion: '.hasUniqueness([''EmpID''], lambda u: u == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b00ecc84-8dc1-476d-a7da-4f120fb47591
+      source_assumptions:
+      - cc18a584-e156-4b2a-ba57-6eec9823475b
+    assumptions:
+    - text: 'JobRole functionally determines Department: each distinct JobRole must
+        belong to exactly one Department. Deequ example: hasFunctionalDependency(''Department'',
+        [''JobRole''], maxViolationFraction=0.0).'
+      sources:
+      - start_line: 25
+        end_line: 29
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 217ee20f-6a7c-457e-89ae-74fbf5a0aadd
+    - text: "Only the following Department\u2013JobRole combinations are valid: Sales\
+        \ Executive -> Sales; Sales Representative -> Sales; Human Resources -> Human\
+        \ Resources; Research Scientist -> Research & Development; Laboratory Technician\
+        \ -> Research & Development; Manufacturing Director -> Research & Development;\
+        \ Healthcare Representative -> Research & Development; Research Director ->\
+        \ Research & Development; Manager -> Research & Development. Deequ compliance\
+        \ example: compliance('valid_role_dept_pairs', \"(JobRole = 'Sales Executive'\
+        \ and Department = 'Sales') or (JobRole = 'Sales Representative' and Department\
+        \ = 'Sales') or (JobRole = 'Human Resources' and Department = 'Human Resources')\
+        \ or (JobRole in ('Research Scientist','Laboratory Technician','Manufacturing\
+        \ Director','Healthcare Representative','Research Director','Manager') and\
+        \ Department = 'Research & Development')\", assertion = _ >= 1.0)."
+      sources:
+      - start_line: 25
+        end_line: 29
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: d3b12ec2-12e3-4901-bc5d-09a7ab3ddc6f
+    - text: 'For each EmpID, Department and JobRole are single-valued within the file
+        (no employee appears under multiple departments or roles). This prevents headcount
+        double-counting and ensures a consistent risk export. Deequ examples: hasFunctionalDependency(''Department'',
+        [''EmpID''], 0.0) and hasFunctionalDependency(''JobRole'', [''EmpID''], 0.0)
+        (alternatively, isUnique(''EmpID'')).'
+      sources:
+      - start_line: 26
+        end_line: 28
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: cc18a584-e156-4b2a-ba57-6eec9823475b
+  PercentSalaryHike:
+    code:
+    - suggestion: '.hasCompleteness(''PercentSalaryHike'', lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 07ea4fa6-cac4-44fd-b1bf-3b6b1762aa6e
+      source_assumptions:
+      - 1effe179-a933-4804-a471-d4867db6e3df
+    - suggestion: .isComplete('PercentSalaryHike')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 53a65804-cb18-486a-b6d7-58b916b1fb13
+      source_assumptions:
+      - 1b7c2d12-e35e-405d-a1fa-f680a38af2b1
+    - suggestion: '.hasDataType(''PercentSalaryHike'', ''Integral'', lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''PercentSalaryHike'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: bf5748de-d23f-48eb-b1f0-6d543fab15c4
+      source_assumptions:
+      - 5457cf6f-d00f-4033-8d6d-1e82f5567f40
+    - suggestion: '.satisfies(''`PercentSalaryHike` >= 0 AND `PercentSalaryHike` <=
+        100'', ''PercentSalaryHike_range'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b39c9ad6-bc47-47d9-aa87-2a2942113439
+      source_assumptions:
+      - 8dd33b92-6a22-436b-93f0-a6c5ac93480e
+    - suggestion: '.hasNumberOfDistinctValues(''PercentSalaryHike'', lambda n: n <=
+        30)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''PercentSalaryHike'',
+        lambda n: n <= 30)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: a72902e6-0f8a-4418-8249-21ecd89cb004
+      source_assumptions:
+      - 8dc01294-aa08-4604-88e5-719c46b75df3
+    assumptions:
+    - text: 'The input must contain a column named ''PercentSalaryHike'' because it
+        is referenced for calculations and in the exported merit output. Possible
+        validation: Deequ hasColumn(''PercentSalaryHike'') or Great Expectations expect_table_columns_to_contain([''PercentSalaryHike''],
+        match_on=''any'').'
+      sources:
+      - start_line: 19
+        end_line: 19
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 1effe179-a933-4804-a471-d4867db6e3df
+    - text: 'The ''PercentSalaryHike'' column should have no nulls. Missing values
+        would propagate to recommended_percent, approved_percent, and approved_amount.
+        Possible validation: Deequ isComplete(''PercentSalaryHike'') == 1.0 or GE
+        expect_column_values_to_not_be_null(''PercentSalaryHike'').'
+      sources:
+      - start_line: 19
+        end_line: 23
+        file: ''
+      uid: 1b7c2d12-e35e-405d-a1fa-f680a38af2b1
+    - text: 'The ''PercentSalaryHike'' values must be numeric integers (no strings
+        like ''10%'' and no fractional values). They are added to a numeric rating
+        bonus and used in arithmetic without casting. Possible validation: Deequ hasDataType(''PercentSalaryHike'',
+        Integral, strictly=True) or GE expect_column_values_to_be_in_type_list(''PercentSalaryHike'',
+        [''int64'', ''int32'', ''int16'']).'
+      sources:
+      - start_line: 19
+        end_line: 23
+        file: ''
+      uid: 5457cf6f-d00f-4033-8d6d-1e82f5567f40
+    - text: 'The ''PercentSalaryHike'' values should be expressed in percentage points
+        and be non-negative, realistically within [0, 100]. Negative values would
+        yield negative approved_amount, and the percent/100 computation implies percent
+        points. Possible validation: Deequ satisfies(''`PercentSalaryHike` >= 0 AND
+        `PercentSalaryHike` <= 100'', ''PercentSalaryHike_range'', lambda p: p ==
+        1.0) or GE expect_column_values_to_be_between(''PercentSalaryHike'', min_value=0,
+        max_value=100).'
+      sources:
+      - start_line: 19
+        end_line: 23
+        file: ''
+      uid: 8dd33b92-6a22-436b-93f0-a6c5ac93480e
+    - text: 'The ''PercentSalaryHike'' values are expected to come from a small set
+        of discrete percentages (low cardinality), consistent with integral percent
+        points (dataset shows ~15 distinct). Possible validation: Deequ approximateNumDistinctValues(''PercentSalaryHike'')
+        <= 30 or GE expect_column_unique_value_count_to_be_between(''PercentSalaryHike'',
+        min_value=1, max_value=30).'
+      sources:
+      - start_line: 14
+        end_line: 14
+        file: ''
+      - start_line: 19
+        end_line: 19
+        file: ''
+      uid: 8dc01294-aa08-4604-88e5-719c46b75df3
+  MonthlyIncome:
+    code:
+    - suggestion: '.satisfies(''CAST(`MonthlyIncome` AS DOUBLE) IS NOT NULL'', ''MonthlyIncome
+        is numeric'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 36dc7fae-8c4b-4c71-8543-5d0e1ded4a4f
+      source_assumptions:
+      - 8cdea89e-526a-4e1e-bfd8-375c73a07a87
+    - suggestion: .isNonNegative('MonthlyIncome')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e6f312e2-98c2-49e7-b2f4-f6a5c14a33d5
+      source_assumptions:
+      - cb081109-3b1d-4415-bf27-32c3cce2ad1f
+    - suggestion: '.satisfies("((`SalarySlab` = ''Upto 5k'' AND `MonthlyIncome` <=
+        5000) OR (`SalarySlab` = ''5k-10k'' AND `MonthlyIncome` > 5000 AND `MonthlyIncome`
+        <= 10000) OR (`SalarySlab` = ''10k-15k'' AND `MonthlyIncome` > 10000 AND `MonthlyIncome`
+        <= 15000) OR (`SalarySlab` = ''15k+'' AND `MonthlyIncome` > 15000) OR (`SalarySlab`
+        IS NULL OR `SalarySlab` NOT IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'')))",
+        ''MonthlyIncome matches SalarySlab ranges'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: df0a42b0-36e2-4de3-8042-b70860cd2865
+      source_assumptions:
+      - 05aadb6f-2dd9-4c85-b160-e5cdc5f6063c
+    assumptions:
+    - text: 'The ''MonthlyIncome'' column must exist in the input CSV and contain
+        no null values, since it is used directly in arithmetic and written to outputs
+        without any null handling. We could represent this as Deequ checks like: check.hasColumn(''MonthlyIncome'').hasCompleteness(''MonthlyIncome'',
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 14
+        end_line: 14
+        file: ''
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 968203f6-984a-4924-8f24-927f49c5f815
+    - text: 'All values in ''MonthlyIncome'' must be numeric (parseable as numbers),
+        ideally integral, because the code multiplies it by a percentage. We could
+        represent this as a Deequ constraint: .satisfies("CAST(`MonthlyIncome` AS
+        DOUBLE) IS NOT NULL", "MonthlyIncome is numeric", lambda x: x == 1.0) or as
+        a Great Expectations rule: expect_column_values_to_be_of_type(''MonthlyIncome'',
+        ''int64'').'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 8cdea89e-526a-4e1e-bfd8-375c73a07a87
+    - text: 'The ''MonthlyIncome'' values should be non-negative to avoid negative
+        approved_amount and negative department merit budgets. We could represent
+        this as a Deequ constraint: .hasMin(''MonthlyIncome'', lambda x: x >= 0).'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 26
+        end_line: 29
+        file: ''
+      uid: cb081109-3b1d-4415-bf27-32c3cce2ad1f
+    - text: 'The magnitude/scale of ''MonthlyIncome'' should be consistent with the
+        ''SalarySlab'' buckets used for capping, i.e., for rows where SalarySlab is
+        one of the expected categories, income should fall in the corresponding range:
+        ''Upto 5k'' => MonthlyIncome <= 5000; ''5k-10k'' => 5000 < MonthlyIncome <=
+        10000; ''10k-15k'' => 10000 < MonthlyIncome <= 15000; ''15k+'' => MonthlyIncome
+        > 15000. We could represent this as a Deequ constraint: .satisfies("CASE WHEN
+        `SalarySlab` = ''Upto 5k'' THEN `MonthlyIncome` <= 5000 WHEN `SalarySlab`
+        = ''5k-10k'' THEN `MonthlyIncome` > 5000 AND `MonthlyIncome` <= 10000 WHEN
+        `SalarySlab` = ''10k-15k'' THEN `MonthlyIncome` > 10000 AND `MonthlyIncome`
+        <= 15000 WHEN `SalarySlab` = ''15k+'' THEN `MonthlyIncome` > 15000 ELSE true
+        END", "MonthlyIncome matches slab ranges", lambda x: x == 1.0).'
+      sources:
+      - start_line: 20
+        end_line: 22
+        file: ''
+      - start_line: 23
+        end_line: 23
+        file: ''
+      uid: 05aadb6f-2dd9-4c85-b160-e5cdc5f6063c
+  JobRole:
+    code:
+    - suggestion: '.satisfies("`JobRole` IS NOT NULL AND TRIM(`JobRole`) <> ''''",
+        "JobRole completeness", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 155ccab9-4062-43ed-aced-ccaa50d3df2f
+      source_assumptions:
+      - ee067d28-4094-42ce-935b-5cd186d9e863
+    - suggestion: '.isContainedIn(''JobRole'', [''Research Director'',''Sales Representative'',''Research
+        Scientist'',''Manufacturing Director'',''Healthcare Representative'',''Sales
+        Executive'',''Manager'',''Human Resources'',''Laboratory Technician''], lambda
+        x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e90808ab-b991-475e-b666-c1f4c39714b9
+      source_assumptions:
+      - 692c12c1-182d-4da3-8371-d2d54a332550
+    - suggestion: '.satisfies("`JobRole` = TRIM(`JobRole`)", "JobRole trimmed", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 63464926-4858-4eeb-8363-95afebf49ce2
+      source_assumptions:
+      - bdecb1d1-4198-43af-96da-705ee3affff9
+    - suggestion: '.hasNumberOfDistinctValues(''JobRole'', lambda x: x <= 12)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''JobRole'',
+        lambda x: x <= 12)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 04baab0f-cb54-4e41-98c8-06ece8a7da9c
+      source_assumptions:
+      - 63c26cc2-70c4-4d44-98ac-36d5db2ed1dd
+    assumptions:
+    - text: 'JobRole must be present for every row (non-null and not empty), since
+        it is directly selected for output without any null handling. This can be
+        enforced as a completeness check such as: Deequ: .satisfies("JobRole IS NOT
+        NULL AND TRIM(JobRole) <> ''''", "JobRole completeness", lambda x: x == 1.0)
+        or Great Expectations: expect_column_values_to_not_be_null(''JobRole'') and
+        expect_column_values_to_not_match_regex(''JobRole'', ''^\s*$'').'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: ee067d28-4094-42ce-935b-5cd186d9e863
+    - text: 'JobRole should be a controlled categorical field with values in the known
+        set: {''Research Director'', ''Sales Representative'', ''Research Scientist'',
+        ''Manufacturing Director'', ''Healthcare Representative'', ''Sales Executive'',
+        ''Manager'', ''Human Resources'', ''Laboratory Technician''}. Unexpected categories
+        (e.g., due to typos) should be extremely rare or absent. For example: Deequ:
+        .satisfies("CASE WHEN `JobRole` IN (''Research Director'',''Sales Representative'',''Research
+        Scientist'',''Manufacturing Director'',''Healthcare Representative'',''Sales
+        Executive'',''Manager'',''Human Resources'',''Laboratory Technician'') THEN
+        1 ELSE 0 END", "Valid JobRole set", lambda x: x >= 0.99) or GE: expect_column_values_to_be_in_set(''JobRole'',
+        [...]).'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 692c12c1-182d-4da3-8371-d2d54a332550
+    - text: 'JobRole values should be cleanly formatted (no leading/trailing whitespace)
+        to avoid category fragmentation in reports. This can be validated with: Deequ:
+        .satisfies("JobRole = TRIM(JobRole)", "JobRole trimmed", lambda x: x == 1.0)
+        or GE: expect_column_values_to_equal_other_column after trimming, or expect_column_values_to_not_match_regex(''JobRole'',
+        ''^\s|\s$'').'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: bdecb1d1-4198-43af-96da-705ee3affff9
+    - text: 'Department/JobRole consistency: For any given JobRole there should be
+        exactly one associated Department (functional dependency JobRole -> Department).
+        This prevents the same JobRole appearing under multiple Departments, which
+        the script comments it relies on. This can be checked by grouping and asserting
+        max(countDistinct(Department) per JobRole) == 1. For example: in Deequ, compute
+        df.groupBy(''JobRole'').agg(F.countDistinct(''Department'').alias(''n''))
+        and assert n.max == 1, or implement a compliance check ensuring no violations;
+        in GE, implement a custom expectation or verify all observed (JobRole, Department)
+        pairs remain consistent across the dataset.'
+      sources:
+      - start_line: 25
+        end_line: 29
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 53bb2429-35f2-401f-9be9-e816a25f3516
+    - text: 'JobRole cardinality should remain low and stable (e.g., number of distinct
+        JobRole values <= 12) to catch unexpected category proliferation. This can
+        be enforced as: Deequ: .hasNumberOfDistinctValues("JobRole", lambda x: x <=
+        12) or GE: expect_column_unique_value_count_to_be_between(''JobRole'', min_value=1,
+        max_value=12).'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 63c26cc2-70c4-4d44-98ac-36d5db2ed1dd
+  JobSatisfaction:
+    code:
+    - suggestion: .isComplete('JobSatisfaction')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dff6f181-e4e5-472a-8cf8-1cf184d7f29b
+      source_assumptions:
+      - 9f419d4b-7fe7-4c49-875a-b47f48bae98c
+    - suggestion: '.isContainedIn(''JobSatisfaction'', [1, 2, 3, 4], lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: "Unable to instantiate constraint '.isContainedIn('JobSatisfaction',\
+        \ [1, 2, 3, 4], lambda x: x == 1.0)': An error occurred while calling None.None.\
+        \ Trace:\npy4j.Py4JException: Cannot convert java.lang.Integer to java.lang.String\n\
+        \tat py4j.commands.ArrayCommand.convertArgument(ArrayCommand.java:166)\n\t\
+        at py4j.commands.ArrayCommand.setArray(ArrayCommand.java:144)\n\tat py4j.commands.ArrayCommand.execute(ArrayCommand.java:97)\n\
+        \tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:840)\n\n"
+      level: error
+      uid: dba78553-c805-4dc2-9c63-7f99823932fb
+      source_assumptions:
+      - 40b9cd57-e0c1-47cf-8bac-62f8a057366b
+    - suggestion: '.hasDataType(''JobSatisfaction'', ''Integral'', lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''JobSatisfaction'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: e8ed389f-c18c-4beb-a689-7b8695ca7911
+      source_assumptions:
+      - 0ca30f31-91b1-4128-9a2f-fe671fb3b0ec
+    assumptions:
+    - text: 'JobSatisfaction must be non-null for all rows. The code maps JobSatisfaction
+        to a numeric penalty and uses it directly in the risk score without any fillna;
+        any null here would propagate to AttritionRiskScore and RiskTier. Possible
+        validation: Deequ isComplete(''JobSatisfaction'') or GE expect_column_values_to_not_be_null.'
+      sources:
+      - start_line: 50
+        end_line: 52
+        file: ''
+      - start_line: 63
+        end_line: 66
+        file: ''
+      - start_line: 74
+        end_line: 78
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 9f419d4b-7fe7-4c49-875a-b47f48bae98c
+    - text: 'JobSatisfaction values must be restricted to the set {1, 2, 3, 4}. The
+        mapping only defines these four categories; any other value would map to null
+        and break the downstream risk computation. Possible validation: Deequ isContainedIn(''JobSatisfaction'',
+        Array(1,2,3,4)) or GE expect_column_values_to_be_in_set([1,2,3,4]).'
+      sources:
+      - start_line: 50
+        end_line: 50
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 40b9cd57-e0c1-47cf-8bac-62f8a057366b
+    - text: 'JobSatisfaction should be numeric (integer-coded), not string-coded.
+        Since the mapping uses integer keys and no type casting of the input values
+        is performed before mapping, values like ''1''/''2'' as strings would not
+        match and would turn into nulls. Possible validation: GE expect_column_values_to_be_in_type_list([''int64'',''int32'',''float64'',''float32''])
+        in combination with the in-set check above.'
+      sources:
+      - start_line: 50
+        end_line: 52
+        file: ''
+      uid: 0ca30f31-91b1-4128-9a2f-fe671fb3b0ec
+  '["MonthlyIncome","PercentSalaryHike","PerformanceRating","SalarySlab"]':
+    code: []
+    assumptions:
+    - text: 'PerformanceRating-to-bonus mapping is exhaustive and consistent: only
+        ratings {3, 4} are present and rating_bonus equals 0.0 when PerformanceRating=3
+        and 2.0 when PerformanceRating=4 (no nulls produced by the map). Deequ examples:
+        .isContainedIn(''PerformanceRating'', [3, 4]) and .satisfies("(PerformanceRating
+        = 3 AND rating_bonus = 0.0) OR (PerformanceRating = 4 AND rating_bonus = 2.0)",
+        ''rating_bonus_matches_rating'')'
+      sources:
+      - start_line: 17
+        end_line: 18
+        file: ''
+      uid: 78d523b8-da7d-4ec5-a1bb-a95a8ef2ea5e
+    - text: 'recommended_percent is deterministically derived from PercentSalaryHike
+        and PerformanceRating via rating_bonus: recommended_percent = PercentSalaryHike
+        + rating_bonus (no nulls). Deequ example: .satisfies(''recommended_percent
+        = PercentSalaryHike + rating_bonus'', ''recommended_percent_formula'')'
+      sources:
+      - start_line: 18
+        end_line: 19
+        file: ''
+      uid: bbcf7bf3-1458-473d-af43-59188447d08c
+    - text: 'SalarySlab-to-cap mapping is exhaustive and consistent: SalarySlab is
+        in {''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''} and cap_percent equals the
+        mapped value {20.0,15.0,12.0,10.0} respectively. Deequ examples: .isContainedIn(''SalarySlab'',
+        [''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'']) and .satisfies("(SalarySlab
+        = ''Upto 5k'' AND cap_percent = 20.0) OR (SalarySlab = ''5k-10k'' AND cap_percent
+        = 15.0) OR (SalarySlab = ''10k-15k'' AND cap_percent = 12.0) OR (SalarySlab
+        = ''15k+'' AND cap_percent = 10.0)", ''cap_matches_slab'')'
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      uid: a745cbf2-a740-42b1-ad52-7fd7d1268b39
+    - text: 'approved_percent is the minimum of recommended_percent and cap_percent
+        for every record: approved_percent = least(recommended_percent, cap_percent).
+        Equivalent implications: approved_percent <= cap_percent AND approved_percent
+        <= recommended_percent, and equals whichever is smaller. Deequ example: .satisfies(''approved_percent
+        = least(recommended_percent, cap_percent)'', ''approved_percent_is_min'')'
+      sources:
+      - start_line: 22
+        end_line: 22
+        file: ''
+      uid: d45bfab1-cca7-486c-8f7c-0e4826d860ab
+    - text: 'approved_amount is computed from MonthlyIncome and approved_percent:
+        approved_amount = MonthlyIncome * (approved_percent / 100.0). Deequ example:
+        .satisfies(''approved_amount = MonthlyIncome * (approved_percent / 100.0)'',
+        ''approved_amount_formula'')'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      uid: 029d3581-6c77-4945-972d-04a20df2904b
+    - text: 'MonthlyIncome is consistent with SalarySlab brackets used by the business
+        labels: ''Upto 5k'' => MonthlyIncome <= 5000; ''5k-10k'' => 5000 < MonthlyIncome
+        <= 10000; ''10k-15k'' => 10000 < MonthlyIncome <= 15000; ''15k+'' => MonthlyIncome
+        > 15000. Deequ example: .satisfies("(SalarySlab = ''Upto 5k'' AND MonthlyIncome
+        <= 5000) OR (SalarySlab = ''5k-10k'' AND MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000) OR (SalarySlab = ''10k-15k'' AND MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000) OR (SalarySlab = ''15k+'' AND MonthlyIncome > 15000)", ''monthly_income_matches_slab'')'
+      sources:
+      - start_line: 20
+        end_line: 23
+        file: ''
+      uid: e2be354e-dc41-4677-adf3-552e27f6dabd
+  '["MonthlyIncome","SalarySlab"]':
+    code: []
+    assumptions:
+    - text: 'SalarySlab must be consistent with MonthlyIncome via deterministic bins:
+        ''Upto 5k'' => MonthlyIncome <= 5000; ''5k-10k'' => 5000 < MonthlyIncome <=
+        10000; ''10k-15k'' => 10000 < MonthlyIncome <= 15000; ''15k+'' => MonthlyIncome
+        > 15000. This enforces a functional dependency MonthlyIncome -> SalarySlab.
+        Example Deequ compliance: (SalarySlab = ''Upto 5k'' AND MonthlyIncome <= 5000)
+        OR (SalarySlab = ''5k-10k'' AND MonthlyIncome > 5000 AND MonthlyIncome <=
+        10000) OR (SalarySlab = ''10k-15k'' AND MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000) OR (SalarySlab = ''15k+'' AND MonthlyIncome > 15000).'
+      sources:
+      - start_line: 20
+        end_line: 23
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: b7a80bcc-83ca-434c-b2ea-4fad82e34487
+    - text: 'cap_percent is fully determined by SalarySlab according to the fixed
+        mapping: (''Upto 5k'' -> 20.0), (''5k-10k'' -> 15.0), (''10k-15k'' -> 12.0),
+        (''15k+'' -> 10.0). The (SalarySlab, cap_percent) pair must match exactly
+        one of these four combinations. Example Deequ compliance: (SalarySlab = ''Upto
+        5k'' AND cap_percent = 20.0) OR (SalarySlab = ''5k-10k'' AND cap_percent =
+        15.0) OR (SalarySlab = ''10k-15k'' AND cap_percent = 12.0) OR (SalarySlab
+        = ''15k+'' AND cap_percent = 10.0).'
+      sources:
+      - start_line: 20
+        end_line: 23
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 3145cddc-20ba-4989-b4d0-3e9560df59c9
+    - text: 'approved_percent must equal the minimum of recommended_percent and cap_percent
+        (i.e., approved_percent = min(recommended_percent, cap_percent)). Enforce
+        with: approved_percent <= cap_percent AND approved_percent <= recommended_percent
+        AND (approved_percent = cap_percent OR approved_percent = recommended_percent)
+        with a small numeric tolerance for floating point.'
+      sources:
+      - start_line: 17
+        end_line: 23
+        file: ''
+      uid: 389c8df6-72b1-4c8b-ab75-93b2c28dcdff
+    - text: 'approved_amount must equal MonthlyIncome * (approved_percent / 100.0)
+        and must not exceed the slab cap amount: approved_amount <= MonthlyIncome
+        * (cap_percent / 100.0). Example Deequ compliance: abs(approved_amount - MonthlyIncome
+        * approved_percent / 100.0) <= 1e-6 AND approved_amount <= MonthlyIncome *
+        cap_percent / 100.0.'
+      sources:
+      - start_line: 22
+        end_line: 23
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 758fdb09-d0ab-41ed-aa9e-ad18debc61b9
+  OverTime:
+    code:
+    - suggestion: .hasColumn('OverTime')
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasColumn(''OverTime'')'':
+        ''Check'' object has no attribute ''hasColumn'''
+      level: error
+      uid: a54f04a9-b318-47b4-9b6b-1d6d4bde7c1f
+      source_assumptions:
+      - 28986c0f-1673-40bd-a7ca-e3ad2fc9c92c
+    - suggestion: .isContainedIn('OverTime', ['Yes', 'No'])
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e2a5c655-73a8-49cc-a551-d39782e57191
+      source_assumptions:
+      - af83b98e-0eb3-44ee-afc7-6cdad6f07321
+    - suggestion: .isComplete('OverTime')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b3cfc11c-c255-4204-bea9-498639ea8cfb
+      source_assumptions:
+      - 6a3f3f9a-ea62-4554-bb7a-49ab94bc9140
+    - suggestion: '.hasNumberOfDistinctValues(''OverTime'', lambda x: x == 2)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''OverTime'',
+        lambda x: x == 2)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: c4d27640-bd6a-40a3-ba47-08c1c5ee2af4
+      source_assumptions:
+      - 82a49e67-9686-43c0-9383-6ef2f841f1c3
+    assumptions:
+    - text: 'The input must contain the ''OverTime'' column; otherwise, the script
+        will fail when referencing it. Deequ example: .hasColumn(''OverTime'')'
+      sources:
+      - start_line: 14
+        end_line: 14
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 28986c0f-1673-40bd-a7ca-e3ad2fc9c92c
+    - text: 'The ''OverTime'' column should be a categorical string with values exactly
+        in {''Yes'', ''No''} (case-sensitive and trimmed). Any other value (including
+        different casing or extra spaces) would be treated as ''No'' and distort the
+        risk score. Deequ example: .isContainedIn(''OverTime'', [''Yes'',''No''])
+        or .satisfies("regexp_like(`OverTime`, ''^(Yes|No)$'')", ''OverTime valid
+        set'')'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      - start_line: 63
+        end_line: 72
+        file: ''
+      uid: af83b98e-0eb3-44ee-afc7-6cdad6f07321
+    - text: 'The ''OverTime'' column should be complete (no nulls). Although the code
+        would coerce nulls to 0 via the equality check, missing values would be implicitly
+        treated as ''No'', affecting the risk calculation. Deequ example: .isComplete(''OverTime'')'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      - start_line: 63
+        end_line: 72
+        file: ''
+      uid: 6a3f3f9a-ea62-4554-bb7a-49ab94bc9140
+    - text: 'The ''OverTime'' column should have exactly two distinct values (binary).
+        This aligns with the Yes/No semantics used to create a numeric flag. Deequ
+        example: .hasNumberOfDistinctValues(''OverTime'', lambda x: x == 2)'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 82a49e67-9686-43c0-9383-6ef2f841f1c3
+  PerformanceRating:
+    code:
+    - suggestion: '.isContainedIn(''PerformanceRating'', [3, 4], lambda f: f == 1.0)'
+      validity: false
+      reason_if_invalid: "Unable to instantiate constraint '.isContainedIn('PerformanceRating',\
+        \ [3, 4], lambda f: f == 1.0)': An error occurred while calling None.None.\
+        \ Trace:\npy4j.Py4JException: Cannot convert java.lang.Integer to java.lang.String\n\
+        \tat py4j.commands.ArrayCommand.convertArgument(ArrayCommand.java:166)\n\t\
+        at py4j.commands.ArrayCommand.setArray(ArrayCommand.java:144)\n\tat py4j.commands.ArrayCommand.execute(ArrayCommand.java:97)\n\
+        \tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:840)\n\n"
+      level: warning
+      uid: 496cad14-f856-490b-b210-92e5021873b4
+      source_assumptions:
+      - 0525d812-06d0-478e-b9a4-b8e9112feeec
+    - suggestion: .isComplete('PerformanceRating')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 67337149-22ea-466f-a2d1-e5b19298801f
+      source_assumptions:
+      - 3437256b-b2ea-420c-87bb-37e6518beeb1
+    - suggestion: '.hasDataType(''PerformanceRating'', ConstrainableDataTypes.Integral,
+        lambda f: f == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''PerformanceRating'',
+        ConstrainableDataTypes.Integral, lambda f: f == 1.0)'
+      level: warning
+      uid: 2a74e3b0-8155-4604-8bda-25da2c967749
+      source_assumptions:
+      - 7de56049-8e25-4757-9276-f2113d94fdcd
+    assumptions:
+    - text: 'PerformanceRating values must only be in the allowed set {3, 4}. Any
+        value outside this set would not map to a bonus and would propagate nulls
+        through merit calculations. Deequ example: .isContainedIn("PerformanceRating",
+        Array(3, 4), lambda f: f == 1.0) or .satisfies("`PerformanceRating` IN (3,4)",
+        "Valid PerformanceRating", lambda p: p == 1.0). Great Expectations example:
+        expect_column_values_to_be_in_set("PerformanceRating", [3, 4], mostly=1.0).'
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 19
+        end_line: 19
+        file: ''
+      - start_line: 22
+        end_line: 23
+        file: ''
+      uid: 0525d812-06d0-478e-b9a4-b8e9112feeec
+    - text: 'PerformanceRating should be complete (no nulls). The code does not fill
+        missing ratings; nulls would map to null bonuses and lead to null recommended/approved
+        percentages and amounts. Deequ example: .hasCompleteness("PerformanceRating",
+        lambda c: c == 1.0). Great Expectations example: expect_column_values_to_not_be_null("PerformanceRating",
+        mostly=1.0).'
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 19
+        end_line: 19
+        file: ''
+      - start_line: 22
+        end_line: 23
+        file: ''
+      uid: 3437256b-b2ea-420c-87bb-37e6518beeb1
+    - text: 'PerformanceRating values must be numeric/integral (not strings) so that
+        the integer-keyed mapping is applied correctly. Deequ example: .hasDataType("PerformanceRating",
+        ConstrainableDataTypes.Integral). Great Expectations example: expect_column_values_to_be_in_type_list("PerformanceRating",
+        ["int", "int64", "long", "IntegerType"]).'
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      uid: 7de56049-8e25-4757-9276-f2113d94fdcd
+  '["PercentSalaryHike","PerformanceRating","SalarySlab"]':
+    code: []
+    assumptions:
+    - text: 'PerformanceRating is restricted to the supported mapping domain and deterministically
+        drives rating_bonus: only ratings {3, 4} are expected; rating_bonus must equal
+        0.0 when PerformanceRating=3 and 2.0 when PerformanceRating=4. Deequ examples:
+        .isContainedIn(''PerformanceRating'', Array(3,4)) and .satisfies("(PerformanceRating
+        = 3 AND rating_bonus = 0.0) OR (PerformanceRating = 4 AND rating_bonus = 2.0)",
+        "rating_bonus_mapping")'
+      sources:
+      - start_line: 17
+        end_line: 19
+        file: ''
+      uid: 9ba338a6-0243-4439-8a55-7725ba2c70ae
+    - text: 'recommended_percent must equal the sum of PercentSalaryHike and rating_bonus
+        for every row (i.e., no missing or malformed values in either input column).
+        Deequ example: .satisfies("recommended_percent = PercentSalaryHike + rating_bonus",
+        "recommended_is_sum")'
+      sources:
+      - start_line: 17
+        end_line: 19
+        file: ''
+      uid: 42403b74-898e-4b27-99b7-a58d1b450dda
+    - text: 'SalarySlab values are limited to {''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''}
+        and deterministically map to cap_percent {20.0,15.0,12.0,10.0} respectively.
+        Deequ examples: .isContainedIn(''SalarySlab'', Array("Upto 5k","5k-10k","10k-15k","15k+"))
+        and .satisfies("(SalarySlab=''Upto 5k'' AND cap_percent=20.0) OR (SalarySlab=''5k-10k''
+        AND cap_percent=15.0) OR (SalarySlab=''10k-15k'' AND cap_percent=12.0) OR
+        (SalarySlab=''15k+'' AND cap_percent=10.0)", "slab_to_cap_mapping")'
+      sources:
+      - start_line: 20
+        end_line: 22
+        file: ''
+      uid: 7882d36c-5bb6-4718-be38-fd59c2006681
+    - text: 'approved_percent is the capped merit percent: it must equal min(PercentSalaryHike
+        + rating_bonus, cap_percent). Equivalent conditional form: if recommended_percent
+        <= cap_percent then approved_percent = recommended_percent else approved_percent
+        = cap_percent. Deequ example: .satisfies("approved_percent = CASE WHEN PercentSalaryHike
+        + rating_bonus <= cap_percent THEN PercentSalaryHike + rating_bonus ELSE cap_percent
+        END", "approved_is_min")'
+      sources:
+      - start_line: 19
+        end_line: 22
+        file: ''
+      uid: 41e4ada7-e7e8-47ee-a290-76fafaf7d885
+    - text: 'approved_amount must equal MonthlyIncome * (approved_percent / 100.0)
+        and be non-negative (implying MonthlyIncome >= 0 and approved_percent >= 0).
+        Deequ example: .satisfies("approved_amount = MonthlyIncome * (approved_percent
+        / 100.0) AND approved_amount >= 0", "approved_amount_calc")'
+      sources:
+      - start_line: 22
+        end_line: 23
+        file: ''
+      uid: 8aad7ba6-2b8c-47b6-aedd-07b39a52e749
+    - text: 'SalarySlab should be consistent with MonthlyIncome brackets used by the
+        business semantics: ''Upto 5k'' => MonthlyIncome <= 5000; ''5k-10k'' => 5000
+        < MonthlyIncome <= 10000; ''10k-15k'' => 10000 < MonthlyIncome <= 15000; ''15k+''
+        => MonthlyIncome > 15000. Deequ example: .satisfies("(SalarySlab=''Upto 5k''
+        AND MonthlyIncome <= 5000) OR (SalarySlab=''5k-10k'' AND MonthlyIncome > 5000
+        AND MonthlyIncome <= 10000) OR (SalarySlab=''10k-15k'' AND MonthlyIncome >
+        10000 AND MonthlyIncome <= 15000) OR (SalarySlab=''15k+'' AND MonthlyIncome
+        > 15000)", "slab_matches_income")'
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: 6795f033-c0a1-4806-88de-ab80b4fa0308
+    - text: 'Completeness across merit inputs: PercentSalaryHike, PerformanceRating,
+        and SalarySlab must all be non-null for every row used in merit calculations
+        (no fillna or defaulting is applied). Deequ examples: .hasCompleteness(''PercentSalaryHike'',
+        1.0), .hasCompleteness(''PerformanceRating'', 1.0), .hasCompleteness(''SalarySlab'',
+        1.0) or a composite .satisfies("PercentSalaryHike IS NOT NULL AND PerformanceRating
+        IS NOT NULL AND SalarySlab IS NOT NULL", "merit_inputs_complete")'
+      sources:
+      - start_line: 18
+        end_line: 22
+        file: ''
+      uid: 9a46d4b3-2e96-45aa-a40e-d454a43e099a
+  SalarySlab:
+    code:
+    - suggestion: .isComplete("SalarySlab")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f67c053f-f1ab-434b-bfcb-b299adb6e602
+      source_assumptions:
+      - 981806b2-f06e-441a-a945-a1492e7c35be
+    - suggestion: '.isContainedIn("SalarySlab", ["Upto 5k", "5k-10k", "10k-15k", "15k+"],
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c168e882-1c89-4fa1-b583-b26d43263851
+      source_assumptions:
+      - e8f96d29-7144-4c67-883c-120966964724
+    - suggestion: '.hasNumberOfDistinctValues("SalarySlab", lambda x: x == 4)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("SalarySlab",
+        lambda x: x == 4)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: bd48f428-ace7-4ba0-bb44-727254e9a4f5
+      source_assumptions:
+      - eacda2cb-46e1-47e6-be2f-5771ad0faf55
+    - suggestion: '.hasDataType("SalarySlab", ConstrainableDataTypes.String, lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("SalarySlab",
+        ConstrainableDataTypes.String, lambda x: x == 1.0)'
+      level: error
+      uid: dac8589e-d80e-46e1-bceb-405288848d60
+      source_assumptions:
+      - 3ea47141-0ad1-4c4b-89bf-305bee398dcf
+    assumptions:
+    - text: 'SalarySlab must be present and non-null for every row; otherwise the
+        map to cap_percent will yield null and approved_percent/approved_amount cannot
+        be computed. Possible validation: Deequ hasCompleteness("SalarySlab", lambda
+        x: x == 1.0) or Great Expectations expect_column_values_to_not_be_null.'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 85
+        end_line: 87
+        file: ''
+      uid: 981806b2-f06e-441a-a945-a1492e7c35be
+    - text: 'All SalarySlab values must be in the exact allowed set {''Upto 5k'',
+        ''5k-10k'', ''10k-15k'', ''15k+''} (case and punctuation sensitive). Any other
+        value will not map to a cap and will break downstream calculations. Possible
+        validation: Deequ isContainedIn("SalarySlab", ["Upto 5k", "5k-10k", "10k-15k",
+        "15k+"]) with required fraction == 1.0, or Great Expectations expect_column_values_to_be_in_set
+        with mostly=1.0.'
+      sources:
+      - start_line: 20
+        end_line: 23
+        file: ''
+      uid: e8f96d29-7144-4c67-883c-120966964724
+    - text: 'SalarySlab should have exactly 4 distinct categories (no unexpected new
+        categories). Possible validation: Deequ hasNumberOfDistinctValues("SalarySlab",
+        lambda x: x == 4) or Great Expectations expect_column_unique_value_count_to_equal(4).'
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      uid: eacda2cb-46e1-47e6-be2f-5771ad0faf55
+    - text: 'SalarySlab values should be free of leading/trailing whitespace and match
+        exactly (no case or spacing variations), to ensure mapping succeeds. Possible
+        validation: Deequ satisfies("CASE WHEN `SalarySlab` = TRIM(`SalarySlab`) THEN
+        1 ELSE 0 END", "No surrounding spaces", lambda x: x == 1.0) or Great Expectations
+        expect_column_values_to_match_regex(r"^\S(.*\S)?$").'
+      sources:
+      - start_line: 21
+        end_line: 21
+        file: ''
+      uid: 1f437fed-b40f-4858-9cab-0c7a61bd7ce6
+    - text: 'SalarySlab should be a string/categorical column (not numeric), since
+        mapping keys are strings. Possible validation: Deequ hasDataType("SalarySlab",
+        ConstrainableDataTypes.String) or Great Expectations expect_column_values_to_be_of_type("object").'
+      sources:
+      - start_line: 21
+        end_line: 21
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: 3ea47141-0ad1-4c4b-89bf-305bee398dcf
+column_data_flow_locations:
+  PerformanceRating:
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 18
+    end_line: 19
+    file: ''
+  - start_line: 22
+    end_line: 23
+    file: ''
+  - start_line: 26
+    end_line: 29
+    file: ''
+  - start_line: 31
+    end_line: 32
+    file: ''
+  - start_line: 85
+    end_line: 87
+    file: ''
+  PercentSalaryHike:
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 19
+    end_line: 19
+    file: ''
+  - start_line: 22
+    end_line: 23
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  SalarySlab:
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 21
+    end_line: 23
+    file: ''
+  - start_line: 26
+    end_line: 29
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  MonthlyIncome:
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 26
+    end_line: 29
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  Department:
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 26
+    end_line: 29
+    file: ''
+  - start_line: 31
+    end_line: 32
+    file: ''
+  - start_line: 81
+    end_line: 83
+    file: ''
+  EmpID:
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 81
+    end_line: 81
+    file: ''
+  - start_line: 83
+    end_line: 83
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  AgeGroup:
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 81
+    end_line: 81
+    file: ''
+  - start_line: 83
+    end_line: 83
+    file: ''
+  OverTime:
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 49
+    end_line: 49
+    file: ''
+  - start_line: 63
+    end_line: 72
+    file: ''
+  - start_line: 74
+    end_line: 75
+    file: ''
+  - start_line: 76
+    end_line: 78
+    file: ''
+  - start_line: 81
+    end_line: 83
+    file: ''
+  JobSatisfaction:
+  - start_line: 52
+    end_line: 52
+    file: ''
+  - start_line: 66
+    end_line: 66
+    file: ''
+  - start_line: 74
+    end_line: 75
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 81
+    end_line: 81
+    file: ''
+  - start_line: 83
+    end_line: 83
+    file: ''
+  WorkLifeBalance:
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 63
+    end_line: 75
+    file: ''
+  - start_line: 78
+    end_line: 83
+    file: ''
+  DistanceFromHome:
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 74
+    end_line: 78
+    file: ''
+  - start_line: 81
+    end_line: 83
+    file: ''
+  YearsWithCurrManager:
+  - start_line: 58
+    end_line: 59
+    file: ''
+  - start_line: 63
+    end_line: 75
+    file: ''
+  - start_line: 78
+    end_line: 78
+    file: ''
+  - start_line: 83
+    end_line: 83
+    file: ''
+  Attrition:
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 60
+    end_line: 83
+    file: ''
+  JobRole:
+  - start_line: 81
+    end_line: 81
+    file: ''
+  - start_line: 83
+    end_line: 83
+    file: ''
+fixing_results: {}
+consolidation_results:
+  Attrition:
+  - idx_to_remove: fbc91d6c-3235-4036-b73a-eca2f9357f45
+    redundant_with:
+    - e903422f-0949-4df7-bbc2-589a94d18d7e
+  '["AgeGroup","Attrition","DistanceFromHome","JobSatisfaction","OverTime","WorkLifeBalance","YearsWithCurrManager"]':
+  - idx_to_remove: 013aac1f-4170-41e6-850c-bb7572f2679d
+    redundant_with:
+    - e82fcc2a-c720-4a13-8ff5-84ad58af4f6a
+  WorkLifeBalance:
+  - idx_to_remove: 2d30fa18-7e5c-435d-90b1-3c3f876eea6e
+    redundant_with:
+    - fe303623-12fd-46d3-8db5-20b3f605aa6c
+  MonthlyIncome:
+  - idx_to_remove: fc0383a4-b3cc-48b7-85b2-f7602b9f823f
+    redundant_with:
+    - 36dc7fae-8c4b-4c71-8543-5d0e1ded4a4f
+  SalarySlab:
+  - idx_to_remove: bf036013-7359-4446-acb7-5c33a05c9515
+    redundant_with:
+    - f67c053f-f1ab-434b-bfcb-b299adb6e602
+    - c168e882-1c89-4fa1-b583-b26d43263851
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 11001
+    prompt_tokens: 9475
+    completion_tokens: 1526
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 77345
+    prompt_tokens: 26831
+    completion_tokens: 50514
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 7139
+    prompt_tokens: 3166
+    completion_tokens: 3973
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 22046
+    prompt_tokens: 9363
+    completion_tokens: 12683
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 40412
+    prompt_tokens: 12337
+    completion_tokens: 28075
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 43544
+    prompt_tokens: 22171
+    completion_tokens: 21373
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 93173
+    prompt_tokens: 38571
+    completion_tokens: 54602
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 124971
+    prompt_tokens: 81667
+    completion_tokens: 43304
+  consolidate_constraints:
+    cost: 0.21254625
+    total_tokens: 34454
+    prompt_tokens: 15085
+    completion_tokens: 19369

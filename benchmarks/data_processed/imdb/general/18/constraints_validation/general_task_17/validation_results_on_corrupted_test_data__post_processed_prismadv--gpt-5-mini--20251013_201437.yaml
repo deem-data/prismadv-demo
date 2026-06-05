@@ -1,0 +1,197 @@
+results:
+  Star1:
+    code:
+    - suggestion: '.satisfies("`Star1` IS NOT NULL AND trim(`Star1`) <> '''' AND lower(trim(`Star1`))
+        <> ''nan''", "Star1 non-null, non-empty and not literal ''nan''", lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("lower(trim(`Star1`)) <> lower(trim(`Star2`)) AND lower(trim(`Star1`))
+        <> lower(trim(`Star3`)) AND lower(trim(`Star1`)) <> lower(trim(`Star4`)) AND
+        lower(trim(`Star2`)) <> lower(trim(`Star3`)) AND lower(trim(`Star2`)) <> lower(trim(`Star4`))
+        AND lower(trim(`Star3`)) <> lower(trim(`Star4`))", "Cast names are pairwise
+        distinct (Star1..Star4)", lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Star2:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Star2` IS NOT NULL AND trim(lower(`Star2`))
+        <> '''' AND trim(lower(`Star2`)) <> ''nan'' THEN 1 ELSE 0 END", "Star2 non-null
+        non-empty", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Star3:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(LOWER(CAST(`Star3` AS STRING))) <> ''''
+        AND TRIM(LOWER(CAST(`Star3` AS STRING))) <> ''nan'' THEN 1 ELSE 0 END", "Star3
+        non-empty and not ''nan''", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN size(array_distinct(array(TRIM(LOWER(CAST(`Star1`
+        AS STRING))), TRIM(LOWER(CAST(`Star2` AS STRING))), TRIM(LOWER(CAST(`Star3`
+        AS STRING))), TRIM(LOWER(CAST(`Star4` AS STRING)))))) = 4 THEN 1 ELSE 0 END",
+        "Cast uniqueness across Star1..Star4", lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Star4:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(LOWER(CAST(`Star4` AS STRING))) IS NOT
+        NULL AND TRIM(LOWER(CAST(`Star4` AS STRING))) <> '''' AND TRIM(LOWER(CAST(`Star4`
+        AS STRING))) <> ''nan'' THEN 1 ELSE 0 END", "Star4 present and not literal
+        ''nan''", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN size(array_distinct(array(TRIM(CAST(`Star1`
+        AS STRING)), TRIM(CAST(`Star2` AS STRING)), TRIM(CAST(`Star3` AS STRING)),
+        TRIM(CAST(`Star4` AS STRING))))) = 4 THEN 1 ELSE 0 END", "Cast uniqueness
+        (trimmed)", lambda x: x >= 0.993)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies("CASE WHEN CAST(`IMDB_Rating` AS DOUBLE) BETWEEN 0 AND
+        10 THEN 1 ELSE 0 END", "IMDB_Rating_in_0_to_10", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN CAST(`IMDB_Rating` AS DOUBLE) >= 7.0 THEN
+        1 ELSE 0 END", "Has_high_rated_rows", lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Certificate:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NOT NULL THEN 1 ELSE 0 END",
+        "Certificate non-null ratio", lambda x: x >= 0.8)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NULL THEN 1 WHEN LENGTH(UPPER(TRIM(`Certificate`)))
+        <= 20 THEN 1 ELSE 0 END", "Certificate normalized max length <= 20", lambda
+        x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Genre:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(`Genre`) RLIKE ''^[^,]+(\\s*,\\s*[^,]+)*$''
+        THEN 1 ELSE 0 END", "Comma-separated genres", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN LOWER(TRIM(SPLIT(`Genre`,'','')[0])) = ''short''
+        THEN CASE WHEN TRIM(SPLIT(`Genre`,'','')[0]) = ''Short'' THEN 1 ELSE 0 END
+        ELSE 1 END", "Primary genre casing for ''Short''", lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Gross:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Gross` IS NULL OR lower(trim(`Gross`)) =
+        '''' OR lower(trim(`Gross`)) = ''nan'' THEN 1 WHEN regexp_like(replace(trim(`Gross`),
+        '','', ''''), ''^[0-9]+$'') THEN 1 ELSE 0 END", "Gross_integer_or_missing",
+        lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("regexp_like(replace(trim(`Gross`), '','', ''''), ''^[0-9]+$'')",
+        "Gross_has_some_numeric_rows", lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN regexp_like(replace(trim(`Gross`), '','',
+        ''''), ''^[0-9]+$'') THEN CASE WHEN cast(replace(trim(`Gross`), '','', '''')
+        AS BIGINT) >= 0 THEN 1 ELSE 0 END ELSE 1 END", "Gross_non_negative_integer",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Gross","gross_usd"]':
+    code:
+    - suggestion: '.satisfies("`Gross` IS NULL OR regexp_replace(`Gross`, '','', '''')
+        RLIKE ''^[0-9]+$''", "Gross parseable when present", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  No_of_Votes:
+    code:
+    - suggestion: .isComplete('No_of_Votes')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.isNonNegative(''No_of_Votes'', lambda x: x == 1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''isNonNegative(''No_of_Votes'', lambda x: x ==
+        1.0)'' failed on data sample: Value: 0.97 does not meet the constraint requirement!'
+      level: error
+  Released_Year:
+    code:
+    - suggestion: .isComplete('Released_Year')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN `Released_Year` BETWEEN 1880 AND 2100 THEN
+        1 ELSE 0 END'', ''Plausible year range'', lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["Released_Year","title_id"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'',''Released_Year''], lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Runtime:
+    code:
+    - suggestion: .isComplete('Runtime')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `Runtime` RLIKE ''\b\d+\s*h\b'' THEN 0 ELSE
+        1 END", "Runtime not in hours-only format", lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN CAST(REGEXP_EXTRACT(`Runtime`, ''(\\d+)'')
+        AS INT) BETWEEN 60 AND 210 THEN 1 ELSE 0 END", "Runtime within eligibility
+        range (60..210)", lambda x: x >= 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Series_Title:
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("Series_Title RLIKE ''[A-Za-z0-9]''", ''Series_Title
+        contains at least one alphanumeric character'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Released_Year` IS NOT NULL THEN CASE WHEN
+        `Series_Title` IS NOT NULL AND TRIM(CAST(`Series_Title` AS STRING)) <> ''''
+        THEN 1 ELSE 0 END ELSE 1 END", "Title present when year present", lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Runtime","runtime_min"]':
+    code:
+    - suggestion: '.satisfies("NOT(Genre = ''Short'') OR cast(regexp_replace(Runtime,
+        ''[^0-9]'', '''') AS int) < 60", "shorts_have_short_runtime", lambda x: x
+        == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning

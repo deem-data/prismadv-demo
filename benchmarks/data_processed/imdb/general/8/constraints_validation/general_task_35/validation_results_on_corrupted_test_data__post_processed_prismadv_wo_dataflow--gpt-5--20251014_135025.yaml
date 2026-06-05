@@ -1,0 +1,176 @@
+results:
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies(''IMDB_Rating IS NULL OR (cast(IMDB_Rating as double)
+        IS NOT NULL AND cast(IMDB_Rating as double) >= 0 AND cast(IMDB_Rating as double)
+        <= 10)'', ''IMDB rating in [0,10] when present'', lambda r: r == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCompleteness(''IMDB_Rating'', lambda c: c > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''cast(IMDB_Rating as double) >= 7.0'', ''at least one
+        high-quality title'', lambda r: r > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Director:
+    code:
+    - suggestion: '.hasCompleteness(''Director'', lambda f: f >= 0.98)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Genre:
+    code:
+    - suggestion: '.satisfies("`Genre` IS NULL OR `Genre` IS NOT NULL", "Genre column
+        exists", lambda x: x >= 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasCompleteness("Genre", lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasApproxCountDistinct("Genre", lambda x: x <= 300)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Gross:
+    code:
+    - suggestion: '.satisfies("CASE WHEN Gross IN ('''', ''nan'', ''NaN'', ''None'')
+        THEN NULL ELSE Gross END IS NOT NULL", "Gross non-missing after placeholder
+        normalization", lambda x: x >= 0.10)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasPattern("Gross", "^(\\d{1,3}(,\\d{3})+|\\d+)(\\.\\d+)?$", lambda
+        f: f >= 0.70)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("Gross IS NULL OR CAST(regexp_replace(Gross, '','',
+        '''') AS double) IS NULL OR CAST(regexp_replace(Gross, '','', '''') AS double)
+        >= 0", "Gross non-negative when parseable", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CAST(regexp_replace(Gross, '','', '''') AS double)
+        > 0", "At least one strictly positive Gross", lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["Gross","IMDB_Rating","No_of_Votes","Released_Year","Runtime"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda u:
+        u == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(IMDB_Rating < 7.0) OR (Runtime RLIKE ''^[1-9][0-9]{1,2}
+        min$'')", "RuntimeParsableForHighRated", lambda f: f == 1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("(IMDB_Rating < 7.0) OR (Runtime
+        RLIKE ''^[1-9][0-9]{1,2} min$'')", "RuntimeParsableForHighRated", lambda f:
+        f == 1.0)'' failed on data sample: Value: 0.9 does not meet the constraint
+        requirement!'
+      level: error
+    - suggestion: '.satisfies("CAST(IMDB_Rating AS DOUBLE) >= 0 AND CAST(IMDB_Rating
+        AS DOUBLE) <= 10 AND CAST(Released_Year AS INT) >= 1900 AND CAST(Released_Year
+        AS INT) <= year(current_date())", "RatingAndYearInRange", lambda f: f == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(IMDB_Rating < 7.0) OR (CAST(regexp_extract(Runtime,
+        ''^(\\d{2,3}) min$'', 1) AS INT) < 80) OR (CAST(regexp_extract(Runtime, ''^(\\d{2,3})
+        min$'', 1) AS INT) > 140) OR (No_of_Votes IS NOT NULL AND CAST(No_of_Votes
+        AS BIGINT) >= 0)", "VotesPresentAndNonNegativeForShortlist", lambda f: f ==
+        1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("(IMDB_Rating < 7.0) OR (CAST(regexp_extract(Runtime,
+        ''^(\\d{2,3}) min$'', 1) AS INT) < 80) OR (CAST(regexp_extract(Runtime, ''^(\\d{2,3})
+        min$'', 1) AS INT) > 140) OR (No_of_Votes IS NOT NULL AND CAST(No_of_Votes
+        AS BIGINT) >= 0)", "VotesPresentAndNonNegativeForShortlist", lambda f: f ==
+        1.0)'' failed on data sample: Value: 0.95 does not meet the constraint requirement!'
+      level: warning
+    - suggestion: '.satisfies("(IMDB_Rating < 7.0) OR (CAST(regexp_extract(Runtime,
+        ''^(\\d{2,3}) min$'', 1) AS INT) < 80) OR (CAST(regexp_extract(Runtime, ''^(\\d{2,3})
+        min$'', 1) AS INT) > 140) OR (Series_Title IS NOT NULL AND Released_Year IS
+        NOT NULL AND CAST(Released_Year AS INT) IS NOT NULL)", "KeyFieldsPresentAndYearIntegralForShortlist",
+        lambda f: f == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  No_of_Votes:
+    code:
+    - suggestion: .isComplete('No_of_Votes')
+      status: false
+      reason_if_failed: 'Constraint ''.isComplete(''No_of_Votes'')'' failed on data
+        sample: Value: 0.95 does not meet the constraint requirement!'
+      level: error
+    - suggestion: '.satisfies("NOT (IMDB_Rating >= 7.0 AND Runtime RLIKE ''^[1-9][0-9]{1,2}
+        min$'' AND CAST(regexp_extract(Runtime, ''^([1-9][0-9]{1,2}) min$'', 1) AS
+        INT) BETWEEN 80 AND 140) OR No_of_Votes IS NOT NULL", "Votes present for shortlisted
+        rows", lambda x: x == 1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("NOT (IMDB_Rating >= 7.0 AND Runtime
+        RLIKE ''^[1-9][0-9]{1,2} min$'' AND CAST(regexp_extract(Runtime, ''^([1-9][0-9]{1,2})
+        min$'', 1) AS INT) BETWEEN 80 AND 140) OR No_of_Votes IS NOT NULL", "Votes
+        present for shortlisted rows", lambda x: x == 1.0)'' failed on data sample:
+        Value: 0.9575 does not meet the constraint requirement!'
+      level: warning
+    - suggestion: '.isNonNegative(''No_of_Votes'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Released_Year:
+    code:
+    - suggestion: '.satisfies("Released_Year >= 1900 AND Released_Year <= year(current_date())",
+        "Released_Year within [1900, current_year]", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Runtime:
+    code:
+    - suggestion: '.satisfies("Runtime IS NOT NULL AND TRIM(Runtime) <> '''' AND lower(Runtime)
+        NOT IN (''nan'',''none'')", "Runtime present and no placeholders", lambda
+        x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasPattern("Runtime", ''^[1-9][0-9]{1,2} min$'', lambda x: x ==
+        1.0, name="Runtime format exact")'
+      status: false
+      reason_if_failed: 'Constraint ''.hasPattern("Runtime", ''^[1-9][0-9]{1,2} min$'',
+        lambda x: x == 1.0, name="Runtime format exact")'' failed on data sample:
+        Value: 0.9 does not meet the constraint requirement!'
+      level: error
+    - suggestion: '.satisfies("CAST(regexp_extract(Runtime, ''([1-9][0-9]{1,2})'',
+        1) AS int) BETWEEN 80 AND 140", "At least one runtime in target window", lambda
+        x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Series_Title:
+    code:
+    - suggestion: '.satisfies("length(trim(`Series_Title`)) > 0", "Non-blank Series_Title",
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("lower(trim(`Series_Title`)) NOT IN (''nan'',''none'',''null'')",
+        "Series_Title not placeholder", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("`Series_Title` = trim(`Series_Title`)", "Series_Title
+        trimmed", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning

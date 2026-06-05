@@ -1,0 +1,238 @@
+results:
+  team1:
+    code:
+    - suggestion: '.satisfies("(match_type != ''League'') OR (team1 IS NOT NULL AND
+        TRIM(team1) <> '''')", "Non-empty team1 for League", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN match_type = \''League\'' THEN team1 <>
+        \''\'' ELSE true END'', ''Non-empty team1 for League'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN match_type = \''League\'' THEN team1 IS
+        NOT NULL AND team2 IS NOT NULL AND team1 <> team2 ELSE true END'', ''Distinct
+        teams per League match'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN match_type = \''League\'' AND result <>
+        \''no result\'' THEN winner IN (team1, team2) ELSE true END'', ''Winner must
+        be one of the two teams'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''team1 = trim(team1)'', ''No leading/trailing whitespace
+        in team1'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  team2:
+    code:
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN CASE WHEN team2
+        IS NOT NULL AND TRIM(team2) <> '''' THEN 1 ELSE 0 END ELSE 1 END", "team2
+        present for League", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN CASE WHEN team1
+        IS NOT NULL AND team2 IS NOT NULL AND team1 <> team2 THEN 1 ELSE 0 END ELSE
+        1 END", "Distinct teams in League matches", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result <> ''no
+        result'' THEN CASE WHEN winner = team1 OR winner = team2 THEN 1 ELSE 0 END
+        ELSE 1 END", "Winner is one of the two teams (League, non-NR)", lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  match_type:
+    code:
+    - suggestion: .isComplete("match_type")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("`match_type` = ''League''", "Has League matches", lambda
+        x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.isContainedIn("match_type", ["League", "Final", "Qualifier 1",
+        "Qualifier 2", "Eliminator", "Semi Final", "Elimination Final"], lambda x:
+        x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("`match_type` = ''League''", "League share", lambda
+        x: x >= 0.85)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  super_over:
+    code:
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (`super_over` IN (''Y'',''N''))",
+        "super_over allowed values on League matches", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (`super_over` IS NOT
+        NULL)", "super_over non-null on League matches", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (`result` IS NULL OR
+        `result` <> ''no result'' OR `super_over` = ''N'')", "No-result implies super_over
+        = ''N'' on League matches", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (`super_over` <> ''Y''
+        OR (`winner` IS NOT NULL AND (`winner` = `team1` OR `winner` = `team2`)))",
+        "If super_over = ''Y'', winner must be team1 or team2 and non-null (League)",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (COALESCE(`result`
+        = ''tie'', false) = COALESCE(`super_over` = ''Y'', false))", "Tie result iff
+        super_over = ''Y'' on League matches", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  date:
+    code:
+    - suggestion: '.hasCompleteness(''date'', lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("to_timestamp(`date`) IS NOT NULL", "Date parseable
+        to timestamp", lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN to_timestamp(`date`) IS NOT NULL AND CAST(`season`
+        AS INT) IS NOT NULL THEN YEAR(to_timestamp(`date`)) = CAST(`season` AS INT)
+        ELSE TRUE END", "Date-season year consistency (when both parse)", lambda x:
+        x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  season:
+    code:
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN (season IS NOT
+        NULL AND CAST(season AS INT) IS NOT NULL) ELSE true END", "Season present
+        and numeric for League matches", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN (CAST(season
+        AS INT) BETWEEN 2000 AND 2100) ELSE true END", "Season within plausible calendar
+        year range (2000-2100) for League matches", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND to_timestamp(date)
+        IS NOT NULL THEN (year(to_timestamp(date)) = CAST(season AS INT)) ELSE true
+        END", "Season matches parsed date year for League matches", lambda x: x ==
+        1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  id:
+    code:
+    - suggestion: '.hasCompleteness(''id'', lambda v: v >= 0.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN id IS NOT NULL
+        ELSE TRUE END", "Non-null id for League", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  winner:
+    code:
+    - suggestion: '.satisfies("(match_type <> ''League'' OR result = ''no result'')
+        OR (winner IS NOT NULL AND winner <> '''')", "Winner non-null for decided
+        League matches", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(match_type <> ''League'' OR result = ''no result'')
+        OR (winner = team1 OR winner = team2)", "Winner must be one of participating
+        teams for decided League matches", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(match_type <> ''League'' OR result <> ''no result'')
+        OR (winner IS NULL OR winner = '''')", "No winner recorded for no-result League
+        matches", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  result:
+    code:
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (`result` IS NOT NULL)",
+        "League: result must be non-null", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (`result` IN (''runs'',''wickets'',''tie'',''no
+        result''))", "League: result limited to expected values", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (CASE WHEN `result`
+        = ''no result'' THEN ((`winner` IS NULL OR TRIM(`winner`) = '''') AND (`super_over`
+        IS NULL OR `super_over` <> ''Y'')) ELSE TRUE END)", "League: NR implies no
+        winner and no super over", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (CASE WHEN `result`
+        <> ''no result'' THEN (`winner` IS NOT NULL AND TRIM(`winner`) <> '''' AND
+        (`winner` = `team1` OR `winner` = `team2`)) ELSE TRUE END)", "League: non-NR
+        implies winner is one of the teams", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (((`result` = ''tie'')
+        AND (`super_over` = ''Y'')) OR ((`result` <> ''tie'') AND (`super_over` IS
+        NULL OR `super_over` <> ''Y'')))", "League: tie iff super over played", lambda
+        x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["team1","team2"]':
+    code:
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR (`team1` IS NOT NULL
+        AND `team2` IS NOT NULL AND `team1` <> `team2`)", "League rows must have two
+        distinct, non-null teams", lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(`result` = ''no result'') OR (`winner` = `team1` OR
+        `winner` = `team2`)", "Winner must be one of the two teams when result is
+        not NR", lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(`result` <> ''no result'') OR (`winner` IS NULL OR
+        TRIM(`winner`) = '''')", "Winner should be null/blank when result is NR",
+        lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(`match_type` <> ''League'') OR ((`result` = ''tie''
+        AND `super_over` = ''Y'') OR (`result` <> ''tie'' AND (`super_over` IS NULL
+        OR `super_over` <> ''Y'')))", "Tie/super-over consistency for League matches",
+        lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasUniqueness(["id", "team1", "team2"], lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error

@@ -1,0 +1,1513 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-pro
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: '.hasCompleteness("IMDB_Rating", lambda c: c == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2e0c781b-ee39-4b22-944d-da957cc7fb6b
+      source_assumptions:
+      - b6824769-6c2b-4ca7-8669-70ba8ac5f8ac
+      - 36f443bd-0b3a-48bc-b7c3-bc461ca3bcce
+    - suggestion: '.hasDataType("IMDB_Rating", "Numeric", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("IMDB_Rating",
+        "Numeric", lambda x: x == 1.0)'
+      level: error
+      uid: 08c97930-a5fc-4f83-91f4-fd5ccbd0204c
+      source_assumptions:
+      - b6824769-6c2b-4ca7-8669-70ba8ac5f8ac
+    - suggestion: '.satisfies("`IMDB_Rating` < 0 OR `IMDB_Rating` > 10", "Values in
+        IMDB_Rating should be between 0 and 10", lambda num_matching_rows: num_matching_rows
+        == 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 565903a7-a872-4c8d-87ea-593be476c2df
+      source_assumptions:
+      - d8d419ab-2c57-47f8-b4d4-ae648cbb0f60
+    assumptions:
+    - text: The 'IMDB_Rating' column must contain only valid numeric values and have
+        no missing entries. The script converts the column to a numeric type on line
+        34, but a subsequent operation on line 44 (`.astype(int)`) will fail if any
+        values were originally null or could not be converted to a number. This implies
+        a strict requirement for the column to be fully populated with parseable numeric
+        data.
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 44
+        end_line: 44
+        file: ''
+      uid: b6824769-6c2b-4ca7-8669-70ba8ac5f8ac
+    - text: Values in the 'IMDB_Rating' column are assumed to be on a standard rating
+        scale, plausibly between 0 and 10. This is implied by the column's name and
+        its usage in calculating a mean rating (line 48) and creating quantized rating
+        buckets (line 44). Extreme or negative values would skew these calculations
+        and the final ranking score.
+      sources:
+      - start_line: 44
+        end_line: 44
+        file: ''
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: d8d419ab-2c57-47f8-b4d4-ae648cbb0f60
+    - text: The 'IMDB_Rating' column must contain at least one valid numeric value.
+        If the column were entirely empty or null, the calculation of the mean on
+        line 48 would result in NaN, which would invalidate the downstream 'bayes_rating'
+        and final 'qa_pop_score' for all rows.
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 36f443bd-0b3a-48bc-b7c3-bc461ca3bcce
+  Certificate:
+    code:
+    - suggestion: '.isContainedIn(''Certificate'', [''U'', ''G'', ''PG'', ''TV-PG'',
+        ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'', ''NC-17'', ''A'', ''Not Rated'',
+        ''Unrated'', ''Approved'', ''Passed'', ''U/A'', ''GP''], lambda x: x >= 0.8,
+        ''Most Certificate values should be in the expected set'')'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4e6107b6-098f-40ef-a517-c109f47bd3c9
+      source_assumptions:
+      - d853f884-905d-4983-aa92-9ec13c97a84e
+      - f4eb6f13-7fe4-4f16-b431-5c889c1b3918
+    - suggestion: '.hasCompleteness(''Certificate'', lambda x: x >= 0.8, ''Certificate
+        column should not have an excessive number of nulls'')'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 97fa2866-830b-4d15-9e95-5955c9d08f16
+      source_assumptions:
+      - ffa103fe-bde3-4a37-8b9e-108498960d6c
+    assumptions:
+    - text: 'The ''Certificate'' column is expected to be a categorical string, with
+        most values belonging to the set defined in the `maturity_map`: [''U'', ''G'',
+        ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'', ''NC-17'',
+        ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'', ''GP''].
+        Any value not in this set will be treated as having the highest maturity level,
+        potentially misclassifying content as not kid-safe. A high proportion of values
+        should conform to this set for the logic to be effective.'
+      sources:
+      - start_line: 77
+        end_line: 82
+        file: ''
+      - start_line: 84
+        end_line: 84
+        file: ''
+      uid: d853f884-905d-4983-aa92-9ec13c97a84e
+    - text: 'The ''Certificate'' column can contain null values. The code is designed
+        to handle nulls: they are mapped to the highest maturity level (3) when determining
+        if a title is ''kids safe'', and are explicitly checked for and converted
+        to null in the final JSON output. The input data profile indicates about 10%
+        of values are null, which is consistent with the code''s handling.'
+      sources:
+      - start_line: 82
+        end_line: 84
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      - start_line: 136
+        end_line: 136
+        file: ''
+      uid: ffa103fe-bde3-4a37-8b9e-108498960d6c
+    - text: The 'Certificate' column is expected to have a string data type. The code
+        casts the column to 'object' and relies on a string-keyed dictionary for mapping
+        values.
+      sources:
+      - start_line: 39
+        end_line: 39
+        file: ''
+      - start_line: 77
+        end_line: 82
+        file: ''
+      uid: f4eb6f13-7fe4-4f16-b431-5c889c1b3918
+  '["Certificate","Genre"]':
+    code:
+    - suggestion: '.satisfies("(NOT Certificate IN (''U'', ''G'', ''PG'', ''TV-PG'',
+        ''Approved'', ''Passed'')) OR (NOT (Genre LIKE ''%Horror%'' OR Genre LIKE
+        ''%Thriller%''))", "Low_Maturity_Rating_Genre_Check", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(NOT Certificate IN (''U'', ''G'',
+        ''PG'', ''TV-PG'', ''Approved'', ''Passed'')) OR (NOT (Genre LIKE ''%Horror%''
+        OR Genre LIKE ''%Thriller%''))", "Low_Maturity_Rating_Genre_Check", lambda
+        x: x == 1)'' failed on data sample: Value: 0.9582637729549248 does not meet
+        the constraint requirement!'
+      level: warning
+      uid: b5bda8aa-f94a-4eb7-b922-d868988873c8
+      source_assumptions:
+      - c263c706-a4e6-4364-a07b-dbd1d0a9b090
+    assumptions:
+    - text: 'Movies with a low maturity rating (e.g., ''U'', ''G'', ''PG'', ''TV-PG'',
+        ''Approved'', ''Passed'') are not expected to have genres like ''Horror''
+        or ''Thriller''. This is based on the logic for deriving the ''is_kids_safe''
+        flag, which combines certificate-based maturity levels with genre exclusions.
+
+        We could represent this assumption as a Deequ constraint like this:
+
+        .check(Check(level=CheckLevel.Warning, "Kids safe genre check").where("Certificate
+        IN (''U'', ''G'', ''PG'', ''TV-PG'', ''Approved'', ''Passed'')").satisfies("NOT
+        (Genre LIKE ''%Horror%'' OR Genre LIKE ''%Thriller%'')", "ConstraintName"))'
+      sources:
+      - start_line: 71
+        end_line: 85
+        file: ''
+      uid: c263c706-a4e6-4364-a07b-dbd1d0a9b090
+  Genre:
+    code:
+    - suggestion: .isComplete("Genre")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: eb5b651e-e7af-4f24-bff7-0c86defa8717
+      source_assumptions:
+      - 1b7724e6-98ba-4012-b07d-b12ff24992bf
+    - suggestion: '.hasDataType("Genre", "String", assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Genre", "String",
+        assertion=lambda x: x == 1.0)'
+      level: error
+      uid: 7e37e528-2c1d-4752-b9d7-e62e6c1636cd
+      source_assumptions:
+      - 1b7724e6-98ba-4012-b07d-b12ff24992bf
+    - suggestion: '.satisfies("`Genre` IS NULL OR `Genre` NOT LIKE ''%,[^ ]%''", "Genre
+        format check: values must be delimited by comma-space", assertion=lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 60072dcb-38a5-49fb-9742-a48125293cad
+      source_assumptions:
+      - ca4b9a75-762e-4629-99e2-28bb8e9c3345
+    - suggestion: '.hasNumberOfDistinctValues("Genre", lambda n: n <= 250)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("Genre",
+        lambda n: n <= 250)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 300e5cf7-3005-4986-b91a-0b381eac7a26
+      source_assumptions:
+      - 24538eeb-f05e-471a-8dc1-f000b3114e94
+    assumptions:
+    - text: 'The ''Genre'' column must not contain null values and all values must
+        be strings. The code first casts the column to string at line 40 and then
+        applies a `.str.split()` operation at line 71, which would fail on null values.
+        We could represent this assumption as a deequ constraint like this: `.isComplete("Genre").hasDataType("Genre",
+        ConstrainableDataTypes.String)`'
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      - start_line: 71
+        end_line: 71
+        file: ''
+      uid: 1b7724e6-98ba-4012-b07d-b12ff24992bf
+    - text: 'Values in the ''Genre'' column are expected to be strings where multiple
+        genres are delimited by a comma followed by a space ('', ''). The code at
+        line 71 uses this specific delimiter to tokenize the genres. Data not conforming
+        to this format (e.g., using only a comma as a separator) will lead to incorrect
+        genre parsing. We could represent this assumption as a deequ constraint like
+        this: `.satisfies("`Genre` IS NULL OR `Genre` NOT LIKE ''%,[^ ]%''", "Genre
+        format check")`'
+      sources:
+      - start_line: 71
+        end_line: 71
+        file: ''
+      uid: ca4b9a75-762e-4629-99e2-28bb8e9c3345
+    - text: The 'Genre' column is expected to use a consistent, controlled vocabulary
+        for individual genres after being split. The code's logic relies on exact
+        string matches for 'Animation', 'Family', 'Horror', and 'Thriller' to derive
+        boolean flags. Variations in spelling or capitalization (e.g., 'animation',
+        'Horor') would cause the downstream logic to fail. A potential validation
+        could check that the set of distinct genres is within an expected range of
+        values.
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: 24538eeb-f05e-471a-8dc1-f000b3114e94
+  Gross:
+    code:
+    - suggestion: '.satisfies("Gross IS NULL OR regexp_replace(CAST(Gross AS STRING),
+        '','', '''') RLIKE ''^[0-9]+$''", "Gross column must be a numeric string or
+        null", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 88ff85d2-c78d-454e-ab09-a94f24ea1ee9
+      source_assumptions:
+      - b2065c1a-d194-4824-b554-7ffac0a49b55
+      - 847d3f91-9682-48ba-8f89-94b9d2c8ae75
+    assumptions:
+    - text: The 'Gross' column is permitted to have null values. The code anticipates
+        this possibility by first checking if there are any non-null values with `notna().any()`
+        before proceeding with parsing, and then using `.dropna()` to filter them
+        out during the conversion process.
+      sources:
+      - start_line: 90
+        end_line: 91
+        file: ''
+      uid: b2065c1a-d194-4824-b554-7ffac0a49b55
+    - text: The non-null values in the 'Gross' column are expected to be strings representing
+        numerical data, which may include commas as thousand separators. The code
+        cleans these strings by removing commas and then attempts to convert them
+        to a numeric type. Any value that cannot be converted is gracefully handled
+        by being coerced to a null value.
+      sources:
+      - start_line: 91
+        end_line: 93
+        file: ''
+      uid: 847d3f91-9682-48ba-8f89-94b9d2c8ae75
+  '["Gross","IMDB_Rating","Meta_score","No_of_Votes","Runtime"]':
+    code:
+    - suggestion: '.satisfies("(`IMDB_Rating` IS NULL AND `No_of_Votes` IS NULL) OR
+        (`IMDB_Rating` IS NOT NULL AND `No_of_Votes` IS NOT NULL)", "IMDB_Rating and
+        No_of_Votes completeness is coupled", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 44e084d5-5b22-4ada-9099-7611a7781ba8
+      source_assumptions:
+      - 4bd3410a-9b13-48cb-83ae-e912f1321731
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''Meta_score'', lambda cor: cor
+        >= 0.5)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasCorrelation(''IMDB_Rating'', ''Meta_score'',
+        lambda cor: cor >= 0.5)'' failed on data sample: Value: 0.29918798958274045
+        does not meet the constraint requirement!'
+      level: warning
+      uid: 9f57c4c5-3956-4b8d-816f-c192e92492d9
+      source_assumptions:
+      - 2141569f-d7c9-49f0-9707-35d967a66b06
+    - suggestion: '.satisfies("`Gross` IS NULL OR (`IMDB_Rating` IS NOT NULL AND `No_of_Votes`
+        IS NOT NULL AND `Runtime` IS NOT NULL)", "Gross implies non-null score inputs",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 48d49896-944b-48c1-bd73-05091ea0bf2d
+      source_assumptions:
+      - 8d015e94-e4e7-4c9f-bfb3-a37b7a365657
+    assumptions:
+    - text: 'The calculation of `bayes_rating` directly combines `IMDB_Rating` and
+        `No_of_Votes`. A missing value in either column will result in a null `bayes_rating`,
+        impacting all downstream scoring. The code proceeds without explicitly handling
+        this case, thus assuming that records used for scoring will have non-null
+        values for both columns.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("(IMDB_Rating IS NULL AND No_of_Votes IS NULL) OR (IMDB_Rating
+        IS NOT NULL AND No_of_Votes IS NOT NULL)", "IMDB_Rating and No_of_Votes completeness
+        is coupled")'
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      uid: 4bd3410a-9b13-48cb-83ae-e912f1321731
+    - text: 'The code assumes that `IMDB_Rating` is a reasonable substitute for `Meta_score`
+        when `Meta_score` is missing. This implies that the two columns are measuring
+        a similar underlying concept (movie quality) and should be positively correlated.
+        The code also scales `Meta_score` by dividing it by 10, suggesting that the
+        values in `Meta_score` are expected to be roughly 10 times the values in `IMDB_Rating`.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCorrelation("IMDB_Rating", "Meta_score_scaled", _ >= 0.5) where Meta_score_scaled
+        is a derived column Meta_score / 10.'
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 2141569f-d7c9-49f0-9707-35d967a66b06
+    - text: 'The code calculates a `box_office_score` for movies that have `Gross`
+        revenue data. This score combines the `Gross` value with the `qa_pop_score`,
+        which is derived from `IMDB_Rating`, `No_of_Votes`, and `Runtime`. The code
+        assumes that if a movie has a `Gross` value, it must also have the necessary
+        data to compute a `qa_pop_score`. Otherwise, the `box_office_score` would
+        be null, and the movie would be excluded from the box office carousel.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("Gross IS NOT NULL ==> (IMDB_Rating IS NOT NULL AND No_of_Votes
+        IS NOT NULL AND Runtime IS NOT NULL)", "Gross implies non-null score inputs")'
+      sources:
+      - start_line: 125
+        end_line: 129
+        file: ''
+      uid: 8d015e94-e4e7-4c9f-bfb3-a37b7a365657
+  '["IMDB_Rating","Meta_score"]':
+    code:
+    - suggestion: '.hasCorrelation("IMDB_Rating", "Meta_score", lambda x: x >= 0.5)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasCorrelation("IMDB_Rating", "Meta_score",
+        lambda x: x >= 0.5)'' failed on data sample: Value: 0.29918798958274045 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: 103cf9f3-81eb-43ad-b4d1-d4bb3e7879ec
+      source_assumptions:
+      - 5b45d727-4fbf-41c7-b910-6d465e82a92b
+    - suggestion: '.satisfies("Meta_score IS NOT NULL OR IMDB_Rating IS NOT NULL",
+        "IMDB_Rating completeness for Meta_score imputation", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9a7905a7-4bd7-4e86-ba38-2cbfd3df920a
+      source_assumptions:
+      - 0fbcfbe2-6996-4bdf-9311-dfd101fc4f24
+    assumptions:
+    - text: "The 'Meta_score' column, when divided by 10, is assumed to be on a comparable\
+        \ scale to the 'IMDB_Rating' column. The code uses 'IMDB_Rating' to fill missing\
+        \ values of the scaled 'Meta_score', implying they represent a similar underlying\
+        \ concept of quality. A significant divergence in their scales or meaning\
+        \ would invalidate this imputation. \nWe could represent this assumption as\
+        \ a deequ constraint like this:\n.hasCorrelation(\"IMDB_Rating\", \"Meta_score_scaled\"\
+        , _ >= 0.5)"
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 5b45d727-4fbf-41c7-b910-6d465e82a92b
+    - text: 'For any given record, if ''Meta_score'' is null, ''IMDB_Rating'' must
+        not be null. This is because the code relies on ''IMDB_Rating'' as a direct
+        fallback to impute missing ''Meta_score'' values. If both were null, the resulting
+        ''quality_component'' would also be null, negatively impacting the final ranking
+        score. The dataset description confirms ''IMDB_Rating'' has 100% completeness,
+        which satisfies this assumption.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("Meta_score IS NULL ==> IMDB_Rating IS NOT NULL", "IMDB_Rating
+        completeness for Meta_score imputation")'
+      sources:
+      - start_line: 55
+        end_line: 55
+        file: ''
+      uid: 0fbcfbe2-6996-4bdf-9311-dfd101fc4f24
+  '["IMDB_Rating","Meta_score","No_of_Votes"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: x >=
+        0.3)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a7a2c400-3c5a-4375-bc19-e9ab3672d10e
+      source_assumptions:
+      - 27b63528-9762-4eec-b85c-3e6d2a3cbd1b
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''Meta_score'', lambda x: x >=
+        0.5)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasCorrelation(''IMDB_Rating'', ''Meta_score'',
+        lambda x: x >= 0.5)'' failed on data sample: Value: 0.29918798958274045 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: 56b381cb-5857-4609-9a73-2dbe0522a6fe
+      source_assumptions:
+      - d4520dc6-018f-4a8b-86cc-52265b73527d
+    assumptions:
+    - text: 'The code calculates a Bayesian rating by weighting ''IMDB_Rating'' with
+        ''No_of_Votes''. This assumes that ''No_of_Votes'' is a valid measure of confidence
+        for ''IMDB_Rating'', which implies that the two columns should be positively
+        correlated. A weak or negative correlation would undermine the logic of this
+        weighting scheme.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .check(Correlation("IMDB_Rating", "No_of_Votes") >= 0.3)'
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      uid: 27b63528-9762-4eec-b85c-3e6d2a3cbd1b
+    - text: 'The code imputes missing values in the scaled ''Meta_score'' column using
+        the corresponding ''IMDB_Rating''. This assumes that both columns are strong
+        proxies for each other and measure a similar concept of ''quality''. Therefore,
+        ''IMDB_Rating'' and ''Meta_score'' are expected to be strongly and positively
+        correlated.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .check(Correlation("IMDB_Rating", "Meta_score") >= 0.5)'
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: d4520dc6-018f-4a8b-86cc-52265b73527d
+  '["IMDB_Rating","Meta_score","No_of_Votes","Runtime"]':
+    code:
+    - suggestion: '.hasCorrelation("IMDB_Rating", "No_of_Votes", lambda c: c >= 0.2)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e201a521-9505-46c2-a5d1-e888d85341e8
+      source_assumptions:
+      - 9e39c5ee-1b00-4e82-b8dc-2aae57ef72f1
+    - suggestion: '.hasCorrelation("Meta_score", "IMDB_Rating", lambda c: c > 0.3)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasCorrelation("Meta_score", "IMDB_Rating",
+        lambda c: c > 0.3)'' failed on data sample: Value: 0.2991879895827404 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: 0e20eb2a-8cf0-403c-8fec-41df5da5d1f5
+      source_assumptions:
+      - 535e8108-0a42-489c-9a0c-950efad67c87
+    - suggestion: '.satisfies("`Runtime` RLIKE ''[0-9]{2,3}''", "Runtime contains
+        2-3 digits for minutes", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b626e9f4-763f-4c08-8811-db88c30b9853
+      source_assumptions:
+      - 86894f49-aae8-4700-9574-6754452d97c0
+    assumptions:
+    - text: 'The `IMDB_Rating` and `No_of_Votes` columns are combined to calculate
+        a Bayesian average rating. This assumes that `No_of_Votes` reflects the confidence
+        in the `IMDB_Rating`, where a higher vote count lends more weight to the item''s
+        specific rating over the global average. This implies an expected relationship
+        where movies with high `IMDB_Rating` also tend to have a sufficient `No_of_Votes`
+        to be considered reliable. We could represent this assumption as a deequ constraint
+        checking for a positive correlation between the two columns: `.correlation("IMDB_Rating",
+        "No_of_Votes", _ >= 0.2)`.'
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      uid: 9e39c5ee-1b00-4e82-b8dc-2aae57ef72f1
+    - text: 'When `Meta_score` is missing, its value is imputed using the corresponding
+        `IMDB_Rating`. This assumes that `Meta_score` (on a 1-100 scale) and `IMDB_Rating`
+        (on a 1-10 scale) are comparable measures of quality and are positively correlated.
+        The logic relies on `Meta_score / 10.0` being a suitable proxy for `IMDB_Rating`.
+        We could represent this assumption as a deequ constraint checking for a positive
+        correlation between the two columns where both are present: `.correlation("Meta_score",
+        "IMDB_Rating", _ > 0.3)`.'
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 535e8108-0a42-489c-9a0c-950efad67c87
+    - text: 'The `Runtime` column is used to calculate a `runtime_factor` that adjusts
+        the final `qa_pop_score`. This assumes that a movie''s runtime has an independent
+        impact on its overall appeal, with an ideal runtime centered around 120 minutes.
+        The final score is therefore a function of four columns: `Runtime`, `IMDB_Rating`,
+        `No_of_Votes`, and `Meta_score`. This implies that two movies with identical
+        ratings and vote counts but different runtimes will receive different final
+        scores. A constraint could check that the `Runtime` column contains values
+        in a format that can be parsed into minutes.'
+      sources:
+      - start_line: 57
+        end_line: 60
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 86894f49-aae8-4700-9574-6754452d97c0
+  Poster_Link:
+    code:
+    - suggestion: .isComplete("Poster_Link")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4c7f92fd-f5ad-4f5a-9e43-051401aa87ee
+      source_assumptions:
+      - 9853165f-619b-4031-90f5-93a2247df856
+    - suggestion: '.containsURL("Poster_Link", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: da150b23-7e0e-4c2e-befb-d8288146dd69
+      source_assumptions:
+      - b0789d15-78ee-49bc-8429-92eba54afe36
+    assumptions:
+    - text: The 'Poster_Link' column must not contain any null or missing values.
+        The code directly includes this column's values in the final CSV and JSON
+        outputs without any null-handling logic, implying that each record must have
+        a poster link.
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      - start_line: 117
+        end_line: 117
+        file: ''
+      - start_line: 138
+        end_line: 138
+        file: ''
+      uid: 9853165f-619b-4031-90f5-93a2247df856
+    - text: The 'Poster_Link' column is expected to contain string values that represent
+        valid URLs. The column's name and its direct use in creating outputs like
+        'carousels.json' suggest that its values are intended to be functional links
+        to poster images for a downstream application.
+      sources:
+      - start_line: 101
+        end_line: 104
+        file: ''
+      - start_line: 107
+        end_line: 120
+        file: ''
+      - start_line: 131
+        end_line: 141
+        file: ''
+      - start_line: 151
+        end_line: 152
+        file: ''
+      uid: b0789d15-78ee-49bc-8429-92eba54afe36
+  Meta_score:
+    code:
+    - suggestion: '.hasDataType(''Meta_score'', ''Numeric'', lambda x: x > 0.8)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Meta_score'',
+        ''Numeric'', lambda x: x > 0.8)'
+      level: warning
+      uid: e9795cc7-9bbc-4fd6-80b3-5d3b9464d24b
+      source_assumptions:
+      - e8dc6de2-9587-45de-b773-d83b051e5682
+    - suggestion: '.hasCompleteness(''Meta_score'', lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5d3f6dfb-418c-4e20-bd26-cc7fa03a3885
+      source_assumptions:
+      - 0b3ae07b-689c-4b52-85a1-9fe86663c078
+    - suggestion: '.satisfies("`Meta_score` IS NULL OR (`Meta_score` >= 0 AND `Meta_score`
+        <= 100)", "Meta_score range check", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 37c0c484-af51-464e-aa62-3a2845d774dd
+      source_assumptions:
+      - 87399529-d67d-453e-a380-dd16d287beb7
+    assumptions:
+    - text: The 'Meta_score' column is expected to contain values that can be parsed
+        as numbers. The code explicitly converts the column to a numeric type and
+        coerces any non-numeric values into nulls. A high number of non-numeric entries
+        would result in data loss, as they would be imputed using 'IMDB_Rating', potentially
+        skewing the 'quality_component' calculation.
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      uid: e8dc6de2-9587-45de-b773-d83b051e5682
+    - text: The 'Meta_score' column is expected to have some null values. The data
+        profile shows a completeness of about 85.6%, and the code has a specific strategy
+        to fill nulls by using the 'IMDB_Rating' value. However, the column should
+        not be completely null, as that would make the 'Meta_score' contribution to
+        the final 'quality_component' meaningless.
+      sources:
+      - start_line: 55
+        end_line: 55
+        file: ''
+      uid: 0b3ae07b-689c-4b52-85a1-9fe86663c078
+    - text: The values in the 'Meta_score' column are assumed to be on a scale of
+        approximately 0 to 100. This is inferred because the code divides the score
+        by 10.0 to normalize it to a 0-10 scale, making it comparable with 'IMDB_Rating'
+        before they are combined into a 'quality_component'. Values outside this range
+        would improperly weight the 'quality_component'.
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 87399529-d67d-453e-a380-dd16d287beb7
+  No_of_Votes:
+    code:
+    - suggestion: '.hasDataType(''No_of_Votes'', ''Numeric'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''No_of_Votes'',
+        ''Numeric'', lambda x: x == 1.0)'
+      level: error
+      uid: 9fe07b85-0130-475e-9563-65860214a3e6
+      source_assumptions:
+      - 7f55ec60-f230-41cd-9f11-6e8094a77ec5
+    - suggestion: .isNonNegative('No_of_Votes')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f4f6017c-5940-43a3-8bf0-93c26abe194d
+      source_assumptions:
+      - ee3e0a1b-75fb-499c-bd58-ac717dc12b1f
+    - suggestion: '.hasCompleteness(''No_of_Votes'', lambda completeness: completeness
+        > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 00c40b58-63bb-4cc1-8f78-5917949d6b2f
+      source_assumptions:
+      - d78f1a78-7e7e-40f2-a41d-da0e835a1eef
+    assumptions:
+    - text: 'The ''No_of_Votes'' column is expected to contain values of a numeric
+        type. The code explicitly coerces the column to a numeric type on line 36.
+        Non-numeric values would be converted to nulls, which would adversely affect
+        the quantile calculation on line 49 and the Bayesian rating on line 52. We
+        could represent this assumption as a deequ constraint like this: .isNumeric("No_of_Votes")'
+      sources:
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 7f55ec60-f230-41cd-9f11-6e8094a77ec5
+    - text: 'The ''No_of_Votes'' column must contain non-negative values (>= 0). This
+        is strongly implied by the `np.log1p` transformation on line 63, which is
+        designed for non-negative inputs. Negative values would result in invalid
+        outputs (`NaN` or `-inf`) for the ''pop_component'', corrupting the final
+        ranking score. We could represent this assumption as a deequ constraint like
+        this: .hasMin("No_of_Votes", lambda v: v >= 0)'
+      sources:
+      - start_line: 63
+        end_line: 63
+        file: ''
+      uid: ee3e0a1b-75fb-499c-bd58-ac717dc12b1f
+    - text: 'The ''No_of_Votes'' column should not be entirely null or contain only
+        non-numeric values. The code calculates a quantile on this column (line 49),
+        which requires at least one valid numeric value to avoid returning `NaN`.
+        A substantial number of valid data points are necessary for the quantile to
+        be a meaningful statistic for the Bayesian rating calculation. We could represent
+        this assumption as a deequ constraint like this: .hasCompleteness("No_of_Votes",
+        lambda c: c > 0)'
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: d78f1a78-7e7e-40f2-a41d-da0e835a1eef
+  '["Poster_Link","Released_Year","Runtime","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda u:
+        u == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a6bd4f3b-86fe-475f-a4cd-8282dab28018
+      source_assumptions:
+      - 3ef9a1ff-ab4c-4f94-b1c2-6553fe190e45
+      - cadce542-1640-4afd-afb7-002ab9b3c802
+    assumptions:
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' should be unique
+        for each record. This ensures that each row represents a distinct movie, which
+        is fundamental for ranking and creating unique entries in carousels and search
+        indexes.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isUnique(["Series_Title", "Released_Year"])'
+      sources:
+      - start_line: 97
+        end_line: 104
+        file: ''
+      - start_line: 107
+        end_line: 123
+        file: ''
+      - start_line: 155
+        end_line: 160
+        file: ''
+      uid: 3ef9a1ff-ab4c-4f94-b1c2-6553fe190e45
+    - text: 'The ''Poster_Link'' for a movie should be consistent across records.
+        Specifically, for any group of records with the same ''Series_Title'' and
+        ''Released_Year'', the ''Poster_Link'' value should also be the same. This
+        implies a functional dependency: (''Series_Title'', ''Released_Year'') ->
+        ''Poster_Link''.
+
+        A Deequ constraint could verify this by checking that the number of distinct
+        combinations of (''Series_Title'', ''Released_Year'') is equal to the number
+        of distinct combinations of (''Series_Title'', ''Released_Year'', ''Poster_Link'').'
+      sources:
+      - start_line: 107
+        end_line: 120
+        file: ''
+      - start_line: 131
+        end_line: 141
+        file: ''
+      uid: cadce542-1640-4afd-afb7-002ab9b3c802
+  Released_Year:
+    code:
+    - suggestion: '.hasDataType(''Released_Year'', ''Integral'', assertion=lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Released_Year'',
+        ''Integral'', assertion=lambda x: x == 1.0)'
+      level: warning
+      uid: 6a996315-20ae-4a0d-83f4-99147abcace6
+      source_assumptions:
+      - 74287bc9-a109-48b9-822c-0969be6e49c5
+    assumptions:
+    - text: The 'Released_Year' column is expected to contain values that can be interpreted
+        as integers. The code first converts the column to a numeric type using `pd.to_numeric`
+        with `errors='coerce'`, which handles non-numeric values by turning them into
+        nulls. Subsequently, in the output generation, non-null values are explicitly
+        cast to `int`, reinforcing the expectation that the data represents whole
+        numbers.
+      sources:
+      - start_line: 37
+        end_line: 37
+        file: ''
+      - start_line: 115
+        end_line: 115
+        file: ''
+      - start_line: 137
+        end_line: 137
+        file: ''
+      uid: 74287bc9-a109-48b9-822c-0969be6e49c5
+  Runtime:
+    code:
+    - suggestion: .isComplete("Runtime")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7b0681e4-1800-41dc-8648-c27e781ac4bd
+      source_assumptions:
+      - 390e61b8-cf2a-4237-b256-2438150d35b7
+    - suggestion: '.hasPattern("Runtime", ".*[0-9]{2,3}.*", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9a42f38f-b349-4640-8bcb-233790654b9e
+      source_assumptions:
+      - 390e61b8-cf2a-4237-b256-2438150d35b7
+    assumptions:
+    - text: 'The ''Runtime'' column is expected to contain non-null string values,
+        where each string must include a sequence of 2 or 3 digits. The code first
+        ensures the column is of string type, then extracts this numeric sequence
+        using a regular expression and converts it to an integer. The entire process
+        lacks error handling for nulls or pattern mismatches, meaning any deviation
+        would cause the script to fail. We could represent this assumption as a deequ
+        constraint like this: .isComplete("Runtime").compliesWithPattern("Runtime",
+        ".*[0-9]{2,3}.*")'
+      sources:
+      - start_line: 38
+        end_line: 38
+        file: ''
+      - start_line: 57
+        end_line: 57
+        file: ''
+      uid: 390e61b8-cf2a-4237-b256-2438150d35b7
+  Series_Title:
+    code:
+    - suggestion: .isComplete("Series_Title")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a162906d-d210-40c4-bc20-cbc680fa2c7a
+      source_assumptions:
+      - 762caf30-75a7-412f-aedf-1a496b0b6e31
+    - suggestion: .isUnique("Series_Title")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c9af8ba3-92dc-4758-af90-c673dfdfefbc
+      source_assumptions:
+      - a31ed937-504b-4b58-830c-3c23c8dde2dd
+    assumptions:
+    - text: 'The ''Series_Title'' column must be complete and not contain any null
+        values. The data profile indicates 100% completeness, and the code consistently
+        uses this column as a key identifier in various outputs (ranked lists, carousels,
+        search index) without any checks or handling for missing values. A missing
+        title would render the corresponding record in the output files useless.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("Series_Title")'
+      sources:
+      - start_line: 99
+        end_line: 104
+        file: ''
+      - start_line: 108
+        end_line: 112
+        file: ''
+      - start_line: 133
+        end_line: 133
+        file: ''
+      - start_line: 155
+        end_line: 158
+        file: ''
+      uid: 762caf30-75a7-412f-aedf-1a496b0b6e31
+    - text: 'The ''Series_Title'' column is expected to contain unique values. It
+        functions as the primary identifier for each movie in the generated ranked
+        lists, carousels, and search index. While the code doesn''t explicitly enforce
+        this, duplicate titles would lead to ambiguity in the downstream systems that
+        consume these outputs. The data profile also shows a high number of distinct
+        values, supporting this assumption.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isUnique("Series_Title")'
+      sources:
+      - start_line: 99
+        end_line: 104
+        file: ''
+      - start_line: 108
+        end_line: 112
+        file: ''
+      - start_line: 133
+        end_line: 133
+        file: ''
+      - start_line: 155
+        end_line: 158
+        file: ''
+      uid: a31ed937-504b-4b58-830c-3c23c8dde2dd
+column_data_flow_locations:
+  '["IMDB_Rating","Meta_score","No_of_Votes"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 36
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["Certificate","Genre"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 39
+    end_line: 40
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 82
+    end_line: 85
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["IMDB_Rating","Meta_score"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 35
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 109
+    end_line: 113
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["Gross","IMDB_Rating","Meta_score","No_of_Votes","Runtime"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 36
+    file: ''
+  - start_line: 38
+    end_line: 38
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 57
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 90
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["Poster_Link","Released_Year","Runtime","Series_Title"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 37
+    end_line: 38
+    file: ''
+  - start_line: 57
+    end_line: 60
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["IMDB_Rating","Meta_score","No_of_Votes","Runtime"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 36
+    file: ''
+  - start_line: 38
+    end_line: 38
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 57
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  Certificate:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 39
+    end_line: 39
+    file: ''
+  - start_line: 82
+    end_line: 85
+    file: ''
+  - start_line: 100
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  Genre:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 40
+    end_line: 40
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  Gross:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 90
+    end_line: 94
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  IMDB_Rating:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 109
+    end_line: 109
+    file: ''
+  - start_line: 113
+    end_line: 113
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  Meta_score:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 156
+    end_line: 158
+    file: ''
+  - start_line: 159
+    end_line: 160
+    file: ''
+  No_of_Votes:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 36
+    end_line: 36
+    file: ''
+  - start_line: 49
+    end_line: 50
+    file: ''
+  - start_line: 52
+    end_line: 52
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 128
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  Poster_Link:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 152
+    file: ''
+  Released_Year:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 37
+    end_line: 37
+    file: ''
+  - start_line: 100
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 126
+    end_line: 126
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 152
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  Runtime:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 38
+    end_line: 38
+    file: ''
+  - start_line: 57
+    end_line: 60
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 152
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  Series_Title:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 108
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 112
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 126
+    end_line: 126
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  - start_line: 133
+    end_line: 133
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 8031
+    prompt_tokens: 5151
+    completion_tokens: 2880
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 124104
+    prompt_tokens: 39595
+    completion_tokens: 84509
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 11714
+    prompt_tokens: 3736
+    completion_tokens: 7978
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 65533
+    prompt_tokens: 24234
+    completion_tokens: 41299
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 50984
+    prompt_tokens: 27119
+    completion_tokens: 23865
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 47478
+    prompt_tokens: 35755
+    completion_tokens: 11723
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 83634
+    prompt_tokens: 49320
+    completion_tokens: 34314
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 103936
+    prompt_tokens: 77474
+    completion_tokens: 26462

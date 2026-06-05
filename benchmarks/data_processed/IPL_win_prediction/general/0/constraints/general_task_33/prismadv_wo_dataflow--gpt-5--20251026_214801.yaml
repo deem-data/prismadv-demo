@@ -1,0 +1,1691 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: false
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  team1:
+    code:
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN CASE WHEN team1
+        IS NOT NULL AND TRIM(team1) <> '''' THEN 1 ELSE 0 END ELSE 1 END", "team1
+        non-empty for League", lambda v: v == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dbf01ef3-340c-4fa1-bec2-bfb37a98b84b
+      source_assumptions:
+      - 1d04faa6-bd57-4c3f-a1c6-8cba068b1c9f
+    - suggestion: '.satisfies("team1 = TRIM(team1)", "No leading/trailing whitespace
+        in team1", lambda v: v == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2802e949-d965-41a2-9b2a-d693ee23d963
+      source_assumptions:
+      - 9e5fa0c8-37ab-4bb7-987d-685840d3cc6c
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN CASE WHEN team1
+        <> team2 THEN 1 ELSE 0 END ELSE 1 END", "No self-matches in League", lambda
+        v: v == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 17b51129-40ac-4093-a49a-67134d481c26
+      source_assumptions:
+      - d4429030-4b1e-4d91-9b95-87e6966c987d
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result <> ''no
+        result'' THEN CASE WHEN winner IN (team1, team2) THEN 1 ELSE 0 END ELSE 1
+        END", "Winner must be one of team1 or team2 for decided League matches", lambda
+        v: v == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 57b1a215-d35d-48d6-85ed-3fdea2d98182
+      source_assumptions:
+      - 022cf67d-1cad-4fd3-afd9-48c48afd573c
+    - suggestion: '.hasNumberOfDistinctValues(''team1'', lambda v: v <= 32)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''team1'',
+        lambda v: v <= 32)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 35b60e1c-138d-4a81-8064-fba7d25341d1
+      source_assumptions:
+      - 3f420fa4-1e44-4b53-8174-bbe35df7f882
+    assumptions:
+    - text: 'For rows where match_type = ''League'', ''team1'' must be present and
+        non-empty (no nulls or blanks). Missing values would drop or mis-attribute
+        matches when the script expands to team-centric rows and aggregates standings.
+        Deequ-style examples: .isComplete(''team1'').where("match_type = ''League''")
+        and .satisfies("CASE WHEN match_type = ''League'' AND TRIM(team1) = '''' THEN
+        0 ELSE 1 END", ''team1 non-empty for League'', lambda r: r == 1)'
+      sources:
+      - start_line: 28
+        end_line: 35
+        file: ''
+      - start_line: 61
+        end_line: 70
+        file: ''
+      uid: 1d04faa6-bd57-4c3f-a1c6-8cba068b1c9f
+    - text: '''team1'' values should be normalized strings without leading/trailing
+        whitespace to ensure correct equality comparisons and grouping (e.g., ''Team
+        A'' and '' Team A '' must not be treated as different teams). Deequ-style
+        example: .satisfies("team1 = TRIM(team1)", ''No leading/trailing whitespace
+        in team1'', lambda r: r == 1)'
+      sources:
+      - start_line: 41
+        end_line: 46
+        file: ''
+      - start_line: 61
+        end_line: 75
+        file: ''
+      uid: 9e5fa0c8-37ab-4bb7-987d-685840d3cc6c
+    - text: 'For rows where match_type = ''League'', ''team1'' must not equal ''team2''
+        (no self-matches). Self-matches would distort wins/losses, points, and aggregation
+        by team. Deequ-style example: .satisfies("CASE WHEN match_type = ''League''
+        THEN CASE WHEN team1 <> team2 THEN 1 ELSE 0 END ELSE 1 END", ''No self-matches'',
+        lambda r: r == 1)'
+      sources:
+      - start_line: 28
+        end_line: 35
+        file: ''
+      - start_line: 61
+        end_line: 70
+        file: ''
+      uid: d4429030-4b1e-4d91-9b95-87e6966c987d
+    - text: 'For League rows with a decided result (result <> ''no result''), the
+        ''winner'' value should be either ''team1'' or ''team2''. This ensures the
+        downstream comparisons of the derived ''team'' (from ''team1''/''team2'')
+        to ''winner'' behave as intended for points, wins/losses, super-over flags,
+        and nrr proxies. Deequ-style example: .satisfies("CASE WHEN match_type = ''League''
+        AND result <> ''no result'' THEN CASE WHEN winner IN (team1, team2) THEN 1
+        ELSE 0 END ELSE 1 END", ''Winner must be one of the two teams'', lambda r:
+        r == 1)'
+      sources:
+      - start_line: 28
+        end_line: 35
+        file: ''
+      - start_line: 39
+        end_line: 46
+        file: ''
+      - start_line: 51
+        end_line: 58
+        file: ''
+      uid: 022cf67d-1cad-4fd3-afd9-48c48afd573c
+    - text: 'The ''team1'' column should have a bounded number of distinct values
+        to guard against typos and unexpected new categories that would fragment standings.
+        Based on current data (about 19 distinct teams), set a reasonable upper bound,
+        e.g., approx distinct count <= 32. Deequ-style example: .hasApproxCountDistinct(''team1'',
+        lambda v: v <= 32)'
+      sources:
+      - start_line: 61
+        end_line: 75
+        file: ''
+      uid: 3f420fa4-1e44-4b53-8174-bbe35df7f882
+  team2:
+    code:
+    - suggestion: .where("match_type = 'League'").isComplete('team2')
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.where("match_type =
+        ''League''").isComplete(''team2'')'': Method doesn''t exist in class com.amazon.deequ.checks.Check,
+        class has to be filterable'
+      level: error
+      uid: 76a2c92b-9b98-4cab-9e14-be348dff6e31
+      source_assumptions:
+      - 4acb781b-a188-4f0b-a0a9-68362da8591c
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN LENGTH(TRIM(team2))
+        > 0 ELSE TRUE END", ''team2_non_empty_in_league'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e61fd7bb-0280-43a2-bdbf-97ce5aa63a70
+      source_assumptions:
+      - 4acb781b-a188-4f0b-a0a9-68362da8591c
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' THEN team2 <> team1
+        ELSE TRUE END", ''no_self_matches'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 35a7dccf-9e83-40cd-96b0-207606e01c55
+      source_assumptions:
+      - e75631c8-2ff7-4806-97c7-004b0f16001d
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result IN (''runs'',''wickets'',''tie'')
+        THEN (winner = team1 OR winner = team2) ELSE TRUE END", ''winner_is_participant'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: aabcd430-6fe2-4af6-823f-1a7f098ed82c
+      source_assumptions:
+      - 2d0d6488-6752-4ff9-b08d-22737f314cd6
+    - suggestion: '.where("match_type = ''League''").hasNumberOfDistinctValues(''team2'',
+        lambda x: (x >= 2) and (x <= 40))'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.where("match_type =
+        ''League''").hasNumberOfDistinctValues(''team2'', lambda x: (x >= 2) and (x
+        <= 40))'': Method doesn''t exist in class com.amazon.deequ.checks.Check, class
+        has to be filterable'
+      level: warning
+      uid: 95e8bf3f-1ca9-4b2f-ac8e-956f815db6be
+      source_assumptions:
+      - 19b831a4-8968-4784-bf27-9fe97b5119c0
+    assumptions:
+    - text: 'For rows where match_type == ''League'', team2 must be present and non-empty
+        (after trimming). Missing or blank team2 values would drop matches from subsequent
+        grouping and ranking because team2 is promoted to the participant column ''team''.
+        This can be represented as a conditional completeness check, for example:
+        Deequ: .where("match_type = ''League''").hasCompleteness(''team2'', lambda
+        x: x == 1.0) and .satisfies("CASE WHEN match_type = ''League'' THEN LENGTH(TRIM(team2))
+        > 0 ELSE 1 END", ''team2_non_empty_in_league'', lambda x: x == 1.0); Great
+        Expectations: expect_column_values_to_not_be_null(''team2'', row_condition="match_type
+        == ''League''", condition_parser="pandas") and expect_column_values_to_not_match_regex(''team2'',
+        regex="^\s*$", row_condition="match_type == ''League''", condition_parser="pandas").'
+      sources:
+      - start_line: 25
+        end_line: 35
+        file: ''
+      - start_line: 61
+        end_line: 68
+        file: ''
+      uid: 4acb781b-a188-4f0b-a0a9-68362da8591c
+    - text: 'For League rows, team2 must not equal team1 (no self-matches). Self-matches
+        would duplicate the same team in the long format and distort points and aggregates.
+        This can be represented as: Deequ: .satisfies("CASE WHEN match_type = ''League''
+        THEN team2 <> team1 ELSE TRUE END", ''no_self_matches'', lambda x: x == 1.0);
+        Great Expectations: expect_column_pair_values_A_to_not_equal_B(''team2'',
+        ''team1'', row_condition="match_type == ''League''", condition_parser="pandas").'
+      sources:
+      - start_line: 28
+        end_line: 33
+        file: ''
+      uid: e75631c8-2ff7-4806-97c7-004b0f16001d
+    - text: 'For League rows, team2 values should come from the same canonical team-name
+        vocabulary used in team1 (exact string matching, including case/whitespace),
+        ensuring cross-column equality checks (e.g., with winner) behave correctly.
+        A practical rule is: all TRIM(team2) are contained in the set of TRIM(team1)
+        observed in the input. This can be implemented as: Great Expectations: allowed_teams
+        = df.loc[df.match_type==''League'', ''team1''].dropna().str.strip().unique();
+        expect_column_values_to_be_in_set(''team2'', allowed_teams, row_condition="match_type
+        == ''League''", condition_parser="pandas"); Deequ: compute allowed set from
+        team1 and enforce .isContainedIn(''team2'', allowed_set) under the League
+        condition.'
+      sources:
+      - start_line: 28
+        end_line: 33
+        file: ''
+      - start_line: 41
+        end_line: 46
+        file: ''
+      uid: 45a495e5-8644-4ee5-a9cf-8c7f360aefb7
+    - text: 'For League rows where a winner is required (result in [''runs'',''wickets'',''tie'']),
+        winner must equal either team1 or team2. This guards against spelling/casing
+        mismatches and ensures that points and win/loss attribution derived from team2
+        are correct. This can be represented as: Deequ: .satisfies("CASE WHEN match_type
+        = ''League'' AND result IN (''runs'',''wickets'',''tie'') THEN (winner = team1
+        OR winner = team2) ELSE TRUE END", ''winner_is_participant'', lambda x: x
+        == 1.0); Great Expectations: expect_condition_to_be_true("(winner == team1)
+        | (winner == team2)", row_condition="(match_type == ''League'') & (result.isin([''runs'',''wickets'',''tie'']))",
+        condition_parser="pandas").'
+      sources:
+      - start_line: 37
+        end_line: 46
+        file: ''
+      uid: 2d0d6488-6752-4ff9-b08d-22737f314cd6
+    - text: 'For League rows, the number of distinct team2 values should be within
+        a plausible league range (e.g., between 2 and 40). This helps catch data entry
+        errors that would inflate the team list and distort standings and seeding.
+        This can be represented as: Great Expectations: expect_column_unique_value_count_to_be_between(''team2'',
+        min_value=2, max_value=40, row_condition="match_type == ''League''", condition_parser="pandas");
+        Deequ: .where("match_type = ''League''").hasApproxCountDistinct(''team2'',
+        lambda c: c >= 2 and c <= 40).'
+      sources:
+      - start_line: 61
+        end_line: 75
+        file: ''
+      - start_line: 77
+        end_line: 79
+        file: ''
+      uid: 19b831a4-8968-4784-bf27-9fe97b5119c0
+  match_type:
+    code:
+    - suggestion: .hasColumn('match_type')
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasColumn(''match_type'')'':
+        ''Check'' object has no attribute ''hasColumn'''
+      level: error
+      uid: ff81abda-0a2a-445c-9a7a-5584895f201a
+      source_assumptions:
+      - 569eda18-b3ef-4f8a-bb36-0f5bc8b0db08
+    - suggestion: .isComplete('match_type')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 413d25f7-e9ad-4784-8d1f-8bc598b81eb3
+      source_assumptions:
+      - 8f767153-ff17-42a2-a434-05bef8e6735f
+    - suggestion: .isContainedIn('match_type', ['League', 'Qualifier 1', 'Qualifier
+        2', 'Eliminator', 'Final', 'Semi Final', 'Elimination Final'])
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d62195ed-aaed-4415-9b6d-1e0957a3881a
+      source_assumptions:
+      - 44ae0647-0934-4401-8367-4e89021d68aa
+      - e6322b39-f9bc-4292-b725-a1b59b83212b
+    - suggestion: '.satisfies("match_type = TRIM(match_type)", "match_type trimmed
+        and standardized (no leading/trailing whitespace)", lambda d: d == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: aac55be2-9dfa-4027-a432-ef761c30a458
+      source_assumptions:
+      - 44ae0647-0934-4401-8367-4e89021d68aa
+    - suggestion: '.satisfies("match_type = ''League''", "At least one League match
+        present", lambda d: d > 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8f14dbb9-840d-47db-ad18-648f76eb1865
+      source_assumptions:
+      - 44ae0647-0934-4401-8367-4e89021d68aa
+      - 232260df-938a-4a07-b4b9-645c67574dad
+    assumptions:
+    - text: The 'match_type' column must be present in the input data because it is
+        used to filter rows. This can be represented as a schema/presence check (e.g.,
+        Deequ hasColumn('match_type')).
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      uid: 569eda18-b3ef-4f8a-bb36-0f5bc8b0db08
+    - text: 'Values in ''match_type'' must be standardized and case-sensitive, with
+        ''League'' appearing exactly as ''League'' (no leading/trailing whitespace
+        or case variants), since the code filters using exact equality. This can be
+        represented as a compliance check like: proportion of rows where match_type
+        = TRIM(match_type) is 1.0; and at least one row where match_type = ''League''.'
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      uid: 44ae0647-0934-4401-8367-4e89021d68aa
+    - text: 'The ''match_type'' column should have no nulls (completeness = 1.0),
+        so that intended league matches are not inadvertently excluded by the equality
+        filter. This can be represented as Deequ hasCompleteness(''match_type'', lambda
+        x: x == 1.0) or Great Expectations expect_column_values_to_not_be_null.'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      uid: 8f767153-ff17-42a2-a434-05bef8e6735f
+    - text: 'The ''match_type'' values should be restricted to the known set observed
+        in the data profile: {''League'', ''Qualifier 1'', ''Qualifier 2'', ''Eliminator'',
+        ''Final'', ''Semi Final'', ''Elimination Final''}. This can be represented
+        as Deequ isContainedIn(''match_type'', allowedSet) or Great Expectations expect_column_values_to_be_in_set.'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      uid: e6322b39-f9bc-4292-b725-a1b59b83212b
+    - text: There must be at least one row with match_type = 'League' so that the
+        league table and seeding can be produced. This can be represented as a compliance
+        ratio on CASE WHEN match_type = 'League' THEN 1 ELSE 0 END being greater than
+        0.
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      uid: 232260df-938a-4a07-b4b9-645c67574dad
+  target_overs:
+    code:
+    - suggestion: .hasColumn('target_overs')
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasColumn(''target_overs'')'':
+        ''Check'' object has no attribute ''hasColumn'''
+      level: error
+      uid: f4c61f41-44de-4c94-b642-714046bff7e5
+      source_assumptions:
+      - 6d9e22ac-5a27-4272-a365-bf70bb136f9b
+    - suggestion: '.satisfies("CASE WHEN `match_type` = ''League'' AND `result` =
+        ''runs'' THEN (`target_overs` IS NOT NULL AND CAST(`target_overs` AS DOUBLE)
+        IS NOT NULL) ELSE TRUE END", "target_overs present and numeric for runs-decided
+        league matches", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a49a6c03-a926-4218-b9bb-dd9c31f3a08d
+      source_assumptions:
+      - ba89ad62-1478-49bd-8dbf-bd01942477a0
+    - suggestion: '.satisfies("CASE WHEN `match_type` = ''League'' AND `result` =
+        ''runs'' THEN (CAST(`target_overs` AS DOUBLE) > 0) ELSE TRUE END", "target_overs
+        > 0 for runs-decided league matches", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 034df017-66e1-4b5c-a5a9-5646c3487bab
+      source_assumptions:
+      - 09a59571-ed81-46ec-8af5-aea8d9144cdb
+    assumptions:
+    - text: 'The input data must contain the ''target_overs'' column; the downstream
+        code performs arithmetic with it and will fail if the column is missing. We
+        could represent this assumption as a Deequ constraint like this: .hasColumn(''target_overs'')'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 6d9e22ac-5a27-4272-a365-bf70bb136f9b
+    - text: 'For rows used in league computations that are decided by runs, ''target_overs''
+        must be present (not null) and parseable as numeric (i.e., not coerced to
+        null by to_numeric). We could represent this as a conditional Deequ constraint:
+        .satisfies("CASE WHEN match_type = ''League'' AND result = ''runs'' THEN CASE
+        WHEN target_overs IS NOT NULL AND CAST(target_overs AS DOUBLE) IS NOT NULL
+        THEN 1 ELSE 0 END ELSE 1 END", ''target_overs present and numeric for runs-decided
+        league matches'', lambda x: x == 1)'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: ba89ad62-1478-49bd-8dbf-bd01942477a0
+    - text: 'For league matches decided by runs, ''target_overs'' must be strictly
+        greater than 0 to avoid division by zero or non-finite results in the net
+        performance proxy. We could represent this as a conditional Deequ constraint:
+        .satisfies("CASE WHEN match_type = ''League'' AND result = ''runs'' THEN CASE
+        WHEN CAST(target_overs AS DOUBLE) > 0 THEN 1 ELSE 0 END ELSE 1 END", ''target_overs
+        > 0 for runs-decided league matches'', lambda x: x == 1)'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 09a59571-ed81-46ec-8af5-aea8d9144cdb
+  result_margin:
+    code:
+    - suggestion: '.satisfies("(NOT(`match_type` = ''League'' AND `result` IN (''runs'',''wickets''))
+        OR CAST(`result_margin` AS DOUBLE) IS NOT NULL)", "result_margin required
+        for League runs/wickets", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e93b4b42-7850-456f-b674-af94155be917
+      source_assumptions:
+      - b9ee1f4e-c2d9-41bc-a4ac-95fbdbadb98a
+      - 2819f10b-21ea-4262-b0ea-3f7b5745bc6b
+    - suggestion: '.satisfies("(NOT(`match_type` = ''League'' AND `result` = ''wickets'')
+        OR (`result_margin` BETWEEN 1 AND 10 AND `result_margin` = CAST(`result_margin`
+        AS INT)))", "valid wickets margin (1-10, integer) for League", lambda x: x
+        == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: baa6a480-450f-4399-9f36-6569245bd9db
+      source_assumptions:
+      - 52e7465c-9400-40a4-9033-ef7dd68d5fb8
+    - suggestion: '.satisfies("(NOT(`match_type` = ''League'' AND `result` = ''runs'')
+        OR (`result_margin` >= 1 AND `result_margin` = CAST(`result_margin` AS INT)))",
+        "valid runs margin (>=1, integer) for League", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5786c729-3d27-4d7b-8c74-1fb111510835
+      source_assumptions:
+      - e49cc1b4-b716-4cd0-bcc0-abf22800d115
+    - suggestion: '.satisfies("(`result_margin` IS NULL OR `result_margin` >= 0)",
+        "non-negative result_margin when present", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2ad6c413-8260-4a82-9881-63ea5848c8f1
+      source_assumptions:
+      - db7fd036-1699-4e3c-9a97-4e7355e1cbed
+    assumptions:
+    - text: 'For input rows used downstream (match_type = ''League'') where result
+        is ''runs'' or ''wickets'', result_margin must be present (not null after
+        parsing) and numeric. This ensures nrr_proxy can be computed without NaNs.
+        Possible Deequ rule: .satisfies("CASE WHEN match_type = ''League'' AND result
+        IN (''runs'',''wickets'') THEN CASE WHEN CAST(result_margin AS DOUBLE) IS
+        NOT NULL THEN 1 ELSE 0 END ELSE 1 END", ''result_margin required for runs/wickets'',
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 52
+        end_line: 53
+        file: ''
+      uid: b9ee1f4e-c2d9-41bc-a4ac-95fbdbadb98a
+    - text: 'For League matches decided by wickets (result = ''wickets''), result_margin
+        should represent a wickets margin: an integer between 1 and 10 inclusive.
+        Possible Deequ rule: .satisfies("CASE WHEN match_type = ''League'' AND result
+        = ''wickets'' THEN (result_margin BETWEEN 1 AND 10) AND (result_margin = CAST(result_margin
+        AS INT)) ELSE 1 END", ''valid wickets margin'', lambda x: x == 1.0)'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 52e7465c-9400-40a4-9033-ef7dd68d5fb8
+    - text: 'For League matches decided by runs (result = ''runs''), result_margin
+        should be a positive integer (>= 1). Possible Deequ rule: .satisfies("CASE
+        WHEN match_type = ''League'' AND result = ''runs'' THEN (result_margin >=
+        1) AND (result_margin = CAST(result_margin AS INT)) ELSE 1 END", ''valid runs
+        margin'', lambda x: x == 1.0)'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: e49cc1b4-b716-4cd0-bcc0-abf22800d115
+    - text: 'When present, result_margin should be non-negative (represents a margin
+        magnitude; row-level sign is applied separately). Possible GE rule: expect_column_values_to_be_between(column=''result_margin'',
+        min_value=0, mostly=1.0, allow_cross_type_comparisons=True)'
+      sources:
+      - start_line: 51
+        end_line: 55
+        file: ''
+      uid: db7fd036-1699-4e3c-9a97-4e7355e1cbed
+    - text: 'It is acceptable for result_margin to be null for League rows where result
+        is ''tie'' or ''no result'' (it is not used in nrr_proxy for these outcomes).
+        Possible Deequ rule: .satisfies("CASE WHEN match_type = ''League'' AND result
+        IN (''tie'',''no result'') THEN 1 ELSE CASE WHEN CAST(result_margin AS DOUBLE)
+        IS NOT NULL THEN 1 ELSE 0 END END", ''conditional nullability for result_margin'',
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 52
+        end_line: 55
+        file: ''
+      uid: 2819f10b-21ea-4262-b0ea-3f7b5745bc6b
+  target_runs:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `target_runs` IS NULL OR TRIM(CAST(`target_runs`
+        AS STRING)) RLIKE ''^-?\\d+(\\.\\d+)?$'' THEN 1 ELSE 0 END", "target_runs
+        numeric-like or null", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `target_runs` IS NULL
+        OR TRIM(CAST(`target_runs` AS STRING)) RLIKE ''^-?\\d+(\\.\\d+)?$'' THEN 1
+        ELSE 0 END", "target_runs numeric-like or null", lambda x: x == 1)'' failed
+        on data sample: Value: 0.0018181818181818182 does not meet the constraint
+        requirement!'
+      level: warning
+      uid: 730607c7-6bb2-4326-a0e7-9843d1df646b
+      source_assumptions:
+      - 82339714-4a14-4440-ae53-35d9e5333c8a
+    - suggestion: '.hasCompleteness("target_runs", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b69f31fd-cb13-42ff-9d10-d458dee4c56f
+      source_assumptions:
+      - 7a6b1c10-cc7e-437a-963c-dfc263ba0db4
+    assumptions:
+    - text: 'The ''target_runs'' column is optional in the input data. The pipeline
+        checks for its presence before attempting any operation, so datasets may omit
+        this column without breaking the job. (Validation implication: do not require
+        hasColumn(''target_runs'') to be true.)'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      uid: 5a87fecf-8417-4c8c-8a01-f5400fd484cd
+    - text: 'If the ''target_runs'' column is present, its values are intended to
+        be numeric (or numeric-like strings) because the code coerces it using pd.to_numeric
+        with errors=''coerce''. Non-numeric values will become null. We could validate
+        this by ensuring that all non-null values are numeric-like. Example Deequ
+        constraint: .satisfies("CASE WHEN `target_runs` IS NULL OR `target_runs` RLIKE
+        ''^-?\\d+(\\.\\d+)?$'' THEN 1 ELSE 0 END", "target_runs numeric-like or null",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      uid: 82339714-4a14-4440-ae53-35d9e5333c8a
+    - text: 'Based on the provided data profile (completeness ~0.998), when ''target_runs''
+        is present we expect it to be highly complete (few nulls). A practical rule
+        is that the completeness of ''target_runs'' should be at least 0.99. Example
+        Deequ constraint: .hasCompleteness("target_runs", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      uid: 7a6b1c10-cc7e-437a-963c-dfc263ba0db4
+  season:
+    code:
+    - suggestion: '.satisfies("season IS NULL OR season IS NOT NULL", "season column
+        exists", lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0bf247d4-3341-4508-b7a6-b208c9694651
+      source_assumptions:
+      - 50a3849e-7e2d-475f-b7b1-5c998fd0a2a7
+    - suggestion: '.satisfies("match_type <> ''League'' OR season IS NOT NULL", "Season
+        present for League matches", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7bbdef5d-9f7e-4f56-bbf2-1a95fa2d11ef
+      source_assumptions:
+      - 8829724b-f030-4279-9a9f-19f56a8cdaa8
+    - suggestion: '.hasDataType(''season'', ConstrainableDataTypes.Integral, lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''season'',
+        ConstrainableDataTypes.Integral, lambda x: x == 1.0)'
+      level: error
+      uid: 7f0985fb-ca91-40d2-bf57-6bc9bc38a518
+      source_assumptions:
+      - ea6e9101-1f73-4a25-b2de-c5a45a47beab
+    assumptions:
+    - text: 'The ''season'' column must exist in the input CSV because it is required
+        for grouping, sorting, ranking, and is written to outputs. This can be validated
+        with Great Expectations: expect_column_to_exist(''season'').'
+      sources:
+      - start_line: 61
+        end_line: 68
+        file: ''
+      - start_line: 72
+        end_line: 75
+        file: ''
+      - start_line: 78
+        end_line: 80
+        file: ''
+      - start_line: 84
+        end_line: 86
+        file: ''
+      uid: 50a3849e-7e2d-475f-b7b1-5c998fd0a2a7
+    - text: 'For all rows where match_type == ''League'', the ''season'' column must
+        be non-null; otherwise those matches would be dropped from the aggregations
+        and seeding. This can be represented as a conditional completeness check,
+        e.g., Deequ: .where("match_type = ''League''").hasCompleteness(''season'',
+        lambda x: x == 1.0), or Great Expectations: expect_column_values_to_not_be_null(''season'',
+        row_condition="match_type == ''League''", condition_parser=''pandas'').'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 61
+        end_line: 68
+        file: ''
+      - start_line: 78
+        end_line: 80
+        file: ''
+      uid: 8829724b-f030-4279-9a9f-19f56a8cdaa8
+    - text: 'All non-null values in the ''season'' column should be consistently encoded
+        as integers (i.e., parseable as integral values) so that sorting and per-season
+        ranking work without type errors. This can be validated with Deequ: .hasDataType(''season'',
+        ConstrainableDataTypes.Integral) or .satisfies("season RLIKE ''^[0-9]+$''",
+        ''Season numeric'', lambda x: x == 1.0); or Great Expectations: expect_column_values_to_be_in_type_list(''season'',
+        [''int64'', ''int32'']).'
+      sources:
+      - start_line: 72
+        end_line: 75
+        file: ''
+      - start_line: 78
+        end_line: 80
+        file: ''
+      uid: ea6e9101-1f73-4a25-b2de-c5a45a47beab
+  winner:
+    code:
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result IN (''runs'',''wickets'',''tie'')
+        THEN CASE WHEN winner IS NOT NULL THEN 1 ELSE 0 END ELSE 1 END", "winner non-null
+        for decided/tie league matches", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a0037b4c-d842-4e14-a8db-a5f4a36a0c76
+      source_assumptions:
+      - 9b8bcde8-d731-4dab-a7bc-0781849aa0c7
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result IN (''runs'',''wickets'',''tie'')
+        THEN CASE WHEN (winner = team1 OR winner = team2) THEN 1 ELSE 0 END ELSE 1
+        END", "winner must be team1 or team2 for decided/tie league matches", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2d9f1ecd-408a-43b4-97d3-6ef0a4fd4cb2
+      source_assumptions:
+      - 4a76523b-cae6-42fc-8e71-53f3396fee2a
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''tie''
+        THEN CASE WHEN winner IS NOT NULL AND (winner = team1 OR winner = team2) THEN
+        1 ELSE 0 END ELSE 1 END", "winner present and valid for tie", lambda x: x
+        == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 71f31354-faea-44b5-819c-1d85ea8b528b
+      source_assumptions:
+      - bfb2d132-d60f-4647-8f5b-f5a1f39a0b9c
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''no
+        result'' THEN CASE WHEN winner IS NULL THEN 1 ELSE 0 END ELSE 1 END", "no-result
+        should have no winner", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 41b35fdf-e51e-41ee-993e-d797248fd8a0
+      source_assumptions:
+      - ef2f8efd-8486-4c5b-bec6-6580b4b6198c
+    assumptions:
+    - text: 'For League matches with result in (''runs'', ''wickets'', ''tie''), the
+        ''winner'' column must be non-null. Downstream logic compares ''team'' to
+        ''winner'' to assign points, wins/losses, and nrr tie adjustments, so null
+        winners here would produce incorrect standings. We could represent this as
+        a Deequ constraint: .satisfies("CASE WHEN match_type = ''League'' AND result
+        IN (''runs'',''wickets'',''tie'') THEN CASE WHEN winner IS NOT NULL THEN 1
+        ELSE 0 END ELSE 1 END", "winner non-null for decided/tie league matches",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 25
+        end_line: 36
+        file: ''
+      - start_line: 37
+        end_line: 47
+        file: ''
+      - start_line: 51
+        end_line: 56
+        file: ''
+      uid: 9b8bcde8-d731-4dab-a7bc-0781849aa0c7
+    - text: 'For League matches with result in (''runs'', ''wickets'', ''tie''), the
+        ''winner'' value must exactly match one of the participating teams (team1
+        or team2). This ensures downstream equality checks (team == winner) work as
+        intended. We could represent this as a Deequ constraint: .satisfies("CASE
+        WHEN match_type=''League'' AND result IN (''runs'',''wickets'',''tie'') THEN
+        CASE WHEN winner IN (team1, team2) THEN 1 ELSE 0 END ELSE 1 END", "winner
+        must be team1 or team2", lambda x: x == 1)'
+      sources:
+      - start_line: 27
+        end_line: 35
+        file: ''
+      - start_line: 40
+        end_line: 46
+        file: ''
+      uid: 4a76523b-cae6-42fc-8e71-53f3396fee2a
+    - text: 'For League matches where result = ''tie'', a super-over winner is expected:
+        ''winner'' should be populated and equal to one of (team1, team2). This is
+        required for awarding 2 points to the super-over winner, computing so_win,
+        and applying the tie nrr adjustment. We could represent this as a Deequ constraint:
+        .satisfies("CASE WHEN match_type=''League'' AND result = ''tie'' THEN CASE
+        WHEN winner IS NOT NULL AND winner IN (team1, team2) THEN 1 ELSE 0 END ELSE
+        1 END", "winner present and valid for tie", lambda x: x == 1)'
+      sources:
+      - start_line: 37
+        end_line: 44
+        file: ''
+      - start_line: 54
+        end_line: 56
+        file: ''
+      - start_line: 58
+        end_line: 59
+        file: ''
+      uid: bfb2d132-d60f-4647-8f5b-f5a1f39a0b9c
+    - text: 'For League matches where result = ''no result'', the ''winner'' column
+        should be null to avoid incorrectly counting wins (the code sets win = (team
+        == winner) without restricting by result). We could represent this as a Deequ
+        constraint: .satisfies("CASE WHEN match_type=''League'' AND result = ''no
+        result'' THEN CASE WHEN winner IS NULL THEN 1 ELSE 0 END ELSE 1 END", "no-result
+        should have no winner", lambda x: x == 1)'
+      sources:
+      - start_line: 37
+        end_line: 47
+        file: ''
+      uid: ef2f8efd-8486-4c5b-bec6-6580b4b6198c
+  result:
+    code:
+    - suggestion: .where("match_type = 'League'").isContainedIn('result', ['runs',
+        'wickets', 'tie', 'no result'])
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.where("match_type =
+        ''League''").isContainedIn(''result'', [''runs'', ''wickets'', ''tie'', ''no
+        result''])'': Method doesn''t exist in class com.amazon.deequ.checks.Check,
+        class has to be filterable'
+      level: error
+      uid: 6785f33e-d2c7-4dac-9c15-71a428994b7d
+      source_assumptions:
+      - ead6c064-fa26-44d1-ab75-871cf3f34d58
+    - suggestion: '.where("match_type = ''League''").hasCompleteness(''result'', lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.where("match_type =
+        ''League''").hasCompleteness(''result'', lambda x: x == 1.0)'': Method doesn''t
+        exist in class com.amazon.deequ.checks.Check, class has to be filterable'
+      level: error
+      uid: f45dfe44-9e3b-425c-a671-06eca50df2eb
+      source_assumptions:
+      - 890fa28b-016b-4e9e-98a8-962ccf329b9a
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''runs''
+        THEN (result_margin IS NOT NULL AND result_margin > 0 AND target_overs IS
+        NOT NULL AND target_overs > 0) ELSE TRUE END", "runs_result_requirements",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2159f1b5-ea1f-44e9-989c-355918c7c34b
+      source_assumptions:
+      - df29f000-dead-4ff1-b197-7f85aa23513a
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''wickets''
+        THEN (result_margin IS NOT NULL AND result_margin >= 1 AND result_margin <=
+        10) ELSE TRUE END", "wickets_result_requirements", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: cc8533a8-1bd8-4f59-8cfa-6c852dbea318
+      source_assumptions:
+      - b4013ee1-875b-481b-9ada-d289ce9d3daa
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''tie''
+        THEN (winner IS NOT NULL AND (winner = team1 OR winner = team2)) ELSE TRUE
+        END", "tie_requires_winner", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f757fc24-a838-4d81-b9bd-f9658b42ca0b
+      source_assumptions:
+      - af17275d-e94d-4f87-87a8-0d4670fae194
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''no
+        result'' THEN winner IS NULL ELSE TRUE END", "no_result_has_no_winner", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: bb7c6127-32dc-470a-aa12-cca88a0233dd
+      source_assumptions:
+      - 8f335138-7d28-45b2-9e81-8e8437ca86b6
+    assumptions:
+    - text: 'For League matches, the ''result'' column must contain only the exact
+        (lowercase) values: ''runs'', ''wickets'', ''tie'', or ''no result''. We could
+        represent this as a Deequ constraint like: .where("match_type = ''League''").isContainedIn(''result'',
+        [''runs'', ''wickets'', ''tie'', ''no result'']).'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 39
+        end_line: 39
+        file: ''
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      - start_line: 52
+        end_line: 54
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: ead6c064-fa26-44d1-ab75-871cf3f34d58
+    - text: 'For League matches, the ''result'' column should be non-null for all
+        rows (completeness = 1.0). We could represent this as: .where("match_type
+        = ''League''").hasCompleteness(''result'', lambda x: x == 1.0).'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 39
+        end_line: 47
+        file: ''
+      - start_line: 52
+        end_line: 54
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: 890fa28b-016b-4e9e-98a8-962ccf329b9a
+    - text: 'When result = ''runs'' (for League matches), numeric fields needed for
+        the NRR proxy must be present and valid: result_margin is not null and > 0,
+        and target_overs is not null and > 0 (to avoid division by zero/NaN). Deequ
+        example: .satisfies("CASE WHEN match_type = ''League'' AND result = ''runs''
+        THEN (result_margin IS NOT NULL AND result_margin > 0 AND target_overs IS
+        NOT NULL AND target_overs > 0) ELSE TRUE END", ''runs_result_requirements'',
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: df29f000-dead-4ff1-b197-7f85aa23513a
+    - text: 'When result = ''wickets'' (for League matches), result_margin must be
+        present and within a realistic wickets range (1 to 10 inclusive). Deequ example:
+        .satisfies("CASE WHEN match_type = ''League'' AND result = ''wickets'' THEN
+        (result_margin IS NOT NULL AND result_margin >= 1 AND result_margin <= 10)
+        ELSE TRUE END", ''wickets_result_requirements'', lambda x: x == 1.0).'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: b4013ee1-875b-481b-9ada-d289ce9d3daa
+    - text: 'When result = ''tie'' (for League matches), there must be a super-over
+        winner recorded: ''winner'' should be non-null and equal to either team1 or
+        team2. This is required because points and tie-related metrics depend on team
+        == winner. Deequ example: .satisfies("CASE WHEN match_type = ''League'' AND
+        result = ''tie'' THEN (winner IS NOT NULL AND (winner = team1 OR winner =
+        team2)) ELSE TRUE END", ''tie_requires_winner'', lambda x: x == 1.0).'
+      sources:
+      - start_line: 37
+        end_line: 41
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: af17275d-e94d-4f87-87a8-0d4670fae194
+    - text: 'When result = ''no result'' (for League matches), there should be no
+        winner recorded (winner is null), so that each team gets 1 point. Deequ example:
+        .satisfies("CASE WHEN match_type = ''League'' AND result = ''no result'' THEN
+        winner IS NULL ELSE TRUE END", ''no_result_has_no_winner'', lambda x: x ==
+        1.0).'
+      sources:
+      - start_line: 37
+        end_line: 39
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: 8f335138-7d28-45b2-9e81-8e8437ca86b6
+  '["match_type","result","winner"]':
+    code: []
+    assumptions:
+    - text: 'For rows where match_type = ''League'', result must be one of {''runs'',
+        ''wickets'', ''tie'', ''no result''} and non-null. Deequ example: .isContainedIn(''result'',
+        [''runs'',''wickets'',''tie'',''no result'']).where("match_type = ''League''")'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 39
+        end_line: 39
+        file: ''
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 52
+        end_line: 54
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: ed574f10-8810-4356-a0cd-e4a1f68b1bc7
+    - text: 'In league matches with a decisive result (result in {''runs'',''wickets''}),
+        winner must be non-null and equal to either team1 or team2. Deequ example:
+        .satisfies("CASE WHEN match_type = ''League'' AND result IN (''runs'',''wickets'')
+        THEN (winner IS NOT NULL AND (winner = team1 OR winner = team2)) ELSE true
+        END", ''winner_in_teams_for_decisive'')'
+      sources:
+      - start_line: 27
+        end_line: 34
+        file: ''
+      - start_line: 45
+        end_line: 46
+        file: ''
+      - start_line: 51
+        end_line: 51
+        file: ''
+      uid: 415a6964-1d80-40b1-a1fa-96d09dd9aa64
+    - text: 'In league matches with result = ''tie'', a super-over winner must be
+        recorded and must be either team1 or team2. Deequ example: .satisfies("CASE
+        WHEN match_type = ''League'' AND result = ''tie'' THEN (winner IS NOT NULL
+        AND (winner = team1 OR winner = team2)) ELSE true END", ''winner_present_for_tie'')'
+      sources:
+      - start_line: 37
+        end_line: 43
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: 795f9894-6f16-45b7-aa72-10be46a2b3a1
+    - text: 'In league matches with result = ''no result'', winner should be null
+        (no winner recorded). Deequ example: .satisfies("CASE WHEN match_type = ''League''
+        AND result = ''no result'' THEN winner IS NULL ELSE true END", ''no_winner_when_no_result'')'
+      sources:
+      - start_line: 37
+        end_line: 44
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: e9479094-95f0-4c5b-a8bf-bbb30465d1bc
+    - text: 'In league matches with result = ''runs'', result_margin and target_overs
+        must be numeric, non-null, and strictly positive (target_overs > 0 and result_margin
+        > 0) to avoid invalid NRR computations. Deequ example: .satisfies("CASE WHEN
+        match_type = ''League'' AND result = ''runs'' THEN (result_margin IS NOT NULL
+        AND target_overs IS NOT NULL AND target_overs > 0 AND result_margin > 0) ELSE
+        true END", ''runs_requires_positive_margin_and_overs'')'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: f4696f63-afcc-4d72-8607-41d33431e7d4
+    - text: 'In league matches with result = ''wickets'', result_margin must be a
+        whole number between 1 and 10 inclusive (valid wickets margin). Deequ example:
+        .satisfies("CASE WHEN match_type = ''League'' AND result = ''wickets'' THEN
+        (result_margin IS NOT NULL AND result_margin >= 1 AND result_margin <= 10
+        AND result_margin = CAST(result_margin AS BIGINT)) ELSE true END", ''wickets_margin_bounds'')'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 6aecc793-7e37-4ca9-9ee5-9cfc90b2852d
+    - text: "For league matches with result in {'runs','wickets','tie'}, winner must\
+        \ match exactly one of {team1, team2} (i.e., winner \u2208 {team1, team2}).\
+        \ Deequ example: .satisfies(\"CASE WHEN match_type = 'League' AND result IN\
+        \ ('runs','wickets','tie') THEN (winner = team1 OR winner = team2) ELSE true\
+        \ END\", 'winner_is_one_of_competing_teams')"
+      sources:
+      - start_line: 27
+        end_line: 34
+        file: ''
+      - start_line: 45
+        end_line: 46
+        file: ''
+      - start_line: 51
+        end_line: 51
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: 2964636a-1117-4ad7-8495-7eb1a94ff13e
+  '["match_type","season"]':
+    code: []
+    assumptions:
+    - text: "For every season, there must be at least four distinct teams participating\
+        \ in League matches so that seeds 1\u20134 can be assigned per season. We\
+        \ could represent this as a Deequ-like constraint: hasNumberOfDistinctValues('team',\
+        \ _ >= 4, where = \"match_type = 'League'\", groupBy = ['season'])."
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      - start_line: 60
+        end_line: 68
+        file: ''
+      - start_line: 77
+        end_line: 80
+        file: ''
+      uid: 1354add7-7228-425e-b9d0-2fa80447d3b8
+    - text: 'Within League matches, the result column should be restricted to the
+        set {''runs'', ''wickets'', ''tie'', ''no result''}. This prevents unexpected
+        categories from receiving 0 points by default. Deequ-style: .isContainedIn(''result'',
+        Array(''runs'',''wickets'',''tie'',''no result''), where = "match_type = ''League''").'
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      - start_line: 37
+        end_line: 47
+        file: ''
+      uid: 32b7989f-ed63-4504-86ff-e6a45c3d1a47
+    - text: 'For League matches with a decided outcome (result != ''no result''),
+        the winner must be either team1 or team2. Deequ-style: .compliance("league_winner_valid",
+        "(match_type = ''League'' AND result <> ''no result'') -> (winner = team1
+        OR winner = team2)").'
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      - start_line: 45
+        end_line: 47
+        file: ''
+      - start_line: 51
+        end_line: 55
+        file: ''
+      uid: 69da6ded-1586-4567-847c-534893227d3e
+    - text: 'For League matches where result = ''runs'', both result_margin and target_overs
+        must be non-null and strictly positive to avoid invalid NRR proxy computations.
+        Deequ-style: .compliance("runs_nrr_inputs", "(match_type = ''League'' AND
+        result = ''runs'') -> (result_margin > 0 AND target_overs > 0)").'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 24
+        end_line: 25
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 0df8bd80-d749-49dd-b199-c4ec2415e4d6
+    - text: 'For League matches where result = ''wickets'', result_margin must be
+        an integer between 1 and 10 inclusive (number of wickets). Deequ-style: .compliance("wickets_margin_bounds",
+        "(match_type = ''League'' AND result = ''wickets'') -> (result_margin >= 1
+        AND result_margin <= 10 AND result_margin = cast(result_margin as int))").'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 24
+        end_line: 25
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 815d0c65-3891-45b4-a53e-a67963a331ef
+    - text: 'For League matches where result = ''tie'', there must be a non-null winner
+        that is either team1 or team2 (super-over winner), ensuring exactly one team
+        per match gets so_win = 1. Deequ-style: .compliance("tie_has_valid_winner",
+        "(match_type = ''League'' AND result = ''tie'') -> (winner IS NOT NULL AND
+        (winner = team1 OR winner = team2))").'
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      - start_line: 54
+        end_line: 59
+        file: ''
+      uid: 6c0a5f2c-b73d-488f-9f84-7293ff1aa9a8
+    - text: 'For League matches where result = ''no result'', winner should be null
+        or not equal to either team1 or team2, so that no team is incorrectly flagged
+        as a winner. Deequ-style: .compliance("nr_has_no_winner", "(match_type = ''League''
+        AND result = ''no result'') -> (winner IS NULL OR (winner <> team1 AND winner
+        <> team2))").'
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      - start_line: 38
+        end_line: 47
+        file: ''
+      uid: 0847a2a8-2add-439e-b34f-8a7c3b845ea1
+  '["result","result_margin"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''runs''
+        THEN result_margin IS NOT NULL AND result_margin > 0 AND target_overs IS NOT
+        NULL AND target_overs > 0 ELSE TRUE END", "runs_margin_and_overs", lambda
+        v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4a6261dd-07c7-4dd3-8e50-51d7431385c7
+      source_assumptions:
+      - cc435e19-e00a-4418-8786-dc0c542cdb03
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''wickets''
+        THEN result_margin IS NOT NULL AND result_margin BETWEEN 1 AND 10 AND result_margin
+        = CAST(result_margin AS INT) ELSE TRUE END", "wickets_margin_range", lambda
+        v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a6cf58e8-41c2-486e-92b7-cff900b7bee2
+      source_assumptions:
+      - cc435e19-e00a-4418-8786-dc0c542cdb03
+      - 3bed66ad-3b0c-485f-9eee-472454e5369b
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''tie''
+        THEN (result_margin IS NULL OR result_margin = 0) ELSE TRUE END", "tie_zero_margin",
+        lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0a2dac5c-b35b-4799-a4dd-1b0928d73c26
+      source_assumptions:
+      - cc435e19-e00a-4418-8786-dc0c542cdb03
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''no
+        result'' THEN result_margin IS NULL ELSE TRUE END", "nr_no_margin", lambda
+        v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d6423f63-e0ba-4345-bd8b-0234146a6515
+      source_assumptions:
+      - cc435e19-e00a-4418-8786-dc0c542cdb03
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result IN (''runs'',''wickets'',''tie'')
+        THEN winner IS NOT NULL AND (winner = team1 OR winner = team2) WHEN match_type
+        = ''League'' AND result = ''no result'' THEN winner IS NULL ELSE TRUE END",
+        "winner_within_teams_by_result", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: f043bc69-1d04-4723-8b95-f2b02876457d
+      source_assumptions:
+      - f5b937e5-d7a2-4362-a69d-176e00d54813
+      - 29d4d4d3-872c-4eeb-bafc-896b4588dba7
+    - suggestion: '.satisfies("CASE WHEN match_type = ''League'' AND result = ''runs''
+        THEN target_overs IS NOT NULL AND target_overs > 0 ELSE TRUE END", "runs_need_positive_target_overs",
+        lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7bc20fd6-8d78-4397-af9b-db5ee4c6c347
+      source_assumptions:
+      - dceb1764-6779-4425-bcaf-1e242a08bf6b
+    assumptions:
+    - text: 'Result-dependent consistency: In League rows, the trio (result, result_margin,
+        target_overs) must be consistent with the scoring logic: (a) If result = ''runs''
+        then result_margin is not null and > 0, and target_overs is not null and >
+        0; (b) If result = ''wickets'' then result_margin is not null, an integer,
+        and between 1 and 10 inclusive; (c) If result = ''tie'' then result_margin
+        is null or 0; (d) If result = ''no result'' then result_margin is null. Example
+        Deequ compliance constraints: .satisfies("CASE WHEN match_type = ''League''
+        AND result = ''runs'' THEN result_margin IS NOT NULL AND result_margin > 0
+        AND target_overs IS NOT NULL AND target_overs > 0 ELSE TRUE END", ''runs_margin_and_overs'');
+        .satisfies("CASE WHEN match_type = ''League'' AND result = ''wickets'' THEN
+        result_margin IS NOT NULL AND result_margin BETWEEN 1 AND 10 AND result_margin
+        = CAST(result_margin AS INT) ELSE TRUE END", ''wickets_margin_range''); .satisfies("CASE
+        WHEN match_type = ''League'' AND result = ''tie'' THEN (result_margin IS NULL
+        OR result_margin = 0) ELSE TRUE END", ''tie_zero_margin''); .satisfies("CASE
+        WHEN match_type = ''League'' AND result = ''no result'' THEN result_margin
+        IS NULL ELSE TRUE END", ''nr_no_margin'')'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 39
+        end_line: 47
+        file: ''
+      - start_line: 51
+        end_line: 55
+        file: ''
+      uid: cc435e19-e00a-4418-8786-dc0c542cdb03
+    - text: 'Winner membership and nullability depend on result: If result IN (''runs'',''wickets'',''tie''),
+        then winner must be present and equal to either team1 or team2; if result
+        = ''no result'', winner must be null. Example Deequ constraint: .satisfies("CASE
+        WHEN result IN (''runs'',''wickets'',''tie'') THEN winner IS NOT NULL AND
+        (winner = team1 OR winner = team2) WHEN result = ''no result'' THEN winner
+        IS NULL ELSE FALSE END", ''winner_within_teams_by_result'')'
+      sources:
+      - start_line: 37
+        end_line: 47
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: f5b937e5-d7a2-4362-a69d-176e00d54813
+    - text: 'No division by zero/NaN for run-margin NRR: For rows with result = ''runs'',
+        target_overs must be a valid positive number to safely compute result_margin
+        / target_overs. Example Deequ constraint: .satisfies("CASE WHEN result = ''runs''
+        THEN target_overs IS NOT NULL AND target_overs > 0 ELSE TRUE END", ''runs_need_positive_target_overs'')'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: dceb1764-6779-4425-bcaf-1e242a08bf6b
+    - text: 'Wicket-margin scaling assumes valid wicket bounds: For rows with result
+        = ''wickets'', result_margin represents wickets remaining and must lie in
+        [1, 10] (and be an integer) to match the division by 10. Example Deequ constraint:
+        .satisfies("CASE WHEN result = ''wickets'' THEN result_margin BETWEEN 1 AND
+        10 AND result_margin = CAST(result_margin AS INT) ELSE TRUE END", ''wickets_margin_bounds'')'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 3bed66ad-3b0c-485f-9eee-472454e5369b
+    - text: 'Tied matches still have a declared winner for super-over tie-breaks:
+        For rows with result = ''tie'', winner must be present and equal to team1
+        or team2. Example Deequ constraint: .satisfies("CASE WHEN result = ''tie''
+        THEN winner IS NOT NULL AND (winner = team1 OR winner = team2) ELSE TRUE END",
+        ''tie_has_declared_winner'')'
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: 29d4d4d3-872c-4eeb-bafc-896b4588dba7
+  '["result","result_margin","target_overs"]':
+    code:
+    - suggestion: '.satisfies("(result != ''runs'') OR (result_margin IS NOT NULL
+        AND target_overs IS NOT NULL AND result_margin > 0 AND target_overs > 0)",
+        "runs_has_valid_margin_and_overs", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 32b33a27-3ab1-4ea0-9c69-a3564165e6e8
+      source_assumptions:
+      - 69f0d787-efd7-4f44-8fc2-67fc98021e6f
+    - suggestion: '.satisfies("(result != ''wickets'') OR (result_margin IS NOT NULL
+        AND result_margin >= 1 AND result_margin <= 10 AND result_margin = CAST(result_margin
+        AS INT))", "wickets_margin_integer_1_to_10", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 695bf4a4-b635-4766-82c9-40e1a95eee75
+      source_assumptions:
+      - 6c8c3911-2c88-45a7-91df-827ee9aa4cf1
+    - suggestion: '.satisfies("result NOT IN (''tie'',''no result'') OR result_margin
+        IS NULL", "no_margin_when_tie_or_nr", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 124f5003-a8ac-4f8e-934b-a263c18b2760
+      source_assumptions:
+      - 4cfafca1-8957-44df-9204-804e278f7d35
+    - suggestion: '.satisfies("(result = ''no result'' AND winner IS NULL) OR (result
+        IN (''runs'',''wickets'',''tie'') AND winner IS NOT NULL AND (winner = team1
+        OR winner = team2))", "winner_consistent_with_result", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 45f3d1fa-73e0-4461-970f-f37b47af4968
+      source_assumptions:
+      - 043be95c-6ffb-4ff3-bcf7-014ad6f322f6
+      - 48109ab3-077a-470b-9843-20ea8bf23030
+    assumptions:
+    - text: 'For rows where result = ''runs'', both result_margin and target_overs
+        must be present (non-null, numeric) and strictly positive to safely compute
+        the net performance proxy. We could represent this as Deequ constraints like:
+        .satisfies("result != ''runs'' OR (result_margin IS NOT NULL AND target_overs
+        IS NOT NULL)", "runs_has_margin_and_overs") and .satisfies("result != ''runs''
+        OR (result_margin > 0 AND target_overs > 0)", "runs_margin_overs_positive").'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 69f0d787-efd7-4f44-8fc2-67fc98021e6f
+    - text: 'For rows where result = ''wickets'', result_margin must be present and
+        represent wickets remaining: an integer between 1 and 10 inclusive. Example
+        Deequ constraint: .satisfies("result != ''wickets'' OR (result_margin IS NOT
+        NULL AND result_margin >= 1 AND result_margin <= 10 AND result_margin = CAST(result_margin
+        AS INT))", "wickets_margin_range").'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 6c8c3911-2c88-45a7-91df-827ee9aa4cf1
+    - text: 'For rows where result IN (''tie'', ''no result''), no run/wicket margin
+        should be recorded; result_margin should be NULL. Example Deequ constraint:
+        .satisfies("result NOT IN (''tie'',''no result'') OR result_margin IS NULL",
+        "no_margin_when_tie_or_nr").'
+      sources:
+      - start_line: 39
+        end_line: 39
+        file: ''
+      - start_line: 52
+        end_line: 55
+        file: ''
+      uid: 4cfafca1-8957-44df-9204-804e278f7d35
+    - text: 'For rows where result = ''tie'', a super-over winner must be defined
+        and must be one of the two teams (team1 or team2). Example Deequ constraint:
+        .satisfies("result != ''tie'' OR (winner IS NOT NULL AND (winner = team1 OR
+        winner = team2))", "tie_requires_winner_from_teams").'
+      sources:
+      - start_line: 37
+        end_line: 44
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: 043be95c-6ffb-4ff3-bcf7-014ad6f322f6
+    - text: 'Winner consistency with result type: if result = ''no result'', winner
+        must be NULL; if result IN (''runs'',''wickets'',''tie''), winner must be
+        present and equal to team1 or team2. Example Deequ constraint: .satisfies("(result
+        = ''no result'' AND winner IS NULL) OR (result IN (''runs'',''wickets'',''tie'')
+        AND (winner = team1 OR winner = team2))", "winner_consistent_with_result").'
+      sources:
+      - start_line: 37
+        end_line: 47
+        file: ''
+      uid: 48109ab3-077a-470b-9843-20ea8bf23030
+  '["result","target_overs"]':
+    code: []
+    assumptions:
+    - text: 'When result = ''runs'', target_overs must be present (not null), numeric,
+        and strictly greater than 0 to avoid divide-by-zero in the NRR proxy computation.
+        We could represent this assumption as a Deequ constraint like: .addConstraint(Compliance(''runs_requires_positive_target_overs'',
+        ''result != \''runs\'' OR (target_overs IS NOT NULL AND target_overs > 0)''))'
+      sources:
+      - start_line: 49
+        end_line: 53
+        file: ''
+      uid: eba777de-d3fb-4920-9519-ef4cc36f4523
+    - text: 'target_overs is allowed to be NULL only when result != ''runs'' (i.e.,
+        any NULL target_overs must correspond to a non-''runs'' outcome). Deequ example:
+        .addConstraint(Compliance(''null_target_overs_only_when_not_runs'', ''target_overs
+        IS NOT NULL OR result != \''runs\'''')).'
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 5aa988d1-79ed-45ba-83ee-7c9c5d40a323
+    - text: 'Outcome-specific margin constraints: (a) if result = ''runs'', result_margin
+        must be non-null and > 0; (b) if result = ''wickets'', result_margin must
+        be non-null and between 1 and 10 inclusive. These ensure the NRR proxy scaling
+        (runs per target_overs; wickets out of 10) is well-defined. Deequ example:
+        .addConstraint(Compliance(''margin_matches_result'', ''(result != \''runs\''
+        OR (result_margin IS NOT NULL AND result_margin > 0)) AND (result != \''wickets\''
+        OR (result_margin IS NOT NULL AND result_margin >= 1 AND result_margin <=
+        10))''))'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 52
+        end_line: 53
+        file: ''
+      uid: 8118d79b-f8ba-4579-9fed-f3b60779e556
+    - text: 'For all non-''no result'' matches (result IN (''runs'',''wickets'',''tie'')),
+        there must be a declared winner and it must equal either team1 or team2; for
+        ''no result'' matches, winner should be NULL. This is required for correct
+        points, win/loss, super-over win, and NRR tie adjustments. Deequ example:
+        .addConstraint(Compliance(''winner_consistency_with_result'', ''(result =
+        \''no result\'' AND winner IS NULL) OR (result IN (\''runs\'',\''wickets\'',\''tie\'')
+        AND winner IN (team1, team2))''))'
+      sources:
+      - start_line: 37
+        end_line: 47
+        file: ''
+      - start_line: 54
+        end_line: 59
+        file: ''
+      uid: bda938b1-9776-4dd1-aa68-5fad5be27b7e
+  '["result","target_overs","target_runs"]':
+    code: []
+    assumptions:
+    - text: "For all matches where result \u2208 {'runs','wickets','tie'}, the 'winner'\
+        \ must be exactly one of {'team1','team2'} for that row (non-null and string-equal\
+        \ to either team1 or team2). This is required because points, win/loss, and\
+        \ tie logic use (team == winner). Deequ-style: .satisfies(\"(result IN ('runs','wickets','tie'))\
+        \ -> (winner = team1 OR winner = team2)\", 'WinnerInTeams')"
+      sources:
+      - start_line: 27
+        end_line: 35
+        file: ''
+      - start_line: 38
+        end_line: 47
+        file: ''
+      - start_line: 58
+        end_line: 59
+        file: ''
+      uid: e0e6e8f1-2074-435a-b96c-ee9301da4f04
+    - text: 'When result = ''runs'', both ''target_overs'' and ''result_margin'' must
+        be non-null and strictly > 0 (to avoid undefined/inf values in nrr_proxy_delta
+        = sign * (result_margin / target_overs)). Deequ-style: .where(col(''result'')
+        === ''runs'').hasCompleteness(''target_overs'', 1.0) AND .where(col(''result'')
+        === ''runs'').hasMin(''target_overs'', 1e-9) AND .where(col(''result'') ===
+        ''runs'').hasCompleteness(''result_margin'', 1.0) AND .where(col(''result'')
+        === ''runs'').hasMin(''result_margin'', 1e-9)'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 51
+        end_line: 53
+        file: ''
+      uid: 06d025a6-e1f7-47b4-8016-732a0f24aa20
+    - text: 'When result = ''wickets'', ''result_margin'' must be an integer in [1,
+        10] (a wicket margin), consistent with normalization by 10.0 in nrr computation.
+        Deequ-style: .where(col(''result'') === ''wickets'').satisfies(''result_margin
+        BETWEEN 1 AND 10 AND result_margin = CAST(result_margin AS INT)'', ''WicketMarginRange'')'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 53
+        end_line: 53
+        file: ''
+      uid: 6c52bcdc-0cbc-4b5f-b724-ed83e371fe29
+    - text: "Duckworth\u2013Lewis target fields should be co-present: 'target_runs'\
+        \ and 'target_overs' should be either both null or both non-null on a row\
+        \ (they represent a paired adjusted target). Deequ-style: .satisfies('(target_runs\
+        \ IS NULL) = (target_overs IS NULL)', 'DLCoPresence')"
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 49
+        end_line: 55
+        file: ''
+      uid: e932efc4-a9e6-43c2-b049-d428aea49fed
+    - text: 'When result = ''no result'', there must be no winner recorded (winner
+        is null/empty), because points are allocated via the ''no result'' condition
+        rather than by team==winner. Deequ-style: .where(col(''result'') === ''no
+        result'').satisfies(''winner IS NULL OR TRIM(winner) = '''''', ''NoResultHasNoWinner'')'
+      sources:
+      - start_line: 37
+        end_line: 47
+        file: ''
+      uid: 524dd267-e3b9-46c4-bae7-064351d4bcc5
+  '["result","team1","team2","winner"]':
+    code: []
+    assumptions:
+    - text: "For all matches where result \u2208 {'runs','wickets','tie'}, the 'winner'\
+        \ must be non-null and equal to either 'team1' or 'team2'. For matches where\
+        \ result = 'no result', 'winner' must be null (or at least not equal to 'team1'\
+        \ or 'team2') so wins are not incorrectly assigned. Deequ example: .satisfies(\"\
+        CASE WHEN result IN ('runs','wickets','tie') THEN winner IS NOT NULL AND (winner\
+        \ = team1 OR winner = team2) ELSE winner IS NULL END\", \"winner_in_teams_consistent_with_result\"\
+        )"
+      sources:
+      - start_line: 27
+        end_line: 35
+        file: ''
+      - start_line: 38
+        end_line: 47
+        file: ''
+      - start_line: 57
+        end_line: 59
+        file: ''
+      uid: 44c044cb-084c-4537-a362-e26589ca6f32
+    - text: 'Each match must involve two distinct teams: ''team1'' and ''team2'' must
+        both be present and not equal. Deequ example: .satisfies("team1 IS NOT NULL
+        AND team2 IS NOT NULL AND team1 <> team2", "teams_are_distinct_per_match")'
+      sources:
+      - start_line: 27
+        end_line: 35
+        file: ''
+      uid: 5ec29340-4ee9-414f-bcde-f26cf7612814
+    - text: "For matches where result \u2208 {'runs','wickets','tie'}, there must\
+        \ be exactly one winning team: (winner = team1) XOR (winner = team2). Deequ\
+        \ example: .satisfies(\"CASE WHEN result IN ('runs','wickets','tie') THEN\
+        \ ((winner = team1) OR (winner = team2)) AND NOT ((winner = team1) AND (winner\
+        \ = team2)) ELSE TRUE END\", \"exactly_one_winner_when_decided\")"
+      sources:
+      - start_line: 38
+        end_line: 46
+        file: ''
+      - start_line: 57
+        end_line: 59
+        file: ''
+      uid: 33de0ae4-4c88-4ea1-8c25-848875523c97
+    - text: 'Inputs needed for nrr_proxy must be valid conditional on result: if result
+        = ''runs'', then ''result_margin'' > 0 and ''target_overs'' > 0 (both numeric);
+        if result = ''wickets'', then ''result_margin'' is an integer between 1 and
+        10 inclusive; other results may leave these fields null. Deequ example: .satisfies("CASE
+        WHEN result = ''runs'' THEN result_margin > 0 AND target_overs > 0 WHEN result
+        = ''wickets'' THEN result_margin >= 1 AND result_margin <= 10 ELSE TRUE END",
+        "nrr_inputs_valid_by_result")'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      - start_line: 51
+        end_line: 55
+        file: ''
+      uid: f7b45599-aaa1-42fb-a357-bdc5fc722c4c
+    - text: 'No ''no result'' row should indicate a winner that equals either participating
+        team, otherwise ''win'' would be incorrectly assigned (win is computed without
+        checking result). Deequ example: .satisfies("CASE WHEN result = ''no result''
+        THEN (winner IS NULL OR (winner <> team1 AND winner <> team2)) ELSE TRUE END",
+        "no_result_has_no_winner")'
+      sources:
+      - start_line: 38
+        end_line: 47
+        file: ''
+      uid: 8096f704-6c1f-40f7-96bd-eeee2c2d5b18
+  '["team1","team2"]':
+    code:
+    - suggestion: '.satisfies("(match_type != ''League'') OR (team1 != team2)", "League
+        matches must have distinct teams (no self-match)", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7eb69ed4-1754-469e-b71c-d1f97996ed2f
+      source_assumptions:
+      - af40ea8e-e112-4d4c-af2a-c6770ea9d055
+    - suggestion: '.satisfies("(match_type != ''League'' OR result NOT IN (''runs'',''wickets'',''tie''))
+        OR ((winner = team1 AND winner != team2) OR (winner = team2 AND winner !=
+        team1))", "For decided League results, winner must be exactly one of team1
+        or team2", lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4367bfd0-14ce-4364-b54a-cbba94415e76
+      source_assumptions:
+      - 0a7deeba-b1cd-4503-b81b-8063c36fc292
+    - suggestion: '.satisfies("(match_type != ''League'' OR result != ''no result'')
+        OR (winner IS NULL OR (winner != team1 AND winner != team2))", "For no-result
+        League matches, winner should be null or not equal to either team1 or team2",
+        lambda v: v == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ad4e8253-dd6a-49bd-b275-5f04065552d1
+      source_assumptions:
+      - 0a7deeba-b1cd-4503-b81b-8063c36fc292
+    assumptions:
+    - text: 'For all League matches, ''team1'' and ''team2'' must be two different
+        teams (no self-match). This can be enforced with a multi-column compliance
+        constraint such as: forAllRows("match_type = ''League'' => team1 <> team2").'
+      sources:
+      - start_line: 26
+        end_line: 35
+        file: ''
+      uid: fe3c34fc-80ac-4d44-b0ce-4ccfaec20762
+    - text: 'For all League matches with a decided result (result in [''runs'',''wickets'',''tie'']),
+        the ''winner'' must equal exactly one of {team1, team2}. For ''no result'',
+        ''winner'' should be null/empty or at least not equal to either ''team1''
+        or ''team2''. These can be enforced as multi-column constraints such as: forAllRows("(match_type
+        = ''League'' AND result IN (''runs'',''wickets'',''tie'')) => ((winner = team1)
+        XOR (winner = team2))") and forAllRows("(match_type = ''League'' AND result
+        = ''no result'') => (winner IS NULL OR (winner <> team1 AND winner <> team2))").'
+      sources:
+      - start_line: 28
+        end_line: 33
+        file: ''
+      - start_line: 38
+        end_line: 46
+        file: ''
+      - start_line: 51
+        end_line: 55
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: af40ea8e-e112-4d4c-af2a-c6770ea9d055
+    - text: "The universe of team identifiers is consistent across 'team1' and 'team2'\
+        \ (both columns draw from the same set of teams, approximately 19 distinct\
+        \ values). This can be operationalized with cross-column/domain constraints,\
+        \ e.g., hasApproxCountDistinct('team1', 19), hasApproxCountDistinct('team2',\
+        \ 19), and a custom check that distinct(team1) \u2286 distinct(team2) and\
+        \ distinct(team2) \u2286 distinct(team1) for League rows."
+      sources:
+      - start_line: 28
+        end_line: 35
+        file: ''
+      uid: 0a7deeba-b1cd-4503-b81b-8063c36fc292
+column_data_flow_locations:
+  '["result","team1","team2","winner"]': []
+  '["result","result_margin"]': []
+  '["result","target_overs"]': []
+  '["team1","team2"]': []
+  '["result","result_margin","target_overs"]': []
+  '["match_type","result","winner"]': []
+  '["match_type","season"]': []
+  '["result","target_overs","target_runs"]': []
+  result_margin: []
+  target_runs: []
+  target_overs: []
+  match_type: []
+  team1: []
+  team2: []
+  result: []
+  winner: []
+  season: []
+cost_summary:
+  column_access_detection:
+    cost: 0.00932325
+    total_tokens: 5303
+    prompt_tokens: 4633
+    completion_tokens: 670
+  column_correlation_discovery:
+    cost: 0.05549375
+    total_tokens: 7561
+    prompt_tokens: 2299
+    completion_tokens: 5262
+  multi_column_assumption_generation:
+    cost: 0.53772
+    total_tokens: 69718
+    prompt_tokens: 18224
+    completion_tokens: 51494
+  multi_column_code_generation:
+    cost: 0.3061505
+    total_tokens: 61378
+    prompt_tokens: 33298
+    completion_tokens: 28080
+  single_column_assumption_generation:
+    cost: 0.4697775
+    total_tokens: 66807
+    prompt_tokens: 22662
+    completion_tokens: 44145
+  single_column_code_generation:
+    cost: 0.32365700000000003
+    total_tokens: 81492
+    prompt_tokens: 52820
+    completion_tokens: 28672

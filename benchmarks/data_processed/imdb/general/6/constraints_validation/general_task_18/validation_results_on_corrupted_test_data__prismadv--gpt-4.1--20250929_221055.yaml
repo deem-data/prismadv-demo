@@ -1,0 +1,147 @@
+results:
+  IMDB_Rating:
+    code:
+    - suggestion: .isComplete('IMDB_Rating')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''IMDB_Rating >= 0 AND IMDB_Rating <= 10'', ''IMDB_Rating
+        Range'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Gross:
+    code:
+    - suggestion: '.satisfies(''`Gross` IS NOT NULL'', ''At least one non-null Gross
+        value'', lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN `Gross` IS NOT NULL THEN CASE WHEN cast(regexp_replace(`Gross`,
+        ",", "") AS double) IS NOT NULL THEN 1 ELSE 0 END ELSE 1 END'', ''Parseable
+        Gross values'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN `Gross` IS NOT NULL THEN CASE WHEN cast(regexp_replace(`Gross`,
+        ",", "") AS double) >= 0 THEN 1 ELSE 0 END ELSE 1 END'', ''Non-negative Gross'',
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasCompleteness(''Gross'', lambda x: x >= 0.8)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Series_Title:
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''.hasUniqueness([''Series_Title'', ''Released_Year''],
+        lambda x: x == 1.0)'' failed on data sample: Value: 0.9428571428571428 does
+        not meet the constraint requirement!'
+      level: error
+    - suggestion: .isComplete('Series_Title')
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Gross","IMDB_Rating","Meta_score","No_of_Votes","PopularityIndex","Runtime"]':
+    code:
+    - suggestion: .satisfies('((`Meta_score` IS NULL AND `IMDB_Rating` IS NOT NULL
+        AND CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL) OR `Meta_score` IS NOT NULL)',
+        'Meta_score missing implies IMDB_Rating present and numeric')
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Gross","No_of_Votes"]':
+    code:
+    - suggestion: '.haveCompleteness([''No_of_Votes''], lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies('TRY_CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL', 'No_of_Votes
+        convertible to float')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies('(`No_of_Votes` IS NULL) OR (TRY_CAST(REPLACE(`Gross`,
+        ",", "") AS DOUBLE) IS NOT NULL OR `Gross` IS NULL)', 'Gross parsable or missing')
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: .satisfies('LOG(1 + TRY_CAST(`No_of_Votes` AS DOUBLE)) >= 0 AND
+        LOG(1 + TRY_CAST(`No_of_Votes` AS DOUBLE)) < 1e10', 'No_of_Votes log finite')
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: .satisfies('(`Gross` IS NULL) OR (LOG(1 + TRY_CAST(REPLACE(`Gross`,
+        ",", "") AS DOUBLE)) >= 0 AND LOG(1 + TRY_CAST(REPLACE(`Gross`, ",", "") AS
+        DOUBLE)) < 1e10)', 'Gross log finite or missing')
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Meta_score:
+    code:
+    - suggestion: .satisfies('(`Meta_score` >= 0 AND `Meta_score` <= 100) OR `Meta_score`
+        IS NULL', 'Meta_score in [0, 100] or NULL')
+      status: true
+      reason_if_failed: ''
+      level: error
+  No_of_Votes:
+    code:
+    - suggestion: .isComplete('No_of_Votes')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CAST(`No_of_Votes` AS BIGINT) = `No_of_Votes`'', ''No_of_Votes
+        Is Integer'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isNonNegative('No_of_Votes')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasApproxQuantile(''No_of_Votes'', 0.99, lambda x: x < 10000000)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Released_Year:
+    code:
+    - suggestion: .isComplete('Released_Year')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies('Released_Year >= 1900 AND Released_Year <= year(current_date())',
+        'Released_Year plausible range')
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Runtime:
+    code:
+    - suggestion: .isComplete('Runtime')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''`Runtime` RLIKE "[0-9]{2,3}"'', ''Runtime Contains
+        Minutes'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CAST(regexp_extract(`Runtime`, "([0-9]{2,3})", 0)
+        AS INT) >= 45 AND CAST(regexp_extract(`Runtime`, "([0-9]{2,3})", 0) AS INT)
+        <= 240'', ''Runtime Minutes Range'', lambda x: x == 1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies(''CAST(regexp_extract(`Runtime`,
+        "([0-9]{2,3})", 0) AS INT) >= 45 AND CAST(regexp_extract(`Runtime`, "([0-9]{2,3})",
+        0) AS INT) <= 240'', ''Runtime Minutes Range'', lambda x: x == 1.0)'' failed
+        on data sample: Value: 0.9619047619047619 does not meet the constraint requirement!'
+      level: error
+  '["Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.haveCompleteness([''Series_Title'', ''Released_Year''], lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error

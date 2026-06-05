@@ -1,0 +1,2393 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-flash
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  Physical Activity Level:
+    code:
+    - suggestion: '.haveCompleteness([''bp_systolic'', ''bp_diastolic''], lambda x:
+        x == 1.0)
+
+        .satisfies("`bp_systolic` >= `bp_diastolic`", "systolic_greater_than_diastolic",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''bp_systolic'', ''bp_diastolic''],
+        lambda x: x == 1.0)
+
+        .satisfies("`bp_systolic` >= `bp_diastolic`", "systolic_greater_than_diastolic",
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        bp_systolic!'
+      level: error
+      uid: 21796429-18ea-404f-b8f3-3ea8529289fa
+      source_assumptions:
+      - 685cbf59-feff-4ff1-b7b7-43b422b1c8a9
+    - suggestion: '.hasCompleteness("Daily Steps", lambda x: x == 1.0)
+
+        .hasCompleteness("Physical Activity Level", lambda x: x == 1.0)
+
+        .satisfies("`Physical Activity Level` >= 0 AND `Physical Activity Level` <=
+        100", "Physical_Activity_Level_Range", lambda x: x == 1.0)
+
+        .satisfies("`Daily Steps` >= 0 AND `Daily Steps` <= 50000", "Daily_Steps_Range",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 77c99ff9-3b4b-481f-be8e-36fe9c93dcd5
+      source_assumptions:
+      - bccede66-a4fd-4330-94a0-1e1764f5e64f
+    - suggestion: '.haveCompleteness([''sleep_need_index'', ''bp_risk'', ''stress_norm'',
+        ''sedentary_index''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''sleep_need_index'', ''bp_risk'',
+        ''stress_norm'', ''sedentary_index''], lambda x: x == 1.0)'' failed on data
+        sample: Input data does not include column sleep_need_index!'
+      level: error
+      uid: 396b529c-783b-48b8-8c54-29b437f588ba
+      source_assumptions:
+      - ad723cb0-b916-4275-a875-e79a1d3e3696
+    - suggestion: '.satisfies("NOT `eligible` OR `priority_score` = 0.0", "ineligible_priority_is_zero",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("NOT `eligible` OR `priority_score`
+        = 0.0", "ineligible_priority_is_zero", lambda x: x == 1.0)'' failed on data
+        sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `eligible` cannot be resolved. Did
+        you mean one of the following? [`Age`, `id`, `Gender`, `Heart Rate`, `Person
+        ID`].; line 1 pos 4;
+
+        ''Aggregate [sum(cast((NOT ''eligible OR (''priority_score = 0.0)) as int))
+        AS sum(CAST(((NOT eligible) OR (priority_score = 0.0)) AS INT))#135962, count(1)
+        AS count(1)#135963L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: db8b6377-87bb-4694-8da1-3de337969e93
+      source_assumptions:
+      - d6f6c3ef-3fb1-4c13-b10b-7f73a1a355e3
+    assumptions:
+    - text: 'The ''bp_systolic'' and ''bp_diastolic'' columns are used together to
+        categorize blood pressure risk. It is assumed that both columns are numerical,
+        non-null, and ''bp_systolic'' values are consistently greater than or equal
+        to ''bp_diastolic'' values, reflecting a valid physiological relationship.
+        We could represent this assumption as a Deequ constraint like this: .hasCompleteness("bp_systolic",
+        1.0).hasCompleteness("bp_diastolic", 1.0).hasCustomConstraint(col("bp_systolic")
+        >= col("bp_diastolic"), Some("systolic_greater_than_diastolic"))'
+      sources:
+      - start_line: 36
+        end_line: 39
+        file: ''
+      uid: 685cbf59-feff-4ff1-b7b7-43b422b1c8a9
+    - text: 'The ''sedentary_index'' is calculated as a weighted average of normalized
+        ''Daily Steps'' and ''Physical Activity Level''. It is assumed that both ''Daily
+        Steps'' and ''Physical Activity Level'' columns are numerical and non-null
+        for this calculation to proceed without errors and produce a valid ''sedentary_index''
+        between 0 and 1. We could represent this assumption as a Deequ constraint
+        like this: .hasCompleteness("Daily Steps", 1.0).hasCompleteness("Physical
+        Activity Level", 1.0).hasMin("sedentary_index", 0.0).hasMax("sedentary_index",
+        1.0)'
+      sources:
+      - start_line: 50
+        end_line: 51
+        file: ''
+      uid: bccede66-a4fd-4330-94a0-1e1764f5e64f
+    - text: 'The ''priority_score'' is derived from a weighted sum of ''sleep_need_index'',
+        ''bp_risk'', ''stress_norm'', and ''sedentary_index''. It is assumed that
+        all these constituent columns are numerical and non-null, and their values
+        are within a valid range (e.g., typically 0 to 1) for their weighted sum to
+        produce a meaningful ''priority_score'' also within a 0 to 1 range. We could
+        represent this assumption as a Deequ constraint like this: .hasCompleteness("sleep_need_index",
+        1.0).hasCompleteness("bp_risk", 1.0).hasCompleteness("stress_norm", 1.0).hasCompleteness("sedentary_index",
+        1.0).hasMin("priority_score", 0.0).hasMax("priority_score", 1.0)'
+      sources:
+      - start_line: 68
+        end_line: 73
+        file: ''
+      uid: ad723cb0-b916-4275-a875-e79a1d3e3696
+    - text: 'The ''eligible'' column is assumed to be a boolean (or convertible to
+        boolean) and directly controls the ''priority_score''. Specifically, if a
+        record is marked as not ''eligible'' (False), its ''priority_score'' is expected
+        to be 0.0. This implies a logical consistency between these two columns. We
+        could represent this assumption as a Deequ constraint like this: .hasCustomConstraint(col("eligible")
+        === true || col("priority_score") === 0.0, Some("ineligible_priority_is_zero"))'
+      sources:
+      - start_line: 76
+        end_line: 76
+        file: ''
+      uid: d6f6c3ef-3fb1-4c13-b10b-7f73a1a355e3
+  Quality of Sleep:
+    code:
+    - suggestion: .hasDataType('Quality of Sleep', 'Integral')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Quality of
+        Sleep'', ''Integral'')'
+      level: error
+      uid: 02297977-3753-4aae-8d7b-2afa67cd4364
+      source_assumptions:
+      - 26ebea1c-7200-4a5d-af31-eac862ef244b
+    - suggestion: .isContainedIn('Quality of Sleep', ['4', '5', '6', '7', '8', '9'])
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 474cd78e-3b1f-4471-b4eb-27610a71035a
+      source_assumptions:
+      - 26ebea1c-7200-4a5d-af31-eac862ef244b
+    - suggestion: '.satisfies(''`Quality of Sleep` >= 6 AND `Quality of Sleep` <=
+        9'', ''qos_in_effective_range_majority'', lambda x: x >= 0.90)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 6fb99c5d-fd25-473b-80c2-a784a0bd7df2
+      source_assumptions:
+      - a0f5bbd3-8724-461a-a750-491f03a4ce75
+    assumptions:
+    - text: 'The ''Quality of Sleep'' column is assumed to contain discrete numerical
+        values, specifically integers, as indicated by the data characteristics (Integral
+        data type, distinct values, and histogram) and the numerical operations performed
+        on it. We could represent this assumption as a Deequ constraint like this:
+
+        .hasDataType("Quality of Sleep", "Integral")
+
+        .isContainedIn("Quality of Sleep", [4, 5, 6, 7, 8, 9])'
+      sources:
+      - start_line: 45
+        end_line: 46
+        file: ''
+      uid: 26ebea1c-7200-4a5d-af31-eac862ef244b
+    - text: 'The ''Quality of Sleep'' column is assumed not to contain any null or
+        missing values. This is based on the data characteristics showing 100% completeness
+        and the absence of explicit null handling for this column in the code, implying
+        that all values are expected to be present for calculations. We could represent
+        this assumption as a Deequ constraint like this:
+
+        .isComplete("Quality of Sleep")'
+      sources:
+      - start_line: 45
+        end_line: 46
+        file: ''
+      uid: 7c9b4324-4622-43d7-ad17-4fce123311fc
+    - text: 'The ''Quality of Sleep'' column is expected to contain numerical values
+        where the range [6, 9] is considered the primary meaningful scale for downstream
+        calculations. Values in the input data that fall below 6 (e.g., 4 or 5, as
+        observed in the histogram) are effectively treated as 6, and any values greater
+        than 9 would be treated as 9, due to the `clip(6, 9)` operation on line 45.
+        This implies that while the code can handle values outside [6, 9], their interpretation
+        is capped at these boundaries for the `qos_norm` calculation. We could represent
+        this assumption as a Deequ constraint like this:
+
+        .hasMin("Quality of Sleep", lambda x: x >= 4.0) // Based on the observed minimum
+        value in the input data
+
+        .hasMax("Quality of Sleep", lambda x: x <= 9.0) // Based on the observed maximum
+        value in the input data and the upper bound of the clipping operation
+
+        .satisfies("`Quality of Sleep` >= 6 AND `Quality of Sleep` <= 9", "qos_in_effective_range_majority",
+        lambda x: x >= 0.90) // To ensure that the majority of values fall within
+        the core meaningful range [6, 9], allowing for some boundary cases as handled
+        by clipping'
+      sources:
+      - start_line: 45
+        end_line: 45
+        file: ''
+      uid: a0f5bbd3-8724-461a-a750-491f03a4ce75
+  Blood Pressure:
+    code:
+    - suggestion: .hasDataType("Blood Pressure", ConstrainableDataTypes.String)
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Blood Pressure",
+        ConstrainableDataTypes.String)'
+      level: error
+      uid: 834e4b00-9dcc-4a82-97a5-09f6aaf69b23
+      source_assumptions:
+      - 7868b4dc-7fad-4975-9fa2-d598ca842a2d
+    - suggestion: '.satisfies("CASE WHEN LENGTH(REGEXP_REPLACE(`Blood Pressure`, ''[^/]'',
+        '''')) = 1 THEN 1 ELSE 0 END", "Contains exactly one slash", lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: acd76300-af4a-420f-93ad-67d386ab6cd0
+      source_assumptions:
+      - 7868b4dc-7fad-4975-9fa2-d598ca842a2d
+    - suggestion: '.hasCompleteness("Blood Pressure", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 66597ee9-2343-4edf-970d-e3e5c29f3adb
+      source_assumptions:
+      - 09bc4251-8478-4e75-a5f8-0563243a4e18
+    - suggestion: '.satisfies("CASE WHEN CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS
+        INT) >= 60 AND CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) <= 250 THEN
+        1 ELSE 0 END", "Systolic BP in plausible range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 61bd99ca-5974-4c5b-bf5b-b7904df7c33f
+      source_assumptions:
+      - a7be9992-f37c-49b2-8dd4-9468592cfbf0
+    - suggestion: '.satisfies("CASE WHEN CAST(SPLIT(`Blood Pressure`, ''/'')[1] AS
+        INT) >= 30 AND CAST(SPLIT(`Blood Pressure`, ''/'')[1] AS INT) <= 150 THEN
+        1 ELSE 0 END", "Diastolic BP in plausible range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 066fce37-5275-4ad3-88ca-f806900ee533
+      source_assumptions:
+      - e6eb9149-8510-4847-9cb8-e100a790eca1
+    assumptions:
+    - text: 'The ''Blood Pressure'' column must contain string values. Each string
+        must be in the format ''Systolic/Diastolic'', where Systolic and Diastolic
+        are integral string representations of positive integers. Specifically, each
+        value must contain exactly one ''/'' character, and both parts separated by
+        the ''/'' must be convertible to integers greater than 0.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("Blood Pressure", ConstrainableDataTypes.String)
+
+        .satisfies("CASE WHEN LENGTH(REGEXP_REPLACE(`Blood Pressure`, ''[^/]'', ''''))
+        = 1 THEN 1 ELSE 0 END", "Contains exactly one slash", lambda x: x == 1.0)
+
+        .satisfies("CASE WHEN SPLIT(`Blood Pressure`, ''/'')[0] RLIKE ''^[0-9]+$''
+        THEN 1 ELSE 0 END", "Systolic part is integral string", lambda x: x == 1.0)
+
+        .satisfies("CASE WHEN SPLIT(`Blood Pressure`, ''/'')[1] RLIKE ''^[0-9]+$''
+        THEN 1 ELSE 0 END", "Diastolic part is integral string", lambda x: x == 1.0)
+
+        .satisfies("CASE WHEN CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) > 0 THEN
+        1 ELSE 0 END", "Systolic is positive", lambda x: x == 1.0)
+
+        .satisfies("CASE WHEN CAST(SPLIT(`Blood Pressure`, ''/'')[1] AS INT) > 0 THEN
+        1 ELSE 0 END", "Diastolic is positive", lambda x: x == 1.0)'
+      sources:
+      - start_line: 16
+        end_line: 18
+        file: ''
+      - start_line: 34
+        end_line: 39
+        file: ''
+      uid: 7868b4dc-7fad-4975-9fa2-d598ca842a2d
+    - text: 'The ''Blood Pressure'' column should not contain any null or missing
+        values, as operations like string splitting and type conversion would fail
+        or produce unexpected results if nulls were present.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCompleteness("Blood Pressure", 1.0)'
+      sources:
+      - start_line: 16
+        end_line: 18
+        file: ''
+      uid: 09bc4251-8478-4e75-a5f8-0563243a4e18
+    - text: 'The systolic blood pressure value (the first part of the ''Blood Pressure''
+        string, converted to an integer) should be within a physiologically plausible
+        range, for example, between 60 and 250. This is inferred from typical blood
+        pressure measurements and the thresholds used in the `bp_risk` calculation
+        (e.g., 120, 130, 140).
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) >= 60
+        AND CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) <= 250 THEN 1 ELSE 0 END",
+        "Systolic BP in plausible range", lambda x: x == 1.0)'
+      sources:
+      - start_line: 17
+        end_line: 17
+        file: ''
+      - start_line: 36
+        end_line: 38
+        file: ''
+      uid: a7be9992-f37c-49b2-8dd4-9468592cfbf0
+    - text: 'The diastolic blood pressure value (the second part of the ''Blood Pressure''
+        string, converted to an integer) should be within a physiologically plausible
+        range, for example, between 30 and 150. This is inferred from typical blood
+        pressure measurements and the thresholds used in the `bp_risk` calculation
+        (e.g., 80, 90).
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN CAST(SPLIT(`Blood Pressure`, ''/'')[1] AS INT) >= 30
+        AND CAST(SPLIT(`Blood Pressure`, ''/'')[1] AS INT) <= 150 THEN 1 ELSE 0 END",
+        "Diastolic BP in plausible range", lambda x: x == 1.0)'
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 36
+        end_line: 38
+        file: ''
+      uid: e6eb9149-8510-4847-9cb8-e100a790eca1
+  Person ID:
+    code:
+    - suggestion: .isComplete("Person ID")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 44cbeee5-20c7-4c80-8e6e-c0a1753b6b27
+      source_assumptions:
+      - b2ff268b-6261-4442-a3fd-0bd9bf5e942a
+    - suggestion: .hasDataType("Person ID", "Integral")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Person ID",
+        "Integral")'
+      level: error
+      uid: 814e26d8-04b7-48fe-8013-de64d10d1e69
+      source_assumptions:
+      - 28d35e4a-d4b5-40c3-9fff-04f81747a81d
+    - suggestion: .isUnique("Person ID")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 095447cd-5acc-486f-8e7b-f5b0fada67da
+      source_assumptions:
+      - 4c329ef3-ba2b-4621-878c-fc76934c4e9c
+    - suggestion: '.hasMin("Person ID", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 21e9163b-fd8a-4321-b4af-8596fca72a54
+      source_assumptions:
+      - f3c6bdd2-27d7-4a01-b15b-16441d06a599
+    assumptions:
+    - text: 'The ''Person ID'' column should not contain any null values. This is
+        assumed because it is an identifier column passed through the pipeline without
+        explicit null handling and is included in the final output. The input data
+        description also shows 100% completeness. We could represent this assumption
+        as a deequ constraint like this:
+
+        .isComplete("Person ID")'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 79
+        end_line: 82
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: b2ff268b-6261-4442-a3fd-0bd9bf5e942a
+    - text: 'The ''Person ID'' column should be of an integral data type. This is
+        indicated by the input data description and is consistent with its role as
+        an identifier, as no operations in the code would require it to be a different
+        type (e.g., string or float). We could represent this assumption as a deequ
+        constraint like this:
+
+        .isOfType("Person ID", ConstrainableDataTypes.Integral)'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      uid: 28d35e4a-d4b5-40c3-9fff-04f81747a81d
+    - text: 'The ''Person ID'' column should contain unique values, as it is named
+        ''Person ID'' and is selected as a key identifier for the output. Duplicate
+        IDs would imply duplicate records for the same person, which is typically
+        not desired for an identifier. We could represent this assumption as a deequ
+        constraint like this:
+
+        .isUnique("Person ID")'
+      sources:
+      - start_line: 79
+        end_line: 82
+        file: ''
+      uid: 4c329ef3-ba2b-4621-878c-fc76934c4e9c
+    - text: 'The ''Person ID'' column should contain positive integral values (i.e.,
+        greater than 0). This is a common convention for identifiers, and no code
+        operations suggest otherwise. We could represent this assumption as a deequ
+        constraint like this:
+
+        .hasMin("Person ID", lambda x: x > 0)'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 79
+        end_line: 82
+        file: ''
+      uid: f3c6bdd2-27d7-4a01-b15b-16441d06a599
+  Sleep Duration:
+    code:
+    - suggestion: '.haveCompleteness([''Blood Pressure''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(['Blood Pressure'], lambda\
+        \ x: x == 1.0)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near 'IS'.(line 1, pos 16)\n\n\
+        == SQL ==\n(Blood Pressure IS NOT NULL)\n----------------^^^\n"
+      level: error
+      uid: b85df161-4393-465f-89a9-35729ffbf355
+      source_assumptions:
+      - e5dc49fe-a2e3-462a-a765-123c35e3c57d
+    - suggestion: '.satisfies("regexp_extract(`Blood Pressure`, ''^\\d+/\\d+$'', 0)
+        IS NOT NULL", "Blood Pressure Format", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0a483262-4f0c-4ec3-8d3c-8995a6134efb
+      source_assumptions:
+      - e5dc49fe-a2e3-462a-a765-123c35e3c57d
+    - suggestion: '.haveCompleteness([''Sleep Duration''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(['Sleep Duration'], lambda\
+        \ x: x == 1.0)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near 'IS'.(line 1, pos 16)\n\n\
+        == SQL ==\n(Sleep Duration IS NOT NULL)\n----------------^^^\n"
+      level: error
+      uid: 023f25c1-d428-4214-8a51-6ac4a90b8e42
+      source_assumptions:
+      - ee209fa5-00b5-4805-9cfa-17fb1b5f8750
+    - suggestion: '.haveCompleteness([''Quality of Sleep''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(['Quality of Sleep'], lambda\
+        \ x: x == 1.0)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near 'Sleep'.(line 1, pos 12)\n\
+        \n== SQL ==\n(Quality of Sleep IS NOT NULL)\n------------^^^\n"
+      level: error
+      uid: e5604969-73a8-4bca-8d77-9c6d33598e82
+      source_assumptions:
+      - ee209fa5-00b5-4805-9cfa-17fb1b5f8750
+    - suggestion: '.satisfies("`Sleep Duration` > 2.99", "Sleep Duration Lower Bound",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7adee4ec-1908-4f52-916b-da83d65f2527
+      source_assumptions:
+      - ee209fa5-00b5-4805-9cfa-17fb1b5f8750
+    - suggestion: '.satisfies("`Sleep Duration` <= 14.01", "Sleep Duration Upper Bound",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f7ba3dcd-4943-483a-a38f-73ac89b418bb
+      source_assumptions:
+      - ee209fa5-00b5-4805-9cfa-17fb1b5f8750
+    - suggestion: '.haveCompleteness([''sleep_need_index'', ''bp_risk'', ''stress_norm''],
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''sleep_need_index'', ''bp_risk'',
+        ''stress_norm''], lambda x: x == 1.0)'' failed on data sample: Input data
+        does not include column sleep_need_index!'
+      level: error
+      uid: 523d0039-1fa7-46ac-9160-de7a3a8605a5
+      source_assumptions:
+      - 165cf6d8-4bc9-4ca8-abf4-ed3add801dec
+    - suggestion: '.haveCompleteness([''sleep_need_index'', ''bp_risk'', ''stress_norm'',
+        ''sedentary_index''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''sleep_need_index'', ''bp_risk'',
+        ''stress_norm'', ''sedentary_index''], lambda x: x == 1.0)'' failed on data
+        sample: Input data does not include column sleep_need_index!'
+      level: error
+      uid: 9b45a98c-f5cf-4cde-99f8-9d3228f97031
+      source_assumptions:
+      - 027d63cf-7b0e-483a-9a3e-aa3e69eddb25
+    - suggestion: '.haveCompleteness([''base_priority'', ''disorder_boost''], lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''base_priority'', ''disorder_boost''],
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        base_priority!'
+      level: error
+      uid: 98106bc8-979d-4711-8d4f-8007a479bcca
+      source_assumptions:
+      - 51eb67c5-c3fa-48ed-b5cc-72e55ba6cef0
+    - suggestion: '.haveCompleteness([''eligible'', ''priority_score''], lambda x:
+        x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''eligible'', ''priority_score''],
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        eligible!'
+      level: error
+      uid: af95933c-4b0c-4739-acea-0f65b9b6656d
+      source_assumptions:
+      - ae9fe338-5b72-453e-a15d-f515c065f203
+    - suggestion: '.satisfies("`eligible` IN (TRUE, FALSE)", "Eligible Is Boolean",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`eligible` IN (TRUE, FALSE)", "Eligible
+        Is Boolean", lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `eligible` cannot be resolved. Did you mean one of the following? [`Age`,
+        `id`, `Gender`, `Heart Rate`, `Person ID`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast(''eligible IN (true,false) as int)) AS sum(CAST((eligible
+        IN (true, false)) AS INT))#136574, count(1) AS count(1)#136575L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: d9866af1-2fb4-49f9-a103-b5a19e6b8932
+      source_assumptions:
+      - ae9fe338-5b72-453e-a15d-f515c065f203
+    - suggestion: '.haveCompleteness([''Person ID''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(['Person ID'], lambda x: x\
+        \ == 1.0)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near 'IS'.(line 1, pos 11)\n\n\
+        == SQL ==\n(Person ID IS NOT NULL)\n-----------^^^\n"
+      level: error
+      uid: 150e33b8-6459-4a75-9791-f72cb4570430
+      source_assumptions:
+      - 956bdaba-811c-4a81-bbac-d68719310823
+    assumptions:
+    - text: The 'Blood Pressure' column is assumed to contain string values formatted
+        as 'systolic/diastolic' where both parts are numeric and present, enabling
+        the successful extraction and conversion to integer types for 'bp_systolic'
+        and 'bp_diastolic'. This implies that 'Blood Pressure' should not contain
+        nulls and its format should consistently adhere to 'NUMBER/NUMBER'.
+      sources:
+      - start_line: 16
+        end_line: 18
+        file: ''
+      uid: e5dc49fe-a2e3-462a-a765-123c35e3c57d
+    - text: The calculation of 'sleep_need_index' (line 46) relies on both 'Sleep
+        Duration' and 'Quality of Sleep'. It is assumed that both columns are non-null
+        and contain numerical values for all records. Furthermore, the intermediate
+        logarithm and square root operations on 'Sleep Duration' (lines 21-22, which
+        feed into sleep_deficit_scaled) imply that 'Sleep Duration' values must be
+        greater than 2.99 and less than or equal to 14.01.
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      - start_line: 42
+        end_line: 46
+        file: ''
+      uid: ee209fa5-00b5-4805-9cfa-17fb1b5f8750
+    - text: The 'eligible' flag is determined by a logical OR condition combining
+        'sleep_need_index', 'bp_risk', and 'stress_norm'. This assumes all three columns
+        are present, non-null, and contain numerical values suitable for comparison
+        against their respective thresholds (0.25, 0.3, 0.5).
+      sources:
+      - start_line: 61
+        end_line: 65
+        file: ''
+      uid: 165cf6d8-4bc9-4ca8-abf4-ed3add801dec
+    - text: The 'base_priority' score is computed as a weighted sum of 'sleep_need_index',
+        'bp_risk', 'stress_norm', and 'sedentary_index'. This assumes all four columns
+        are present, non-null, and contain numerical values for a meaningful weighted
+        average calculation.
+      sources:
+      - start_line: 67
+        end_line: 71
+        file: ''
+      uid: 027d63cf-7b0e-483a-9a3e-aa3e69eddb25
+    - text: The 'priority_score' is initially calculated as the sum of 'base_priority'
+        and 'disorder_boost'. This assumes both 'base_priority' and 'disorder_boost'
+        columns are present, non-null, and contain numerical values.
+      sources:
+      - start_line: 73
+        end_line: 73
+        file: ''
+      uid: 51eb67c5-c3fa-48ed-b5cc-72e55ba6cef0
+    - text: The 'priority_score' is conditionally updated to 0.0 for records where
+        'eligible' is False. This implies that both 'eligible' and 'priority_score'
+        columns are present, 'eligible' contains boolean values, and 'priority_score'
+        contains numerical values.
+      sources:
+      - start_line: 76
+        end_line: 76
+        file: ''
+      uid: ae9fe338-5b72-453e-a15d-f515c065f203
+    - text: The final output operation requires that 'Person ID', 'eligible', 'priority_score',
+        'sleep_need_index', 'sedentary_index', 'bp_risk', and 'stress_norm' columns
+        are all present in the DataFrame and contain data types compatible with CSV
+        serialization.
+      sources:
+      - start_line: 79
+        end_line: 82
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: 956bdaba-811c-4a81-bbac-d68719310823
+  Daily Steps:
+    code:
+    - suggestion: '.haveCompleteness(columns=[''Daily Steps'', ''Physical Activity
+        Level''], assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(columns=['Daily Steps', 'Physical\
+        \ Activity Level'], assertion=lambda x: x == 1.0)' failed on data sample:\
+        \ org.apache.spark.sql.catalyst.parser.ParseException: \n[PARSE_SYNTAX_ERROR]\
+        \ Syntax error at or near 'IS'.(line 1, pos 14)\n\n== SQL ==\n((Daily Steps\
+        \ IS NOT NULL) AND (Physical Activity Level IS NOT NULL))\n--------------^^^\n"
+      level: error
+      uid: b0b4e8ed-9a99-4883-b448-43c6ff35469d
+      source_assumptions:
+      - 40560b4b-917e-47fe-aed4-db151c1ee1bb
+    - suggestion: '.haveCompleteness(columns=[''sleep_need_index'', ''bp_risk'', ''stress_norm'',
+        ''sedentary_index'', ''disorder_boost''], assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness(columns=[''sleep_need_index'',
+        ''bp_risk'', ''stress_norm'', ''sedentary_index'', ''disorder_boost''], assertion=lambda
+        x: x == 1.0)'' failed on data sample: Input data does not include column sleep_need_index!'
+      level: error
+      uid: 27e95bac-7797-42dd-8497-32fae530b8d9
+      source_assumptions:
+      - 035d2317-6938-4359-b623-f23807e9f694
+    - suggestion: '.haveCompleteness(columns=[''eligible''], assertion=lambda x: x
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness(columns=[''eligible''], assertion=lambda
+        x: x == 1.0)'' failed on data sample: Input data does not include column eligible!'
+      level: error
+      uid: 998dc7fd-0df5-4e48-94d8-19a9f6e7dc2b
+      source_assumptions:
+      - c1aff490-4a9a-4e11-a5a0-d16ec5eb095b
+    - suggestion: '.satisfies("(`eligible` = TRUE OR `eligible` = FALSE)", "Eligible
+        column is boolean", assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(`eligible` = TRUE OR `eligible`
+        = FALSE)", "Eligible column is boolean", assertion=lambda x: x == 1.0)'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `eligible` cannot be resolved. Did
+        you mean one of the following? [`Age`, `id`, `Gender`, `Heart Rate`, `Person
+        ID`].; line 1 pos 1;
+
+        ''Aggregate [sum(cast(((''eligible = true) OR (''eligible = false)) as int))
+        AS sum(CAST(((eligible = true) OR (eligible = false)) AS INT))#136881, count(1)
+        AS count(1)#136882L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: b0724bdc-6c4e-41dc-a938-3ba63a752ff4
+      source_assumptions:
+      - c1aff490-4a9a-4e11-a5a0-d16ec5eb095b
+    assumptions:
+    - text: 'For the ''sedentary_index'' column to be computed correctly and for all
+        records, it is assumed that both ''Daily Steps'' and ''Physical Activity Level''
+        columns contain non-null, numerical values in each record. The calculation
+        of ''sedentary_index'' implicitly requires the presence of both values for
+        each record, as there is no explicit null handling. (Deequ: `.areComplete([''Daily
+        Steps'', ''Physical Activity Level''])` and type checks for numeric data)'
+      sources:
+      - start_line: 49
+        end_line: 51
+        file: ''
+      uid: 40560b4b-917e-47fe-aed4-db151c1ee1bb
+    - text: 'For the ''priority_score'' column to be computed correctly and for all
+        records, it is assumed that ''sleep_need_index'', ''bp_risk'', ''stress_norm'',
+        ''sedentary_index'', and ''disorder_boost'' columns all contain non-null,
+        numerical values in each record. The weighted sum calculation implicitly requires
+        the presence of all these values. (Deequ: `.areComplete([''sleep_need_index'',
+        ''bp_risk'', ''stress_norm'', ''sedentary_index'', ''disorder_boost''])` and
+        type checks for numeric data)'
+      sources:
+      - start_line: 67
+        end_line: 73
+        file: ''
+      uid: 035d2317-6938-4359-b623-f23807e9f694
+    - text: 'For the conditional update of the ''priority_score'' column based on
+        the ''eligible'' column to function correctly, it is assumed that ''eligible''
+        is a complete boolean column and ''priority_score'' is a numeric column. This
+        ensures that the boolean indexing (`~df[''eligible'']`) is valid and the assignment
+        (`= 0.0`) is appropriate. (Deequ: `.isComplete(''eligible'')`, `.hasDataType(''eligible'',
+        ''Boolean'')`, `.hasDataType(''priority_score'', ''Numeric'')`)'
+      sources:
+      - start_line: 76
+        end_line: 76
+        file: ''
+      uid: c1aff490-4a9a-4e11-a5a0-d16ec5eb095b
+    - text: 'It is assumed that all columns specified in the `out_cols` list (''Person
+        ID'', ''eligible'', ''priority_score'', ''sleep_need_index'', ''sedentary_index'',
+        ''bp_risk'', ''stress_norm'') exist in the DataFrame `df` before attempting
+        to select and write them to CSV. (Deequ: `.hasColumns(''Person ID'', ''eligible'',
+        ''priority_score'', ''sleep_need_index'', ''sedentary_index'', ''bp_risk'',
+        ''stress_norm'')`)'
+      sources:
+      - start_line: 79
+        end_line: 82
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: 9e463886-88c3-472c-bf9b-2e1361d58c63
+  Sleep Disorder:
+    code:
+    - suggestion: .hasDataType('Sleep Disorder', 'String')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Sleep Disorder'',
+        ''String'')'
+      level: error
+      uid: a3bbe3c7-30f6-4023-8391-48fd370a786e
+      source_assumptions:
+      - 14414bef-f39d-4885-9872-fcf448220c1b
+    - suggestion: .isContainedIn('Sleep Disorder', ['Sleep Apnea', 'Insomnia'])
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: dc413f14-887d-4cb2-9a18-b142a048553f
+      source_assumptions:
+      - 02221ec5-81bf-4441-8498-f6fee085eff3
+    - suggestion: '.hasCompleteness(''Sleep Disorder'', lambda x: x >= 0.2)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 45a75cc5-c5ae-4294-b978-3e7b51ae41d3
+      source_assumptions:
+      - 0aa49a26-fc5b-45bc-878d-43d01cbff67c
+    assumptions:
+    - text: The 'Sleep Disorder' column can contain null values. The code explicitly
+        checks for non-null values using `.notna()` to determine a 'disorder_boost'.
+        If the value is null, a boost of 0.0 is applied; otherwise, a boost of 0.1
+        is applied. This implies that the presence of nulls is expected and handled
+        by the downstream logic. The data characteristics show a completeness of approximately
+        41.5%, indicating a significant presence of null values.
+      sources:
+      - start_line: 57
+        end_line: 58
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      uid: 0aa49a26-fc5b-45bc-878d-43d01cbff67c
+    - text: The 'Sleep Disorder' column is expected to be of string data type. The
+        code processes it by checking for null values, which is compatible with a
+        string type, and does not perform operations that would require a different
+        type. The provided data characteristics explicitly state the data type is
+        String.
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      uid: 14414bef-f39d-4885-9872-fcf448220c1b
+    - text: When the 'Sleep Disorder' column is not null, its values are expected
+        to be one of the predefined categorical values such as 'Sleep Apnea' or 'Insomnia'.
+        Although the code's logic only differentiates between null and non-null values
+        to apply a boost, the column name and the provided histogram (showing 'Sleep
+        Apnea' and 'Insomnia') indicate these are the intended valid entries for non-null
+        values.
+      sources:
+      - start_line: 57
+        end_line: 58
+        file: ''
+      uid: 02221ec5-81bf-4441-8498-f6fee085eff3
+  Stress Level:
+    code:
+    - suggestion: '.hasCompleteness("Stress Level", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7ded02a3-2d88-4df5-9921-7b5afe18bdda
+      source_assumptions:
+      - 5a49b1c5-e567-4982-993f-43244301655f
+    - suggestion: .hasDataType("Stress Level", ConstrainableDataTypes.Integral)
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Stress Level",
+        ConstrainableDataTypes.Integral)'
+      level: error
+      uid: bd53a29d-59db-439d-813c-bfa25d6d2a77
+      source_assumptions:
+      - b37da1f2-20bd-4437-b658-e876a1511eea
+    - suggestion: '.hasMin("Stress Level", lambda x: x >= 3)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d3a9f328-a74d-4d47-ac56-f5cfe18adc45
+      source_assumptions:
+      - 7e778de1-4c17-44a3-b8a3-3548e26317c2
+    - suggestion: '.hasMax("Stress Level", lambda x: x <= 8)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2f806b5a-0e2f-4fbb-82c4-7a070be9b61a
+      source_assumptions:
+      - 7e778de1-4c17-44a3-b8a3-3548e26317c2
+    assumptions:
+    - text: 'The ''Stress Level'' column is assumed to contain no null values. The
+        code performs arithmetic operations (subtraction, division) and comparisons
+        on this column (e.g., in lines 54, 64, and 70) without explicitly handling
+        potential nulls (e.g., using `fillna` or `dropna`), which implies that nulls
+        are not expected. If nulls were present, these operations would result in
+        NaN values, potentially affecting downstream calculations like ''eligible''
+        and ''priority_score''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCompleteness("Stress Level", lambda x: x == 1.0)'
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: 5a49b1c5-e567-4982-993f-43244301655f
+    - text: 'The ''Stress Level'' column is assumed to be of a numeric data type (e.g.,
+        integral or float). This is necessary for the arithmetic operations (subtraction
+        and division) performed on it to calculate ''stress_norm'' in line 54. The
+        provided dataset description indicates its data type is ''Integral''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("Stress Level", ConstrainableDataTypes.Numeric)'
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: b37da1f2-20bd-4437-b658-e876a1511eea
+    - text: 'The ''Stress Level'' column is assumed to have values within the range
+        of 3 to 8 (inclusive). The normalization formula `((df[''Stress Level''] -
+        3.0) / 5.0).clip(0, 1)` in line 54 is designed to linearly scale values from
+        3 to 8 into the range of 0 to 1. Values outside this [3, 8] range will be
+        capped by the `.clip(0, 1)` operation, suggesting that values within this
+        specific range are the intended input for a linear transformation.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasMin("Stress Level", lambda x: x >= 3)
+
+        .hasMax("Stress Level", lambda x: x <= 8)'
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: 7e778de1-4c17-44a3-b8a3-3548e26317c2
+  '["Blood Pressure","bp_diastolic","bp_systolic"]':
+    code:
+    - suggestion: '.satisfies("`Blood Pressure` IS NOT NULL AND `Blood Pressure` RLIKE
+        ''^[0-9]+/[0-9]+$''`, "BP format and completeness", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.satisfies("`Blood Pressure`
+        IS NOT NULL AND `Blood Pressure` RLIKE ''^[0-9]+/[0-9]+$''`, "BP format and
+        completeness", lambda x: x == 1.0)'': unterminated string literal (detected
+        at line 1) (<string>, line 1)'
+      level: error
+      uid: f0d1a8c8-d6f5-4d26-ab7c-e91c15e0b220
+      source_assumptions:
+      - b8344c57-6e3a-47d4-a917-0845b185b282
+    - suggestion: '.isGreaterThanOrEqualTo(''bp_systolic'', ''bp_diastolic'', lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.isGreaterThanOrEqualTo(''bp_systolic'', ''bp_diastolic'',
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        bp_systolic!'
+      level: warning
+      uid: f1cc75d1-304d-4021-8ab7-f03f5ca9c38d
+      source_assumptions:
+      - 07ab87a1-2dc0-4176-80cf-3c285551dea2
+    - suggestion: '.satisfies("`bp_systolic` IS NOT NULL AND `bp_diastolic` IS NOT
+        NULL AND `bp_systolic` >= 0 AND `bp_diastolic` >= 0", "Non-negative and complete
+        BP values", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`bp_systolic` IS NOT NULL AND `bp_diastolic`
+        IS NOT NULL AND `bp_systolic` >= 0 AND `bp_diastolic` >= 0", "Non-negative
+        and complete BP values", lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `bp_systolic` cannot be resolved. Did you mean one of the following? [`Age`,
+        `Daily Steps`, `Gender`, `Occupation`, `Person ID`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast(((isnotnull(''bp_systolic) AND isnotnull(''bp_diastolic))
+        AND ((''bp_systolic >= 0) AND (''bp_diastolic >= 0))) as int)) AS sum(CAST((((bp_systolic
+        IS NOT NULL) AND (bp_diastolic IS NOT NULL)) AND ((bp_systolic >= 0) AND (bp_diastolic
+        >= 0))) AS INT))#136257, count(1) AS count(1)#136258L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: 7af755d3-05df-45af-8cbb-b297b490b7a8
+      source_assumptions:
+      - 19166de7-2cfb-43ed-9fce-cc8efe76bd32
+    - suggestion: '.haveCompleteness([''sleep_need_index'', ''bp_risk'', ''stress_norm''],
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''sleep_need_index'', ''bp_risk'',
+        ''stress_norm''], lambda x: x == 1.0)'' failed on data sample: Input data
+        does not include column sleep_need_index!'
+      level: warning
+      uid: ef98bc72-2638-4656-9d1e-c773167b9e6f
+      source_assumptions:
+      - 39c3b99c-2e9b-4afc-99b4-053dcfb639ca
+    - suggestion: '.haveCompleteness([''sleep_need_index'', ''bp_risk'', ''stress_norm'',
+        ''sedentary_index'', ''disorder_boost''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''sleep_need_index'', ''bp_risk'',
+        ''stress_norm'', ''sedentary_index'', ''disorder_boost''], lambda x: x ==
+        1.0)'' failed on data sample: Input data does not include column sleep_need_index!'
+      level: error
+      uid: 7f4d317b-a0b2-4583-a240-bf2e43ed688a
+      source_assumptions:
+      - c2b29f8b-18f3-498b-8b65-55db127edb01
+    assumptions:
+    - text: The 'Blood Pressure' column is assumed to contain string values consistently
+        formatted as 'systolic_value/diastolic_value', where both 'systolic_value'
+        and 'diastolic_value' are convertible to integers. This format is essential
+        for successfully extracting and converting 'bp_systolic' and 'bp_diastolic'
+        columns, which are subsequently used together in blood pressure risk calculations.
+      sources:
+      - start_line: 16
+        end_line: 18
+        file: ''
+      - start_line: 34
+        end_line: 39
+        file: ''
+      uid: b8344c57-6e3a-47d4-a917-0845b185b282
+    - text: For all records, the 'bp_systolic' value is expected to be greater than
+        or equal to the 'bp_diastolic' value. This physiological relationship is implicitly
+        assumed by the blood pressure risk categorization logic (lines 36-38) which
+        relies on these values being in a typical and consistent range relative to
+        each other.
+      sources:
+      - start_line: 34
+        end_line: 39
+        file: ''
+      uid: 07ab87a1-2dc0-4176-80cf-3c285551dea2
+    - text: The blood pressure measurements, represented by 'bp_systolic' and 'bp_diastolic',
+        are expected to contain non-negative integer values. This is crucial for the
+        validity of any medical-related calculations, such as the 'bp_risk' derivation,
+        ensuring that blood pressure values are within a sensible domain.
+      sources:
+      - start_line: 17
+        end_line: 18
+        file: ''
+      - start_line: 34
+        end_line: 39
+        file: ''
+      uid: 19166de7-2cfb-43ed-9fce-cc8efe76bd32
+    - text: The columns 'sleep_need_index', 'bp_risk', and 'stress_norm' are assumed
+        to be non-null when calculating the 'eligible' flag. The presence of nulls
+        would implicitly result in a `False` evaluation for that part of the condition,
+        potentially misclassifying individuals as ineligible.
+      sources:
+      - start_line: 61
+        end_line: 65
+        file: ''
+      uid: 39c3b99c-2e9b-4afc-99b4-053dcfb639ca
+    - text: The columns 'sleep_need_index', 'bp_risk', 'stress_norm', 'sedentary_index',
+        and 'disorder_boost' are assumed to be non-null when calculating the 'priority_score'.
+        Null values in any of these input columns would propagate to a null 'priority_score',
+        which may not be the intended outcome for a final scoring metric.
+      sources:
+      - start_line: 67
+        end_line: 73
+        file: ''
+      uid: c2b29f8b-18f3-498b-8b65-55db127edb01
+  '["Daily Steps","Physical Activity Level"]':
+    code:
+    - suggestion: '.haveCompleteness([''Physical Activity Level'', ''Daily Steps''],
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(['Physical Activity Level',\
+        \ 'Daily Steps'], lambda x: x == 1.0)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near 'Level'.(line 1, pos 20)\n\
+        \n== SQL ==\n((Physical Activity Level IS NOT NULL) AND (Daily Steps IS NOT\
+        \ NULL))\n--------------------^^^\n"
+      level: error
+      uid: 8cc2ed69-2fc5-4516-9de2-62623d9fbd8c
+      source_assumptions:
+      - 669a5dd6-08c5-451d-97c9-98b6da318c7d
+      - 2c77ba8b-e570-47ec-97e1-c581918b39e9
+    - suggestion: '.satisfies("`Daily Steps` >= 0 AND `Daily Steps` <= 50000 AND `Physical
+        Activity Level` >= 0 AND `Physical Activity Level` <= 100", "Valid Physical
+        Activity and Daily Steps Ranges", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bfb10471-cd60-48b8-87d7-9f443e5d3840
+      source_assumptions:
+      - 2c77ba8b-e570-47ec-97e1-c581918b39e9
+    assumptions:
+    - text: 'For the Spearman correlation calculation (lines 23-31), it is assumed
+        that both ''Physical Activity Level'' and ''Daily Steps'' columns contain
+        non-null numeric values in corresponding rows. Given the dataset description
+        indicating 100% completeness for both, this implies that every record is expected
+        to contribute to the correlation analysis. This ensures the correlation can
+        be computed across the entire dataset without encountering null pairs.
+
+        We could represent this assumption as a Deequ constraint like this:
+
+        .hasNoNullsIn(''Physical Activity Level'', ''Daily Steps'')'
+      sources:
+      - start_line: 23
+        end_line: 31
+        file: ''
+      uid: 669a5dd6-08c5-451d-97c9-98b6da318c7d
+    - text: 'The ''sedentary_index'' (lines 49-51) is computed by combining normalized
+        ''Daily Steps'' and ''Physical Activity Level''. This operation assumes that
+        for every record, both ''Daily Steps'' and ''Physical Activity Level'' columns
+        contain non-null, non-negative integer values. Furthermore, ''Daily Steps''
+        values are expected to be within the range `[0, 50000]` and ''Physical Activity
+        Level'' values within `[0, 100]`, as implied by the normalization factors
+        and explicit range checks (lines 26, 29). These conditions are critical for
+        the joint normalization and aggregation into a meaningful ''sedentary_index''.
+
+        We could represent this assumption with Deequ constraints like this:
+
+        .hasNoNullsIn(''Daily Steps'', ''Physical Activity Level'')
+
+        .isNonNegative(''Daily Steps'')
+
+        .isNonNegative(''Physical Activity Level'')
+
+        .isLessThanOrEqualTo(''Daily Steps'', 50000)
+
+        .isLessThanOrEqualTo(''Physical Activity Level'', 100)
+
+        .isDataType(''Daily Steps'', ConstrainableDataTypes.Integral)
+
+        .isDataType(''Physical Activity Level'', ConstrainableDataTypes.Integral)'
+      sources:
+      - start_line: 26
+        end_line: 26
+        file: ''
+      - start_line: 29
+        end_line: 29
+        file: ''
+      - start_line: 49
+        end_line: 51
+        file: ''
+      uid: 2c77ba8b-e570-47ec-97e1-c581918b39e9
+  '["Quality of Sleep","Sleep Duration"]':
+    code:
+    - suggestion: '.satisfies("(`sleep_need_index` > 0.25) OR (`bp_risk` >= 0.3) OR
+        (`stress_norm` > 0.5) == `eligible`", "Eligibility logic must hold", lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(`sleep_need_index` > 0.25) OR
+        (`bp_risk` >= 0.3) OR (`stress_norm` > 0.5) == `eligible`", "Eligibility logic
+        must hold", lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `sleep_need_index` cannot be resolved. Did you mean one of the following?
+        [`Sleep Disorder`, `Sleep Duration`, `Gender`, `Blood Pressure`, `Heart Rate`].;
+        line 1 pos 1;
+
+        ''Aggregate [sum(cast((((''sleep_need_index > 0.25) OR (''bp_risk >= 0.3))
+        OR ((''stress_norm > 0.5) = ''eligible)) as int)) AS sum(CAST((((sleep_need_index
+        > 0.25) OR (bp_risk >= 0.3)) OR ((stress_norm > 0.5) = eligible)) AS INT))#136130,
+        count(1) AS count(1)#136131L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: 472cfc13-702c-478a-ba38-347f90eb89fd
+      source_assumptions:
+      - 6b0e2b1b-153f-4a4a-ba7a-184301d7c76b
+    - suggestion: '.satisfies("(`Sleep Duration` >= 7.0 AND `Sleep Duration` <= 9.0
+        AND `Quality of Sleep` == 9) ==> (`sleep_need_index` < 0.1)", "Records with
+        ideal sleep should have low sleep need index", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"(`Sleep Duration` >= 7.0 AND `Sleep\
+        \ Duration` <= 9.0 AND `Quality of Sleep` == 9) ==> (`sleep_need_index` <\
+        \ 0.1)\", \"Records with ideal sleep should have low sleep need index\", lambda\
+        \ x: x == 1.0)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '>'.(line 1, pos 84)\n\n\
+        == SQL ==\n(`Sleep Duration` >= 7.0 AND `Sleep Duration` <= 9.0 AND `Quality\
+        \ of Sleep` == 9) ==> (`sleep_need_index` < 0.1)\n------------------------------------------------------------------------------------^^^\n"
+      level: warning
+      uid: 85ca2af4-5876-44d5-8ce2-8059cb79b350
+      source_assumptions:
+      - b3cd4d77-e6e3-4563-a700-9ca2c9522bfa
+    - suggestion: '.satisfies("((`Sleep Duration` < 4.0 OR `Sleep Duration` > 12.0)
+        AND `Quality of Sleep` <= 6) ==> (`sleep_need_index` > 0.9)", "Records with
+        very poor sleep should have high sleep need index", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"((`Sleep Duration` < 4.0 OR `Sleep\
+        \ Duration` > 12.0) AND `Quality of Sleep` <= 6) ==> (`sleep_need_index` >\
+        \ 0.9)\", \"Records with very poor sleep should have high sleep need index\"\
+        , lambda x: x == 1.0)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '>'.(line 1, pos 84)\n\n\
+        == SQL ==\n((`Sleep Duration` < 4.0 OR `Sleep Duration` > 12.0) AND `Quality\
+        \ of Sleep` <= 6) ==> (`sleep_need_index` > 0.9)\n------------------------------------------------------------------------------------^^^\n"
+      level: warning
+      uid: 2b6f06f2-4424-4dc6-bd3f-b4e63d059807
+      source_assumptions:
+      - b3cd4d77-e6e3-4563-a700-9ca2c9522bfa
+    assumptions:
+    - text: 'The eligibility of a record is determined by a logical OR condition,
+        assuming that a ''sleep_need_index'' greater than 0.25 (derived from ''Sleep
+        Duration'' and ''Quality of Sleep''), or a ''bp_risk'' of 0.3 or higher (derived
+        from ''Blood Pressure''), or a ''stress_norm'' greater than 0.5 (derived from
+        ''Stress Level'') are each independently sufficient conditions for a record
+        to be considered ''eligible''. This implies that records meeting any one of
+        these criteria are expected to be marked as eligible.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("(`sleep_need_index` > 0.25) OR (`bp_risk` >= 0.3) OR (`stress_norm`
+        > 0.5) == `eligible`", "Eligibility logic must hold")'
+      sources:
+      - start_line: 61
+        end_line: 65
+        file: ''
+      uid: 6b0e2b1b-153f-4a4a-ba7a-184301d7c76b
+    - text: 'The ''sleep_need_index'', derived from ''Sleep Duration'' and ''Quality
+        of Sleep'', is assumed to effectively capture a wide spectrum of sleep need
+        within the dataset. This implies that combinations of ''Sleep Duration'' and
+        ''Quality of Sleep'' values are expected to exist that result in both minimal
+        (''sleep_need_index'' near 0, e.g., 7-9 hours duration and quality 9) and
+        maximal (''sleep_need_index'' near 1, e.g., extreme duration deviation and
+        quality 4-6) sleep need. This ensures the index is discriminative across the
+        population.
+
+        We could represent this assumption with deequ constraints to check for the
+        existence of records at the extremes:
+
+        .satisfies("(`Sleep Duration` >= 7.0 AND `Sleep Duration` <= 9.0 AND `Quality
+        of Sleep` == 9) ==> (`sleep_need_index` < 0.1)", "Records with ideal sleep
+        should have low sleep need index")
+
+        .satisfies("((`Sleep Duration` < 4.0 OR `Sleep Duration` > 12.0) AND `Quality
+        of Sleep` <= 6) ==> (`sleep_need_index` > 0.9)", "Records with very poor sleep
+        should have high sleep need index")'
+      sources:
+      - start_line: 42
+        end_line: 46
+        file: ''
+      uid: b3cd4d77-e6e3-4563-a700-9ca2c9522bfa
+  '["Sleep Disorder","disorder_boost"]':
+    code:
+    - suggestion: '.satisfies("(\"Sleep Disorder\" IS NULL AND disorder_boost = 0.0)
+        OR (\"Sleep Disorder\" IS NOT NULL AND disorder_boost = 0.1)", "Disorder Boost
+        Functional Dependency", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(\"Sleep Disorder\" IS NULL AND
+        disorder_boost = 0.0) OR (\"Sleep Disorder\" IS NOT NULL AND disorder_boost
+        = 0.1)", "Disorder Boost Functional Dependency", lambda x: x == 1.0)'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `disorder_boost` cannot be resolved.
+        Did you mean one of the following? [`Gender`, `id`, `Age`, `BMI Category`,
+        `Blood Pressure`].; line 1 pos 30;
+
+        ''Aggregate [sum(cast(((isnull(Sleep Disorder) AND (''disorder_boost = 0.0))
+        OR (isnotnull(Sleep Disorder) AND (''disorder_boost = 0.1))) as int)) AS sum(CAST((((Sleep
+        Disorder IS NULL) AND (disorder_boost = 0.0)) OR ((Sleep Disorder IS NOT NULL)
+        AND (disorder_boost = 0.1))) AS INT))#135659, count(1) AS count(1)#135660L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: 4e8161a1-5b51-413f-8408-3dc8c75875cb
+      source_assumptions:
+      - 72f26382-92fb-424c-90e1-c66b6f08640f
+    - suggestion: '.satisfies("eligible = TRUE OR priority_score = 0.0", "Eligible
+        Flag for Priority Score", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("eligible = TRUE OR priority_score
+        = 0.0", "Eligible Flag for Priority Score", lambda x: x == 1.0)'' failed on
+        data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `eligible` cannot be resolved. Did
+        you mean one of the following? [`Age`, `id`, `Gender`, `Heart Rate`, `Person
+        ID`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast(((''eligible = true) OR (''priority_score = 0.0)) as
+        int)) AS sum(CAST(((eligible = true) OR (priority_score = 0.0)) AS INT))#135642,
+        count(1) AS count(1)#135643L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: 8c59ae66-6a93-400d-a545-4527c0549577
+      source_assumptions:
+      - 43eb6fbf-bd32-4d65-96f4-a5b47348fda6
+    - suggestion: '.satisfies("REGEXP_LIKE(`Blood Pressure`, ''^[0-9]+/[0-9]+$'')",
+        "Blood Pressure Format Validation", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7da6b015-dc42-400a-b951-aea3f972486a
+      source_assumptions:
+      - 21fd4faa-d91d-4b16-a91e-ace33f1687cc
+    assumptions:
+    - text: The 'disorder_boost' column is functionally dependent on the null status
+        of the 'Sleep Disorder' column. Specifically, if a record's 'Sleep Disorder'
+        value is null, its 'disorder_boost' must be 0.0. Conversely, if 'Sleep Disorder'
+        is not null, 'disorder_boost' must be 0.1. This implies that null values in
+        'Sleep Disorder' are interpreted as the absence of a disorder.
+      sources:
+      - start_line: 57
+        end_line: 58
+        file: ''
+      uid: 72f26382-92fb-424c-90e1-c66b6f08640f
+    - text: The 'eligible' column acts as a definitive flag for the 'priority_score'.
+        For any record where 'eligible' is False, the 'priority_score' must be set
+        to 0.0, overriding any previously calculated priority. This implies that only
+        eligible individuals can have a non-zero priority score.
+      sources:
+      - start_line: 76
+        end_line: 76
+        file: ''
+      uid: 43eb6fbf-bd32-4d65-96f4-a5b47348fda6
+    - text: The 'Blood Pressure' column is assumed to contain values consistently
+        formatted as 'systolic/diastolic', where both systolic and diastolic parts
+        are valid integers. This specific format is crucial for correctly splitting
+        the string and converting the resulting parts into integer columns 'bp_systolic'
+        and 'bp_diastolic', implying that any deviation from this format would lead
+        to data processing errors.
+      sources:
+      - start_line: 16
+        end_line: 18
+        file: ''
+      uid: 21fd4faa-d91d-4b16-a91e-ace33f1687cc
+  '["Stress Level","stress_norm"]':
+    code:
+    - suggestion: '.satisfies("CAST(SUBSTRING_INDEX(`Blood Pressure`, ''/'', 1) AS
+        INT) >= CAST(SUBSTRING_INDEX(`Blood Pressure`, ''/'', -1) AS INT)", "systolic_greater_than_diastolic_check",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ff0f7917-5afb-4561-bc9d-d92223701e6a
+      source_assumptions:
+      - ffa2bf06-5155-4185-be5b-965dcde30d51
+    - suggestion: '.satisfies("NOT eligible => priority_score == 0.0", "ineligible_priority_zero_check",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"NOT eligible => priority_score\
+        \ == 0.0\", \"ineligible_priority_zero_check\", lambda x: x == 1.0)' failed\
+        \ on data sample: org.apache.spark.sql.catalyst.parser.ParseException: \n\
+        [PARSE_SYNTAX_ERROR] Syntax error at or near '=>'.(line 1, pos 13)\n\n== SQL\
+        \ ==\nNOT eligible => priority_score == 0.0\n-------------^^^\n"
+      level: error
+      uid: 5e96e43a-40e6-450f-9558-a32362e8a42d
+      source_assumptions:
+      - 5a815db6-5820-482d-97b0-ee77a04c9a3c
+    assumptions:
+    - text: 'The ''bp_systolic'' column should always have a value greater than or
+        equal to the ''bp_diastolic'' column for all records. This is a fundamental
+        physiological constraint for blood pressure measurements and is critical for
+        the correct interpretation of the ''bp_risk'' calculation. We could represent
+        this assumption as a Deequ constraint like this: `.satisfies("bp_systolic
+        >= bp_diastolic", "systolic_greater_than_diastolic_check")`'
+      sources:
+      - start_line: 34
+        end_line: 39
+        file: ''
+      uid: ffa2bf06-5155-4185-be5b-965dcde30d51
+    - text: 'For any record where the ''eligible'' column is False, the ''priority_score''
+        column must be 0.0. This is an explicit business rule enforced by the code
+        to ensure ineligible individuals are not prioritized. We could represent this
+        assumption as a Deequ constraint like this: `.satisfies("NOT eligible => priority_score
+        == 0.0", "ineligible_priority_zero_check")`'
+      sources:
+      - start_line: 76
+        end_line: 76
+        file: ''
+      uid: 5a815db6-5820-482d-97b0-ee77a04c9a3c
+  '["bp_diastolic","bp_systolic"]':
+    code:
+    - suggestion: '.isLessThanOrEqualTo(''bp_diastolic'', ''bp_systolic'', lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.isLessThanOrEqualTo(''bp_diastolic'', ''bp_systolic'',
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        bp_diastolic!'
+      level: error
+      uid: 697db65f-cf52-40a0-9208-2e84b30cb5e5
+      source_assumptions:
+      - 8bdc9dd3-6f74-4dc6-acd5-be2f6da57243
+    assumptions:
+    - text: 'For any given record, the value in the ''bp_diastolic'' column must be
+        less than or equal to the value in the ''bp_systolic'' column. This is a fundamental
+        physiological constraint for valid blood pressure readings, ensuring that
+        the derived ''bp_risk'' is based on plausible input data. We could represent
+        this assumption as a Deequ constraint like this:
+
+        .assertNoViolations(Constraint.where($"bp_diastolic" > $"bp_systolic").isAlwaysFalse())'
+      sources:
+      - start_line: 34
+        end_line: 39
+        file: ''
+      uid: 8bdc9dd3-6f74-4dc6-acd5-be2f6da57243
+  '["bp_risk","disorder_boost","priority_score","sedentary_index","sleep_need_index","stress_norm"]':
+    code:
+    - suggestion: '.haveCompleteness(columns=[''bp_systolic'', ''bp_diastolic''],
+        assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness(columns=[''bp_systolic'',
+        ''bp_diastolic''], assertion=lambda x: x == 1.0)'' failed on data sample:
+        Input data does not include column bp_systolic!'
+      level: error
+      uid: e192440c-7750-44ad-82f6-c91d3917aa3a
+      source_assumptions:
+      - fd7ec146-52c7-443a-bc0a-dc8e4cd275cf
+    - suggestion: '.haveCompleteness(columns=[''Sleep Duration'', ''Quality of Sleep''],
+        assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(columns=['Sleep Duration',\
+        \ 'Quality of Sleep'], assertion=lambda x: x == 1.0)' failed on data sample:\
+        \ org.apache.spark.sql.catalyst.parser.ParseException: \n[PARSE_SYNTAX_ERROR]\
+        \ Syntax error at or near 'IS'.(line 1, pos 17)\n\n== SQL ==\n((Sleep Duration\
+        \ IS NOT NULL) AND (Quality of Sleep IS NOT NULL))\n-----------------^^^\n"
+      level: error
+      uid: 0abe4d9e-d9ad-4c30-8108-26e3c90eb5d8
+      source_assumptions:
+      - c68c4abb-fa36-4063-bddd-f04cf01837f5
+    - suggestion: '.satisfies("`Sleep Duration` > 2.99", "Sleep Duration lower bound
+        check", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 89eae7e0-2f68-4b66-b4af-af3a30e02324
+      source_assumptions:
+      - c68c4abb-fa36-4063-bddd-f04cf01837f5
+    - suggestion: '.satisfies("`Sleep Duration` < 14.01", "Sleep Duration upper bound
+        check", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bd34f8e5-1e19-4135-8f3d-97e88bcf0f7c
+      source_assumptions:
+      - c68c4abb-fa36-4063-bddd-f04cf01837f5
+    - suggestion: '.satisfies("`Quality of Sleep` >= 6 AND `Quality of Sleep` <= 9",
+        "Quality of Sleep meaningful range", lambda x: x >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: be44e09d-fe7e-43bb-ac7b-3c9c0a28b796
+      source_assumptions:
+      - c68c4abb-fa36-4063-bddd-f04cf01837f5
+    - suggestion: '.haveCompleteness(columns=[''Daily Steps'', ''Physical Activity
+        Level''], assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(columns=['Daily Steps', 'Physical\
+        \ Activity Level'], assertion=lambda x: x == 1.0)' failed on data sample:\
+        \ org.apache.spark.sql.catalyst.parser.ParseException: \n[PARSE_SYNTAX_ERROR]\
+        \ Syntax error at or near 'IS'.(line 1, pos 14)\n\n== SQL ==\n((Daily Steps\
+        \ IS NOT NULL) AND (Physical Activity Level IS NOT NULL))\n--------------^^^\n"
+      level: error
+      uid: 44e01e1d-de6d-46aa-a972-bc9024e31711
+      source_assumptions:
+      - ef5fc6a0-8225-4876-9b6c-07f9b468f9ff
+    - suggestion: '.satisfies("`Daily Steps` >= 0", "Daily Steps non-negative check",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9e48a913-ef83-436c-97ff-ac066e16718a
+      source_assumptions:
+      - ef5fc6a0-8225-4876-9b6c-07f9b468f9ff
+    - suggestion: '.satisfies("`Physical Activity Level` >= 0 AND `Physical Activity
+        Level` <= 100", "Physical Activity Level range check", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 026c9217-3abb-426a-8139-022c9aa52a9f
+      source_assumptions:
+      - ef5fc6a0-8225-4876-9b6c-07f9b468f9ff
+    - suggestion: '.haveCompleteness(columns=[''sleep_need_index'', ''bp_risk'', ''stress_norm''],
+        assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness(columns=[''sleep_need_index'',
+        ''bp_risk'', ''stress_norm''], assertion=lambda x: x == 1.0)'' failed on data
+        sample: Input data does not include column sleep_need_index!'
+      level: error
+      uid: 48df2535-4dbd-48d5-adb8-908b49eab8cf
+      source_assumptions:
+      - 0db71d76-b6e7-4089-bc4f-e7459aaab2ec
+    - suggestion: '.haveCompleteness(columns=[''sleep_need_index'', ''bp_risk'', ''stress_norm'',
+        ''sedentary_index'', ''disorder_boost''], assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness(columns=[''sleep_need_index'',
+        ''bp_risk'', ''stress_norm'', ''sedentary_index'', ''disorder_boost''], assertion=lambda
+        x: x == 1.0)'' failed on data sample: Input data does not include column sleep_need_index!'
+      level: error
+      uid: bb945ae1-dc15-4a19-acc8-3874849dc285
+      source_assumptions:
+      - 828e22e0-617d-4209-957b-07b194b209b9
+    assumptions:
+    - text: The `bp_systolic` and `bp_diastolic` columns are used together to categorize
+        blood pressure risk. It is assumed that both columns contain non-null, numeric
+        (integer) values for the comparison logic (`>=`, `&`, `|`) to produce valid
+        outcomes for the `bp_risk` column. If either column contains nulls or non-numeric
+        values, the resulting `bp_risk` could be undefined or incorrect.
+      sources:
+      - start_line: 34
+        end_line: 39
+        file: ''
+      uid: fd7ec146-52c7-443a-bc0a-dc8e4cd275cf
+    - text: The `sleep_need_index` is calculated as a weighted combination of `Sleep
+        Duration` and `Quality of Sleep`. It is assumed that both columns are non-null
+        and numeric. `Quality of Sleep` values are expected to be within a range where
+        clipping between 6 and 9 is meaningful for normalization, and `Sleep Duration`
+        values are expected to be numeric for the deficit calculation.
+      sources:
+      - start_line: 42
+        end_line: 46
+        file: ''
+      uid: c68c4abb-fa36-4063-bddd-f04cf01837f5
+    - text: The `sedentary_index` is calculated from `Daily Steps` and `Physical Activity
+        Level`. It is assumed that both columns are non-null and numeric. `Daily Steps`
+        values are expected to be non-negative for `np.log1p` to be meaningful. `Physical
+        Activity Level` values are expected to be between 0 and 100, inclusive, as
+        indicated by the normalization (`/ 100.0`) and earlier range checks (lines
+        25-26).
+      sources:
+      - start_line: 49
+        end_line: 51
+        file: ''
+      uid: ef5fc6a0-8225-4876-9b6c-07f9b468f9ff
+    - text: The `eligible` flag is determined by a logical OR condition involving
+        `sleep_need_index`, `bp_risk`, and `stress_norm`. It is assumed that all three
+        columns are non-null and numeric, allowing for valid boolean comparisons against
+        the specified thresholds (0.25, 0.3, 0.5). If any of these columns contain
+        nulls, the `eligible` flag calculation could result in an undefined state.
+      sources:
+      - start_line: 61
+        end_line: 65
+        file: ''
+      uid: 0db71d76-b6e7-4089-bc4f-e7459aaab2ec
+    - text: The `priority_score` is calculated as a weighted sum of `sleep_need_index`,
+        `bp_risk`, `stress_norm`, `sedentary_index`, and `disorder_boost`. It is assumed
+        that all these columns are non-null and numeric for the calculation to produce
+        valid results. The weights and the final clipping to `[0, 1]` imply that these
+        input columns are expected to be numerical scores, typically within a similar
+        normalized range (e.g., 0 to 1).
+      sources:
+      - start_line: 67
+        end_line: 73
+        file: ''
+      uid: 828e22e0-617d-4209-957b-07b194b209b9
+  '["bp_risk","eligible","sleep_need_index","stress_norm"]':
+    code:
+    - suggestion: '.isGreaterThanOrEqualTo("bp_systolic", "bp_diastolic", lambda x:
+        x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.isGreaterThanOrEqualTo("bp_systolic", "bp_diastolic",
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        bp_systolic!'
+      level: error
+      uid: af749d84-e476-456e-9e77-3005c80232ff
+      source_assumptions:
+      - 147b32a7-8f07-4928-b1ae-d0ee0eca0297
+    - suggestion: '.satisfies("NOT `eligible` OR (`priority_score` = 0.0)", "Ineligible
+        priority score check", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("NOT `eligible` OR (`priority_score`
+        = 0.0)", "Ineligible priority score check", lambda x: x == 1.0)'' failed on
+        data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `eligible` cannot be resolved. Did
+        you mean one of the following? [`Age`, `id`, `Gender`, `Heart Rate`, `Person
+        ID`].; line 1 pos 4;
+
+        ''Aggregate [sum(cast((NOT ''eligible OR (''priority_score = 0.0)) as int))
+        AS sum(CAST(((NOT eligible) OR (priority_score = 0.0)) AS INT))#135890, count(1)
+        AS count(1)#135891L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: beca5bfe-735b-498d-b1d7-b97d383e3f14
+      source_assumptions:
+      - d603f61a-1b9d-41a1-87ef-a6f48c68a985
+    assumptions:
+    - text: 'For any given record, the ''bp_systolic'' value must be greater than
+        or equal to the ''bp_diastolic'' value. This reflects a fundamental physiological
+        relationship that the blood pressure risk calculation implicitly relies on
+        for meaningful interpretation. We could represent this assumption as a deequ
+        constraint like this: .isGreaterThanOrEqualTo("bp_systolic", "bp_diastolic")'
+      sources:
+      - start_line: 34
+        end_line: 39
+        file: ''
+      uid: 147b32a7-8f07-4928-b1ae-d0ee0eca0297
+    - text: 'Any record marked as ''eligible'' = False must have a ''priority_score''
+        of 0.0. This ensures that ineligible individuals are correctly deprioritized
+        in the downstream orchestration. We could represent this assumption as a deequ
+        constraint like this: .satisfies("NOT eligible => priority_score = 0.0", "Ineligible
+        priority score check")'
+      sources:
+      - start_line: 61
+        end_line: 76
+        file: ''
+      uid: d603f61a-1b9d-41a1-87ef-a6f48c68a985
+  '["eligible","priority_score"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN (CASE WHEN (CAST(SPLIT(`Blood Pressure`,
+        ''/'')[0] AS INT) >= 140 OR CAST(SPLIT(`Blood Pressure`, ''/'')[1] AS INT)
+        >= 90) THEN 1.0 WHEN ((CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) >= 130
+        AND CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) <= 139) OR (CAST(SPLIT(`Blood
+        Pressure`, ''/'')[1] AS INT) >= 80 AND CAST(SPLIT(`Blood Pressure`, ''/'')[1]
+        AS INT) <= 89)) THEN 0.7 WHEN ((CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS
+        INT) >= 120 AND CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) <= 129) AND
+        CAST(SPLIT(`Blood Pressure`, ''/'')[1] AS INT) < 80) THEN 0.3 ELSE 0.0 END)
+        IN (0.0, 0.3, 0.7, 1.0) THEN 1 ELSE 0 END", "BP Risk Calculation Consistency",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 689a5a4f-2229-43c1-a197-4b528644b4bf
+      source_assumptions:
+      - f83da772-478a-448e-8be7-f93a1141dabb
+    - suggestion: '.satisfies("CASE WHEN `eligible` = ((`sleep_need_index` > 0.25)
+        OR (`bp_risk` >= 0.3) OR (`stress_norm` > 0.5)) THEN 1 ELSE 0 END", "Eligibility
+        Status Logic", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `eligible` = ((`sleep_need_index`
+        > 0.25) OR (`bp_risk` >= 0.3) OR (`stress_norm` > 0.5)) THEN 1 ELSE 0 END",
+        "Eligibility Status Logic", lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `eligible` cannot be resolved. Did you mean one of the following? [`Age`,
+        `id`, `Gender`, `Heart Rate`, `Person ID`].; line 1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN (''eligible = (((''sleep_need_index > 0.25)
+        OR (''bp_risk >= 0.3)) OR (''stress_norm > 0.5))) THEN 1 ELSE 0 END as int))
+        AS sum(CAST(CASE WHEN (eligible = (((sleep_need_index > 0.25) OR (bp_risk
+        >= 0.3)) OR (stress_norm > 0.5))) THEN 1 ELSE 0 END AS INT))#137049, count(1)
+        AS count(1)#137050L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: 386c368b-c201-4298-91d3-6f611d2ef714
+      source_assumptions:
+      - 8fa3d49b-05ce-40e2-b77b-b36578dfcb4a
+    - suggestion: '.satisfies("CASE WHEN NOT `eligible` AND `priority_score` = 0.0
+        THEN 1 WHEN `eligible` THEN 1 ELSE 0 END", "Priority Score for Ineligible
+        Records", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN NOT `eligible` AND `priority_score`
+        = 0.0 THEN 1 WHEN `eligible` THEN 1 ELSE 0 END", "Priority Score for Ineligible
+        Records", lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `eligible` cannot be resolved. Did you mean one of the following? [`Age`,
+        `id`, `Gender`, `Heart Rate`, `Person ID`].; line 1 pos 14;
+
+        ''Aggregate [sum(cast(CASE WHEN (NOT ''eligible AND (''priority_score = 0.0))
+        THEN 1 WHEN ''eligible THEN 1 ELSE 0 END as int)) AS sum(CAST(CASE WHEN ((NOT
+        eligible) AND (priority_score = 0.0)) THEN 1 WHEN eligible THEN 1 ELSE 0 END
+        AS INT))#137030, count(1) AS count(1)#137031L]
+
+        +- LogicalRDD [id#252L, Person ID#253L, Gender#254, Age#255L, Occupation#256,
+        Sleep Duration#257, Quality of Sleep#258L, Physical Activity Level#259L, Stress
+        Level#260L, BMI Category#261, Blood Pressure#262, Heart Rate#263L, Daily Steps#264L,
+        Sleep Disorder#265], false
+
+        '
+      level: error
+      uid: 44c26dc4-5917-47d2-92d8-4459746f2622
+      source_assumptions:
+      - 9a604c93-d9bb-41e7-914c-03f97f2825ae
+    assumptions:
+    - text: 'The ''bp_systolic'' and ''bp_diastolic'' columns are assumed to contain
+        non-null numerical values. Their combined values are expected to consistently
+        map to one of the predefined blood pressure risk categories (stage2, stage1,
+        elevated, or normal) as defined by the thresholds in the code, ensuring a
+        valid ''bp_risk'' assignment for each record.
+
+        We could represent this assumption as deequ constraints like this:
+
+        .isNonNegative("bp_systolic")
+
+        .isNonNegative("bp_diastolic")
+
+        .isType("bp_systolic", ConstrainableDataTypes.Integral)
+
+        .isType("bp_diastolic", ConstrainableDataTypes.Integral)
+
+        .isComplete("bp_systolic")
+
+        .isComplete("bp_diastolic")
+
+        And a check on the resulting `bp_risk` column:
+
+        .isContainedIn("bp_risk", Seq(0.0, 0.3, 0.7, 1.0))
+
+        '
+      sources:
+      - start_line: 36
+        end_line: 39
+        file: ''
+      uid: f83da772-478a-448e-8be7-f93a1141dabb
+    - text: 'The ''Sleep Duration'' and ''Quality of Sleep'' columns are assumed to
+        contain non-null numerical values. These columns are combined through a series
+        of transformations and a weighted average to calculate ''sleep_need_index'',
+        which is expected to be a value between 0 and 1.
+
+        We could represent this assumption as deequ constraints like this:
+
+        .isNonNegative("Sleep Duration")
+
+        .isNonNegative("Quality of Sleep")
+
+        .isType("Sleep Duration", ConstrainableDataTypes.Fractional)
+
+        .isType("Quality of Sleep", ConstrainableDataTypes.Fractional)
+
+        .isComplete("Sleep Duration")
+
+        .isComplete("Quality of Sleep")
+
+        And a check on the resulting `sleep_need_index` column:
+
+        .isContainedIn("sleep_need_index", Seq(0.0, 1.0), Bounds.Between)
+
+        '
+      sources:
+      - start_line: 42
+        end_line: 46
+        file: ''
+      uid: 6c21b84b-6337-4d6c-9a7e-604da7afeed9
+    - text: 'The ''Daily Steps'' and ''Physical Activity Level'' columns are assumed
+        to contain non-null numerical values. These columns are combined through normalization
+        and a weighted average to calculate ''sedentary_index'', which is expected
+        to be a value between 0 and 1.
+
+        We could represent this assumption as deequ constraints like this:
+
+        .isNonNegative("Daily Steps")
+
+        .isNonNegative("Physical Activity Level")
+
+        .isType("Daily Steps", ConstrainableDataTypes.Integral)
+
+        .isType("Physical Activity Level", ConstrainableDataTypes.Fractional)
+
+        .isComplete("Daily Steps")
+
+        .isComplete("Physical Activity Level")
+
+        And a check on the resulting `sedentary_index` column:
+
+        .isContainedIn("sedentary_index", Seq(0.0, 1.0), Bounds.Between)
+
+        '
+      sources:
+      - start_line: 49
+        end_line: 51
+        file: ''
+      uid: 68791ed1-2875-4119-9797-a6b4f25b02b2
+    - text: 'The ''sleep_need_index'', ''bp_risk'', and ''stress_norm'' columns are
+        assumed to contain non-null numerical values. These values are combined using
+        logical OR operations against specific thresholds to determine the boolean
+        ''eligible'' status for each record.
+
+        We could represent this assumption as deequ constraints like this:
+
+        .isComplete("sleep_need_index")
+
+        .isComplete("bp_risk")
+
+        .isComplete("stress_norm")
+
+        .isType("sleep_need_index", ConstrainableDataTypes.Fractional)
+
+        .isType("bp_risk", ConstrainableDataTypes.Fractional)
+
+        .isType("stress_norm", ConstrainableDataTypes.Fractional)
+
+        And a check on the resulting `eligible` column:
+
+        .isType("eligible", ConstrainableDataTypes.Boolean)
+
+        .isComplete("eligible")
+
+        '
+      sources:
+      - start_line: 61
+        end_line: 65
+        file: ''
+      uid: 8fa3d49b-05ce-40e2-b77b-b36578dfcb4a
+    - text: 'The ''sleep_need_index'', ''bp_risk'', ''stress_norm'', ''sedentary_index'',
+        and ''disorder_boost'' columns are assumed to contain non-null numerical values.
+        These five columns are combined as a weighted sum to calculate the ''priority_score'',
+        which is expected to be a value between 0 and 1.
+
+        We could represent this assumption as deequ constraints like this:
+
+        .isComplete("sleep_need_index")
+
+        .isComplete("bp_risk")
+
+        .isComplete("stress_norm")
+
+        .isComplete("sedentary_index")
+
+        .isComplete("disorder_boost")
+
+        .isType("sleep_need_index", ConstrainableDataTypes.Fractional)
+
+        .isType("bp_risk", ConstrainableDataTypes.Fractional)
+
+        .isType("stress_norm", ConstrainableDataTypes.Fractional)
+
+        .isType("sedentary_index", ConstrainableDataTypes.Fractional)
+
+        .isType("disorder_boost", ConstrainableDataTypes.Fractional)
+
+        And a check on the resulting `priority_score` column:
+
+        .isContainedIn("priority_score", Seq(0.0, 1.0), Bounds.Between)
+
+        '
+      sources:
+      - start_line: 67
+        end_line: 73
+        file: ''
+      uid: 5119f4d9-bcc2-433f-8600-6351896763af
+    - text: 'The ''eligible'' column is assumed to contain boolean values (or values
+        interpretable as booleans) that accurately reflect eligibility status. This
+        allows for the conditional update of the ''priority_score'' column (which
+        is assumed to be numerical) to 0.0 for ineligible records.
+
+        We could represent this assumption as deequ constraints like this:
+
+        .isType("eligible", ConstrainableDataTypes.Boolean)
+
+        .isType("priority_score", ConstrainableDataTypes.Fractional)
+
+        .isComplete("eligible")
+
+        '
+      sources:
+      - start_line: 76
+        end_line: 76
+        file: ''
+      uid: 9a604c93-d9bb-41e7-914c-03f97f2825ae
+column_data_flow_locations:
+  '["Blood Pressure","bp_diastolic","bp_systolic"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 16
+    end_line: 18
+    file: ''
+  - start_line: 34
+    end_line: 39
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  Sleep Duration:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 21
+    end_line: 22
+    file: ''
+  - start_line: 42
+    end_line: 44
+    file: ''
+  - start_line: 46
+    end_line: 46
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  Physical Activity Level:
+  - start_line: 23
+    end_line: 26
+    file: ''
+  - start_line: 30
+    end_line: 31
+    file: ''
+  - start_line: 50
+    end_line: 51
+    file: ''
+  - start_line: 71
+    end_line: 71
+    file: ''
+  - start_line: 81
+    end_line: 81
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  Daily Steps:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 27
+    end_line: 31
+    file: ''
+  - start_line: 49
+    end_line: 51
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 81
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  '["Stress Level","stress_norm"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 54
+    end_line: 54
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  '["Sleep Disorder","disorder_boost"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 57
+    end_line: 58
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  '["eligible","priority_score"]':
+  - start_line: 1
+    end_line: 2
+    file: ''
+  - start_line: 4
+    end_line: 5
+    file: ''
+  - start_line: 8
+    end_line: 12
+    file: ''
+  - start_line: 14
+    end_line: 18
+    file: ''
+  - start_line: 34
+    end_line: 39
+    file: ''
+  - start_line: 42
+    end_line: 46
+    file: ''
+  - start_line: 49
+    end_line: 51
+    file: ''
+  - start_line: 54
+    end_line: 54
+    file: ''
+  - start_line: 57
+    end_line: 58
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 89
+    file: ''
+  '["Daily Steps","Physical Activity Level"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 24
+    end_line: 24
+    file: ''
+  - start_line: 25
+    end_line: 25
+    file: ''
+  - start_line: 26
+    end_line: 26
+    file: ''
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 29
+    end_line: 29
+    file: ''
+  - start_line: 30
+    end_line: 30
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 49
+    end_line: 49
+    file: ''
+  - start_line: 50
+    end_line: 50
+    file: ''
+  - start_line: 51
+    end_line: 51
+    file: ''
+  - start_line: 67
+    end_line: 72
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  '["bp_diastolic","bp_systolic"]':
+  - start_line: 9
+    end_line: 12
+    file: ''
+  - start_line: 14
+    end_line: 18
+    file: ''
+  - start_line: 34
+    end_line: 39
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 72
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  '["Quality of Sleep","Sleep Duration"]':
+  - start_line: 1
+    end_line: 1
+    file: ''
+  - start_line: 2
+    end_line: 2
+    file: ''
+  - start_line: 4
+    end_line: 4
+    file: ''
+  - start_line: 5
+    end_line: 5
+    file: ''
+  - start_line: 9
+    end_line: 9
+    file: ''
+  - start_line: 10
+    end_line: 10
+    file: ''
+  - start_line: 11
+    end_line: 11
+    file: ''
+  - start_line: 12
+    end_line: 12
+    file: ''
+  - start_line: 14
+    end_line: 14
+    file: ''
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 21
+    end_line: 21
+    file: ''
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 45
+    end_line: 45
+    file: ''
+  - start_line: 46
+    end_line: 46
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 72
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 83
+    end_line: 83
+    file: ''
+  - start_line: 84
+    end_line: 84
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  '["bp_risk","eligible","sleep_need_index","stress_norm"]':
+  - start_line: 15
+    end_line: 18
+    file: ''
+  - start_line: 34
+    end_line: 39
+    file: ''
+  - start_line: 42
+    end_line: 46
+    file: ''
+  - start_line: 49
+    end_line: 51
+    file: ''
+  - start_line: 54
+    end_line: 54
+    file: ''
+  - start_line: 57
+    end_line: 58
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  '["bp_risk","disorder_boost","priority_score","sedentary_index","sleep_need_index","stress_norm"]':
+  - start_line: 1
+    end_line: 2
+    file: ''
+  - start_line: 4
+    end_line: 5
+    file: ''
+  - start_line: 8
+    end_line: 12
+    file: ''
+  - start_line: 14
+    end_line: 18
+    file: ''
+  - start_line: 34
+    end_line: 39
+    file: ''
+  - start_line: 42
+    end_line: 46
+    file: ''
+  - start_line: 49
+    end_line: 51
+    file: ''
+  - start_line: 54
+    end_line: 54
+    file: ''
+  - start_line: 57
+    end_line: 58
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 89
+    file: ''
+  Blood Pressure:
+  - start_line: 15
+    end_line: 18
+    file: ''
+  - start_line: 34
+    end_line: 39
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  Quality of Sleep:
+  - start_line: 45
+    end_line: 46
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 81
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  Stress Level:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 54
+    end_line: 54
+    file: ''
+  - start_line: 61
+    end_line: 65
+    file: ''
+  - start_line: 67
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  Sleep Disorder:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 57
+    end_line: 58
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 80
+    end_line: 81
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  Person ID:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 79
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+fixing_results:
+  Physical Activity Level:
+    77c99ff9-3b4b-481f-be8e-36fe9c93dcd5: '.hasCompleteness("Daily Steps", lambda
+      x: x == 1.0)
+
+      .hasCompleteness("Physical Activity Level", lambda x: x == 1.0)
+
+      .satisfies("`Physical Activity Level` >= 0 AND `Physical Activity Level` <=
+      100", "Physical_Activity_Level_Range", lambda x: x == 1.0)
+
+      .satisfies("`Daily Steps` >= 0 AND `Daily Steps` <= 50000", "Daily_Steps_Range",
+      lambda x: x == 1.0)'
+  Quality of Sleep:
+    474cd78e-3b1f-4471-b4eb-27610a71035a: .isContainedIn('Quality of Sleep', ['4',
+      '5', '6', '7', '8', '9'])
+  Person ID:
+    21e9163b-fd8a-4321-b4af-8596fca72a54: '.hasMin("Person ID", lambda x: x > 0)'
+  '["Stress Level","stress_norm"]':
+    ff0f7917-5afb-4561-bc9d-d92223701e6a: '.satisfies("CAST(SUBSTRING_INDEX(`Blood
+      Pressure`, ''/'', 1) AS INT) >= CAST(SUBSTRING_INDEX(`Blood Pressure`, ''/'',
+      -1) AS INT)", "systolic_greater_than_diastolic_check", lambda x: x == 1.0)'
+  '["eligible","priority_score"]':
+    689a5a4f-2229-43c1-a197-4b528644b4bf: '.satisfies("CASE WHEN (CASE WHEN (CAST(SPLIT(`Blood
+      Pressure`, ''/'')[0] AS INT) >= 140 OR CAST(SPLIT(`Blood Pressure`, ''/'')[1]
+      AS INT) >= 90) THEN 1.0 WHEN ((CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT)
+      >= 130 AND CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) <= 139) OR (CAST(SPLIT(`Blood
+      Pressure`, ''/'')[1] AS INT) >= 80 AND CAST(SPLIT(`Blood Pressure`, ''/'')[1]
+      AS INT) <= 89)) THEN 0.7 WHEN ((CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT)
+      >= 120 AND CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) <= 129) AND CAST(SPLIT(`Blood
+      Pressure`, ''/'')[1] AS INT) < 80) THEN 0.3 ELSE 0.0 END) IN (0.0, 0.3, 0.7,
+      1.0) THEN 1 ELSE 0 END", "BP Risk Calculation Consistency", lambda x: x == 1.0)'
+consolidation_results:
+  Quality of Sleep:
+  - idx_to_remove: 51508c32-9de7-431a-97c4-beddc98e8a5f
+    redundant_with:
+    - 474cd78e-3b1f-4471-b4eb-27610a71035a
+  - idx_to_remove: 1f91b33f-31e9-4ebf-897d-91483a0a9d44
+    redundant_with:
+    - 474cd78e-3b1f-4471-b4eb-27610a71035a
+  - idx_to_remove: 8a3dfe7c-a902-4bc4-b8b0-d71d62144655
+    redundant_with:
+    - 474cd78e-3b1f-4471-b4eb-27610a71035a
+  Blood Pressure:
+  - idx_to_remove: a1c9603b-c3d0-401a-9fe2-9ec92ed23e9f
+    redundant_with:
+    - 61bd99ca-5974-4c5b-bf5b-b7904df7c33f
+  - idx_to_remove: 0f253357-ea92-4ba2-986b-4a4fea1754e6
+    redundant_with:
+    - 61bd99ca-5974-4c5b-bf5b-b7904df7c33f
+  - idx_to_remove: 2232f50c-6fee-480d-b501-97c94df92cc5
+    redundant_with:
+    - 066fce37-5275-4ad3-88ca-f806900ee533
+  - idx_to_remove: b61c13ed-0f82-43b0-8e40-c190ae985af4
+    redundant_with:
+    - 066fce37-5275-4ad3-88ca-f806900ee533
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 6634
+    prompt_tokens: 4644
+    completion_tokens: 1990
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 40880
+    prompt_tokens: 19386
+    completion_tokens: 21494
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 8900
+    prompt_tokens: 2686
+    completion_tokens: 6214
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 88188
+    prompt_tokens: 27159
+    completion_tokens: 61029
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 137441
+    prompt_tokens: 31712
+    completion_tokens: 105729
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 107452
+    prompt_tokens: 53140
+    completion_tokens: 54312
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 72606
+    prompt_tokens: 29428
+    completion_tokens: 43178
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 69351
+    prompt_tokens: 51723
+    completion_tokens: 17628
+  code_fixing:
+    cost: 0.0
+    total_tokens: 177962
+    prompt_tokens: 38259
+    completion_tokens: 139703
+  consolidate_constraints:
+    cost: 0.0
+    total_tokens: 22053
+    prompt_tokens: 11049
+    completion_tokens: 11004

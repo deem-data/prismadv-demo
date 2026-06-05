@@ -1,0 +1,1685 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-pro
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  AgeGroup:
+    code:
+    - suggestion: .isContainedIn('AgeGroup', ['18-25', '26-35', '36-45', '46-55',
+        '55+'])
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1744669f-d6b9-4cd1-9ca2-961549f37443
+      source_assumptions: []
+    - suggestion: '.satisfies("`AgeGroup` = ''26-35''", "''26-35'' group must be present",
+        lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1f205d22-9efb-4c3b-bd29-ca4cfe0cf9dc
+      source_assumptions: []
+    assumptions:
+    - text: The 'AgeGroup' column must not contain any null values. The code does
+        not handle missing values for this column and uses it in direct comparisons.
+        Null values would be implicitly treated as not belonging to the '26-35' age
+        group, potentially leading to incorrect calculations for `age_weight` and
+        `emerging_talent_supp_pct`.
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      - start_line: 63
+        end_line: 64
+        file: ''
+      uid: 96848589-2509-4d71-8aee-3ed4f7c37207
+    - text: 'The ''AgeGroup'' column is expected to be of string type and contain
+        values from a specific set of categories: ''18-25'', ''26-35'', ''36-45'',
+        ''46-55'', ''55+''. The code performs a direct string comparison with ''26-35''.
+        Any other values, including typos or new, unexpected categories, will be grouped
+        into a default case, which may not be the intended behavior.'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      - start_line: 63
+        end_line: 63
+        file: ''
+      uid: 2892c60c-424b-49b9-9a9e-22c159a09383
+    - text: The 'AgeGroup' column is expected to contain the value '26-35'. The code
+        has specific logic to calculate an 'emerging talent' supplement that only
+        applies to this group. The absence of this category in the input data would
+        render this logic dormant and might indicate an unexpected shift in the data
+        distribution.
+      sources:
+      - start_line: 63
+        end_line: 65
+        file: ''
+      - start_line: 74
+        end_line: 74
+        file: ''
+      uid: 9a322ca2-6822-42f1-9f67-f7247d1112da
+  '["AgeGroup","BusinessTravel","MonthlyIncome","PercentSalaryHike","PerformanceRating","SalarySlab"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `SalarySlab` = ''Upto 5k'' THEN `MonthlyIncome`
+        <= 5000 WHEN `SalarySlab` = ''5k-10k'' THEN (`MonthlyIncome` > 5000 AND `MonthlyIncome`
+        <= 10000) WHEN `SalarySlab` = ''10k-15k'' THEN (`MonthlyIncome` > 10000 AND
+        `MonthlyIncome` <= 15000) WHEN `SalarySlab` = ''15k+'' THEN `MonthlyIncome`
+        > 15000 ELSE TRUE END", "Slab_Income_Consistency", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0949d711-5fd3-4811-90c8-2e0ec27da3d0
+      source_assumptions:
+      - 903f24e0-0344-4891-8bf5-0e6d1d4deefd
+    - suggestion: '.hasCorrelation(''PerformanceRating'', ''PercentSalaryHike'', lambda
+        x: x >= 0.3)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: cd638a6f-c5ba-4abf-8617-44c4dc8d92cd
+      source_assumptions:
+      - 9797f365-1718-4c27-8fad-01afaebb01b2
+    assumptions:
+    - text: 'The ''SalarySlab'' for an employee must be consistent with their ''MonthlyIncome''.
+        The script uses ''SalarySlab'' to determine rate caps and eligibility for
+        certain pools, but uses ''MonthlyIncome'' for the final monetary calculations.
+        An inconsistency, such as a ''MonthlyIncome'' of $16,000 for an employee in
+        the ''Upto 5k'' salary slab, would lead to incorrect budget and compensation
+        calculations. This relationship can be validated with a set of conditional
+        checks, for example: IF ''SalarySlab'' = ''Upto 5k'' THEN ''MonthlyIncome''
+        <= 5000; IF ''SalarySlab'' = ''5k-10k'' THEN ''MonthlyIncome'' > 5000 AND
+        ''MonthlyIncome'' <= 10000, and so on. A Deequ constraint could be: .satisfy("CASE
+        WHEN SalarySlab = ''Upto 5k'' THEN MonthlyIncome <= 5000 WHEN SalarySlab =
+        ''5k-10k'' THEN (MonthlyIncome > 5000 AND MonthlyIncome <= 10000) WHEN SalarySlab
+        = ''10k-15k'' THEN (MonthlyIncome > 10000 AND MonthlyIncome <= 15000) WHEN
+        SalarySlab = ''15k+'' THEN MonthlyIncome > 15000 ELSE FALSE END", "Slab_Income_Consistency")'
+      sources:
+      - start_line: 31
+        end_line: 32
+        file: ''
+      - start_line: 42
+        end_line: 43
+        file: ''
+      - start_line: 59
+        end_line: 61
+        file: ''
+      uid: 903f24e0-0344-4891-8bf5-0e6d1d4deefd
+    - text: 'There is an assumed positive correlation between ''PerformanceRating''
+        and ''PercentSalaryHike''. The code calculates a base merit percentage by
+        taking the minimum of a guideline percentage (derived from ''PerformanceRating'')
+        and the actual ''PercentSalaryHike''. This logic implies that an employee''s
+        actual salary hike is expected to be at or above the guideline for their performance
+        level (e.g., >=12% for rating 3, >=18% for rating 4). A significant deviation
+        would indicate a data anomaly or a compensation practice that contradicts
+        the model''s logic. A Deequ constraint could check this correlation: .correlate(''PerformanceRating'',
+        ''PercentSalaryHike'', _ >= 0.3)'
+      sources:
+      - start_line: 28
+        end_line: 28
+        file: ''
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: 9797f365-1718-4c27-8fad-01afaebb01b2
+    - text: The code creates an 'emerging_talent_amount' based on 'MonthlyIncome'
+        for the '26-35' 'AgeGroup'. This implies a business assumption that this age
+        group does not contain a disproportionate number of the highest earners, which
+        would cause the budget for this supplement to be unexpectedly large. Therefore,
+        the income distribution for the '26-35' 'AgeGroup' is expected to be in line
+        with or lower than that of more senior age groups. A Deequ constraint could
+        verify this by comparing the average 'MonthlyIncome' of the '26-35' age group
+        against the average income of the '36-45' age group.
+      sources:
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 61e525db-2397-432a-bace-f7f78e64769e
+  '["AgeGroup","MonthlyIncome"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN AgeGroup = ''26-35'' THEN MonthlyIncome >
+        0 ELSE TRUE END", "PositiveIncomeForEmergingTalent", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 08d69e8f-34b6-411d-b3fe-012665e60310
+      source_assumptions:
+      - 187dbb78-1977-4ef8-bb2e-c8b6933ea1f8
+    - suggestion: '.satisfies("AgeGroup = ''26-35''", "PresenceOfAgeGroup26-35", lambda
+        x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 669708e7-4fce-46ec-89b9-cb12055959c7
+      source_assumptions:
+      - da1d6077-c358-41a8-b08f-9a52da509fcf
+    assumptions:
+    - text: 'For records where ''AgeGroup'' is ''26-35'', the ''MonthlyIncome'' is
+        assumed to be a positive value. This is because calculations for ''proposed_merit_amount''
+        and ''emerging_talent_amount'' use ''MonthlyIncome'' as a base for this specific
+        age cohort. A non-positive income would lead to a zero or negative monetary
+        amount, which is likely unintended for merit or supplemental pay. A potential
+        Deequ constraint is: .where("AgeGroup = ''26-35''", .isPositive("MonthlyIncome"))'
+      sources:
+      - start_line: 35
+        end_line: 43
+        file: ''
+      - start_line: 63
+        end_line: 65
+        file: ''
+      uid: 187dbb78-1977-4ef8-bb2e-c8b6933ea1f8
+    - text: 'The dataset is expected to contain records where ''AgeGroup'' is ''26-35''.
+        The code has specific logic to assign a higher ''age_weight'' and an ''emerging_talent_supp_pct''
+        to this group. If no employees fall into this age bracket, this logic would
+        have no effect, and key budget pools like ''emerging_talent_pool'' would be
+        zero, which may indicate an issue with the input data. A potential Deequ constraint
+        is: .size(where = "AgeGroup = ''26-35''") > 0'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      - start_line: 63
+        end_line: 64
+        file: ''
+      uid: da1d6077-c358-41a8-b08f-9a52da509fcf
+  BusinessTravel:
+    code:
+    - suggestion: .isContainedIn("BusinessTravel", ["TravelRarely", "Travel_Rarely",
+        "Travel_Frequently", "Non-Travel"])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b1eb7bdf-24ba-417d-b68f-ffe3b91e80c3
+      source_assumptions:
+      - 4c8cf5b0-a746-4b00-9d8b-b65684f71804
+    - suggestion: .hasDataType("BusinessTravel", "String")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("BusinessTravel",
+        "String")'
+      level: error
+      uid: 19da43c4-8682-4758-900a-e1c3f5aa3150
+      source_assumptions:
+      - 66ad723e-3aba-4a7f-8d43-8d524b2cdcee
+    assumptions:
+    - text: 'The ''BusinessTravel'' column should not contain any null values. The
+        code uses this column in a mapping operation on line 37. If any value is null,
+        it will result in a null ''travel_multiplier'', which propagates through subsequent
+        calculations (lines 41-43), leading to incorrect merit and budget amounts.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("BusinessTravel")'
+      sources:
+      - start_line: 37
+        end_line: 37
+        file: ''
+      - start_line: 41
+        end_line: 43
+        file: ''
+      uid: fcc3e36f-852c-48ef-afc0-0c4be758f432
+    - text: 'The ''BusinessTravel'' column is expected to contain only values from
+        the set: ''TravelRarely'', ''Travel_Rarely'', ''Travel_Frequently'', ''Non-Travel''.
+        Line 24 normalizes these values, and line 37 maps them to a numerical multiplier.
+        Any value outside this set will result in a null ''travel_multiplier'', causing
+        errors in the final calculations for merit and budget (lines 41-43).
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isContainedIn("BusinessTravel", Array("TravelRarely", "Travel_Rarely", "Travel_Frequently",
+        "Non-Travel"))'
+      sources:
+      - start_line: 18
+        end_line: 24
+        file: ''
+      - start_line: 36
+        end_line: 43
+        file: ''
+      uid: 4c8cf5b0-a746-4b00-9d8b-b65684f71804
+    - text: 'The ''BusinessTravel'' column must be of string type. The code uses dictionary
+        mapping on lines 24 and 37, which assumes the values are strings that can
+        be used as dictionary keys. Non-string data would lead to lookup failures
+        and incorrect outputs.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("BusinessTravel", ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 24
+        end_line: 24
+        file: ''
+      - start_line: 37
+        end_line: 37
+        file: ''
+      uid: 66ad723e-3aba-4a7f-8d43-8d524b2cdcee
+  YearsInCurrentRole:
+    code:
+    - suggestion: .isComplete("YearsInCurrentRole")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d1d622cf-a296-49c4-8d93-dfbd32f04582
+      source_assumptions:
+      - 5ef189fb-b44d-4d89-a695-a5f738ead51e
+    - suggestion: .isNonNegative("YearsInCurrentRole")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 88db8e1d-e218-4f65-bcab-a622d4599d27
+      source_assumptions:
+      - d755bb3f-85a3-47cb-b829-225d1de41ba3
+    assumptions:
+    - text: 'The ''YearsInCurrentRole'' column is assumed to be 100% complete with
+        no null values. This is because it is used in a boolean condition to determine
+        promotion eligibility (line 48), and the code does not include any steps to
+        handle or impute missing values. Nulls would lead to incorrect eligibility
+        assessments. We could represent this assumption as a deequ constraint like
+        this:
+
+        .isComplete("YearsInCurrentRole")'
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: 5ef189fb-b44d-4d89-a695-a5f738ead51e
+    - text: 'The ''YearsInCurrentRole'' column is expected to contain only non-negative
+        integer values. This is based on its use in a numeric comparison (`>= 2`)
+        on line 48, which requires a numeric type, and its semantic meaning as a measure
+        of time. We could represent this assumption as a deequ constraint like this:
+
+        .isNonNegative("YearsInCurrentRole")'
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: d755bb3f-85a3-47cb-b829-225d1de41ba3
+  EmpID:
+    code:
+    - suggestion: .isComplete("EmpID")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e8b2605c-d31c-4469-9a52-4da5ccde428f
+      source_assumptions:
+      - aea5ecda-f296-4486-a6d6-8e18e08cdbd0
+    - suggestion: .isUnique("EmpID")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a3e6389f-f829-416f-987b-007518dc87eb
+      source_assumptions:
+      - 4a0a2315-c2be-482c-878b-4810332470c7
+    - suggestion: '.hasDataType("EmpID", "String", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("EmpID", "String",
+        lambda x: x == 1.0)'
+      level: warning
+      uid: 8d3af213-c7cf-4f50-9f7b-306c0787d514
+      source_assumptions:
+      - 21d0c56b-37f6-426b-9039-974410da4185
+    assumptions:
+    - text: 'The ''EmpID'' column should not contain any null values. The code uses
+        this column to count the number of employees (''headcount'') per department,
+        and null values would be excluded from the count, leading to an inaccurate
+        headcount.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("EmpID")'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: aea5ecda-f296-4486-a6d6-8e18e08cdbd0
+    - text: 'The ''EmpID'' column is expected to contain unique values. It is used
+        to calculate the ''headcount'' for each department, and duplicate IDs would
+        lead to an inflated and incorrect headcount, misrepresenting the number of
+        unique employees.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isUnique("EmpID")'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: 4a0a2315-c2be-482c-878b-4810332470c7
+    - text: 'The ''EmpID'' column is expected to be of type String. The code reads
+        this column and later includes it in an output file without any type conversion.
+        Downstream consumers of this file will likely expect a consistent string format
+        for employee identifiers.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("EmpID", ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 84
+        end_line: 90
+        file: ''
+      uid: 21d0c56b-37f6-426b-9039-974410da4185
+  Department:
+    code:
+    - suggestion: .isComplete("Department")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 82b421da-847f-4023-9225-bd3ae9e8f328
+      source_assumptions:
+      - afd507c1-3765-4326-a8a3-ab52dcc6f731
+    - suggestion: .isContainedIn("Department", ["Sales", "Research & Development",
+        "Human Resources"])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2aca8504-92b8-4bbd-9e82-ae1439461e45
+      source_assumptions:
+      - d12edbb1-7970-49b6-927b-33856382f9d8
+    assumptions:
+    - text: The 'Department' column must not contain any null values. The code groups
+        the dataframe by this column to calculate department-level budgets. Null values
+        would lead to a separate, likely unintended, group for nulls in the final
+        budget aggregation.
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: afd507c1-3765-4326-a8a3-ab52dcc6f731
+    - text: 'The ''Department'' column is expected to contain only values from the
+        set: [''Sales'', ''Research & Development'', ''Human Resources'']. This is
+        based on the data profile. The code uses the column directly for grouping
+        without any cleaning or normalization, so any values outside this set (e.g.,
+        typos, different casing) would result in incorrect or fragmented budget aggregations.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isContainedIn("Department", ["Sales", "Research & Development", "Human Resources"])'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: d12edbb1-7970-49b6-927b-33856382f9d8
+  '["Department","EmpID","MonthlyIncome"]':
+    code:
+    - suggestion: '.hasUniqueness([''Department'', ''EmpID''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6fcca223-88ad-4370-b665-7485d9e44f0e
+      source_assumptions:
+      - 52288b5e-78a4-424f-a433-d6889b99be5f
+    - suggestion: '.satisfies(''Department IS NULL OR MonthlyIncome IS NOT NULL'',
+        ''dept_requires_income'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0985b9f6-e8a5-4e26-8cb1-748f69a60bac
+      source_assumptions:
+      - cf66db95-155a-4fe0-b9c0-6386f452ecdf
+    assumptions:
+    - text: 'The combination of ''Department'' and ''EmpID'' columns should be unique.
+        The code calculates department headcount by counting ''EmpID''s within each
+        department group. If an employee is listed multiple times in the same department,
+        the headcount will be inflated, leading to incorrect downstream analysis and
+        budget calculations.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isUnique([''Department'', ''EmpID''])'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: 52288b5e-78a4-424f-a433-d6889b99be5f
+    - text: 'For every record, if the ''Department'' column is not null, the ''MonthlyIncome''
+        column must also not be null. The code calculates departmental budgets by
+        grouping by ''Department'' and summing ''MonthlyIncome''. A missing ''MonthlyIncome''
+        for an employee in a department would lead to an inaccurate ''base_pay'' calculation
+        for that department.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("Department IS NULL OR MonthlyIncome IS NOT NULL", "Dept_implies_Income")'
+      sources:
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: cf66db95-155a-4fe0-b9c0-6386f452ecdf
+  EmployeeNumber:
+    code:
+    - suggestion: .isUnique('EmployeeNumber')
+      validity: true
+      reason_if_invalid: ''
+      level: undefined
+      uid: 88245a2f-ea60-4a25-a234-b3c913f98872
+      source_assumptions:
+      - c2485bc3-b2e4-4eb5-9c67-4592219f3421
+    - suggestion: .hasDataType('EmployeeNumber', 'Integral')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''EmployeeNumber'',
+        ''Integral'')'
+      level: undefined
+      uid: 3a92d7ec-cc7e-42bd-b34a-8dd572d7840c
+      source_assumptions:
+      - 7470b495-de18-4781-95ea-3af55fc39250
+    assumptions:
+    - text: The 'EmployeeNumber' column is expected to contain unique values. This
+        is because it is used to set the DataFrame index on line 25, which implies
+        that each value should uniquely identify a row.
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      uid: c2485bc3-b2e4-4eb5-9c67-4592219f3421
+    - text: The 'EmployeeNumber' column should not contain any null or missing values.
+        The code uses this column to set the DataFrame index without handling any
+        potential nulls, indicating an expectation of complete data.
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      uid: 5a5bb1ae-fa91-470b-a000-a6ed2cbde7f0
+    - text: The 'EmployeeNumber' column is assumed to be of an integral data type.
+        The code uses it directly as an identifier and index without any type conversion,
+        relying on the input data having the correct format.
+      sources:
+      - start_line: 15
+        end_line: 15
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      uid: 7470b495-de18-4781-95ea-3af55fc39250
+  '["EmpID","EmployeeNumber"]':
+    code:
+    - suggestion: '.hasUniqueness([''EmployeeNumber''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e53827f9-571f-4fcc-a06a-855a0ac11aa8
+      source_assumptions:
+      - 17d4ba30-cb6d-45cd-8113-5f931d9391cd
+    - suggestion: '.hasUniqueness([''EmpID''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a7b4e635-72a2-4f2f-9195-8a6c9ebe888a
+      source_assumptions:
+      - 17d4ba30-cb6d-45cd-8113-5f931d9391cd
+    assumptions:
+    - text: 'The columns ''EmpID'' and ''EmployeeNumber'' are both used as employee
+        identifiers. ''EmployeeNumber'' is set as the DataFrame index (line 25), implying
+        it is a unique key for records. ''EmpID'' is used to calculate ''headcount''
+        (line 69), implying it identifies unique employees. Therefore, a one-to-one
+        mapping is assumed to exist between ''EmployeeNumber'' and ''EmpID''. This
+        means that each ''EmployeeNumber'' should correspond to exactly one ''EmpID'',
+        and vice versa. This can be expressed as two functional dependencies: `EmployeeNumber`
+        -> `EmpID` and `EmpID` -> `EmployeeNumber`.
+
+        We could represent this assumption with Deequ constraints like this:
+
+        .satisfies("size(groupBy(''EmployeeNumber'').count()) == size(groupBy(''EmployeeNumber'',
+        ''EmpID'').count())", "''EmployeeNumber'' functionally determines ''EmpID''")
+
+        .satisfies("size(groupBy(''EmpID'').count()) == size(groupBy(''EmpID'', ''EmployeeNumber'').count())",
+        "''EmpID'' functionally determines ''EmployeeNumber''")'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 68
+        end_line: 75
+        file: ''
+      uid: 17d4ba30-cb6d-45cd-8113-5f931d9391cd
+  PercentSalaryHike:
+    code:
+    - suggestion: .isComplete("PercentSalaryHike")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2013b947-2679-4856-a217-45d4e9a7bb40
+      source_assumptions:
+      - fa2f7882-a519-4d46-8de4-05e058af69d5
+    - suggestion: '.hasDataType("PercentSalaryHike", "Numeric", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("PercentSalaryHike",
+        "Numeric", lambda x: x == 1.0)'
+      level: error
+      uid: 6b8c5dec-6c49-4029-8964-ea0d6e09079f
+      source_assumptions:
+      - f8fb2c5e-21d4-4af6-87b8-d459d5093394
+    - suggestion: .isNonNegative("PercentSalaryHike")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c5d6be11-74da-4978-9f45-99b1aeb58885
+      source_assumptions:
+      - e1027b84-50d9-4c07-ac27-02b86d256d7c
+    assumptions:
+    - text: 'The ''PercentSalaryHike'' column must not contain any null values. The
+        code uses this column in an arithmetic operation on line 40 without any preceding
+        null value handling, which would result in errors or unexpected NaN values
+        if nulls were present.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("PercentSalaryHike")'
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: fa2f7882-a519-4d46-8de4-05e058af69d5
+    - text: 'The ''PercentSalaryHike'' column must be of a numeric type (e.g., integer
+        or float). This is because it is used in a division operation on line 40.
+        The provided data statistics confirm the type is ''Integral''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isNumeric("PercentSalaryHike")'
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: f8fb2c5e-21d4-4af6-87b8-d459d5093394
+    - text: 'The ''PercentSalaryHike'' column should contain non-negative values.
+        This is inferred from its name and its use in a calculation (line 40) where
+        it''s treated as a percentage. Negative values, representing a salary decrease,
+        could lead to unexpected results in the merit calculation logic.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isNonNegative("PercentSalaryHike")'
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: e1027b84-50d9-4c07-ac27-02b86d256d7c
+  MonthlyIncome:
+    code:
+    - suggestion: .hasDataType("MonthlyIncome", "Integral")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("MonthlyIncome",
+        "Integral")'
+      level: error
+      uid: ad2729a4-8366-424e-a5ed-3a5aff264508
+      source_assumptions: []
+    - suggestion: .isNonNegative("MonthlyIncome")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3394d078-58bc-435a-ab49-acab6a408f8b
+      source_assumptions: []
+    assumptions:
+    - text: 'The ''MonthlyIncome'' column must be a non-null, numeric (integral) type.
+        It is directly used in multiple arithmetic operations (multiplication and
+        summation) to calculate financial amounts like merit, promotions, and budgets.
+        The code does not perform any null handling (e.g., fillna) on this column,
+        indicating an expectation that it is complete and in a numeric format.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("MonthlyIncome")
+
+        .hasDataType("MonthlyIncome", ConstrainableDataTypes.Integral)'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 61
+        end_line: 61
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: a8b1e301-62e0-494b-a5fa-f29715382568
+    - text: 'The ''MonthlyIncome'' column should only contain non-negative values.
+        Since this column represents an employee''s income and is used as the base
+        for calculating compensation adjustments, negative values would be logically
+        inconsistent and lead to nonsensical results (e.g., negative merit amounts).
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isNonNegative("MonthlyIncome")'
+      sources:
+      - start_line: 43
+        end_line: 43
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 61
+        end_line: 61
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: 94a49ddd-f175-4ae7-a833-e434f13a88e0
+  JobLevel:
+    code:
+    - suggestion: '.hasDataType(''JobLevel'', ''Integral'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''JobLevel'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: 39e1dabc-4aca-434e-a83e-7a28d7c7cb9a
+      source_assumptions:
+      - eb247242-9186-4cf8-aaf7-f8b9cbb0c4f3
+    - suggestion: .isContainedIn('JobLevel', ['1', '2', '3', '4', '5'])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c5d1e016-fe22-40bf-99ed-3c13b47a7911
+      source_assumptions:
+      - 3ed93708-05b1-45f4-9c73-e30e00dff864
+    assumptions:
+    - text: The 'JobLevel' column must not contain any null values. The code does
+        not handle missing values, and operations like numerical comparisons and dictionary
+        mapping would fail or produce unexpected `NaN`s if nulls were present.
+      sources:
+      - start_line: 50
+        end_line: 50
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: 2be3386d-d03f-4d6b-9f43-1b5a87d7ca23
+    - text: The 'JobLevel' column is expected to be of an integral type, as it is
+        used in numerical comparisons (e.g., `< 5`).
+      sources:
+      - start_line: 46
+        end_line: 51
+        file: ''
+      uid: eb247242-9186-4cf8-aaf7-f8b9cbb0c4f3
+    - text: Values in the 'JobLevel' column must be one of [1, 2, 3, 4, 5]. This is
+        because the code uses a dictionary with these specific keys to map job levels
+        to promotion raise percentages. Any other value would result in a null 'promotion_raise_pct',
+        leading to incorrect calculations for 'promotion_amount' and the final 'total_budget'.
+      sources:
+      - start_line: 53
+        end_line: 54
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 72
+        end_line: 72
+        file: ''
+      - start_line: 78
+        end_line: 78
+        file: ''
+      uid: 3ed93708-05b1-45f4-9c73-e30e00dff864
+  '["JobLevel","MonthlyIncome","PerformanceRating","YearsInCurrentRole","YearsSinceLastPromotion"]':
+    code:
+    - suggestion: '.satisfies("PerformanceRating = 4 AND YearsInCurrentRole >= 2 AND
+        YearsSinceLastPromotion >= 1 AND JobLevel < 5", "PromotionEligibilityExists",
+        lambda count: count > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 23864d33-754f-4bf4-8952-6acaa2493b16
+      source_assumptions:
+      - b114df93-788d-4d88-98e1-e3824b61f5ac
+    - suggestion: '.hasCorrelation("JobLevel", "MonthlyIncome", lambda corr: corr
+        > 0.3)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: f952b0a2-b2c5-49f4-9623-1415f2af8f47
+      source_assumptions:
+      - ef239949-2230-46c0-ae09-18f77fe350b5
+    assumptions:
+    - text: 'The columns `PerformanceRating`, `YearsInCurrentRole`, `YearsSinceLastPromotion`,
+        and `JobLevel` are used together to determine promotion eligibility. The code
+        assumes that it''s possible for an employee to meet all the specified criteria
+        simultaneously. Therefore, the dataset is expected to contain records where
+        `PerformanceRating` is 4, `YearsInCurrentRole` is 2 or more, `YearsSinceLastPromotion`
+        is 1 or more, and `JobLevel` is less than 5.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("PerformanceRating = 4 AND YearsInCurrentRole >= 2 AND YearsSinceLastPromotion
+        >= 1 AND JobLevel < 5", "At least one employee should be eligible for promotion",
+        lambda count: count > 0)'
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: b114df93-788d-4d88-98e1-e3824b61f5ac
+    - text: 'The calculation of `promotion_amount` depends on both `JobLevel` (to
+        determine `promotion_raise_pct`) and `MonthlyIncome`. The business logic implicitly
+        assumes a positive correlation between `JobLevel` and `MonthlyIncome`. As
+        an employee''s `JobLevel` increases, their `MonthlyIncome` is also expected
+        to be higher. This ensures that the promotion raises are applied to a logical
+        salary base. A data validation check could verify that `JobLevel` and `MonthlyIncome`
+        have a positive correlation.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .correlates("JobLevel", "MonthlyIncome", _ > 0.3)'
+      sources:
+      - start_line: 53
+        end_line: 56
+        file: ''
+      uid: ef239949-2230-46c0-ae09-18f77fe350b5
+  '["JobLevel","PerformanceRating","YearsInCurrentRole","YearsSinceLastPromotion"]':
+    code:
+    - suggestion: '.isGreaterThanOrEqualTo("YearsInCurrentRole", "YearsSinceLastPromotion",
+        assertion=lambda v: v >= 0.88)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f457d3c3-7b7b-4ede-ba82-26d2b2808f18
+      source_assumptions:
+      - bf70dda6-991d-400c-b749-70aa90949fbd
+    - suggestion: .satisfies("JobLevel != 5 OR YearsSinceLastPromotion > 0", "TerminalJobLevelConstraint")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("JobLevel != 5 OR YearsSinceLastPromotion
+        > 0", "TerminalJobLevelConstraint")'' failed on data sample: Value: 0.9909297052154195
+        does not meet the constraint requirement!'
+      level: warning
+      uid: 2554d7b1-451f-4412-885c-601fc7990b40
+      source_assumptions:
+      - f8c15e77-a954-447d-a677-31df3cad4f4f
+    assumptions:
+    - text: 'The value in the ''YearsInCurrentRole'' column should be greater than
+        or equal to the value in the ''YearsSinceLastPromotion'' column. An employee''s
+        time in a role cannot logically be shorter than the time since their last
+        promotion. This assumption is critical for the promotion eligibility calculation
+        which uses both columns.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isGreaterThanOrEqualTo("YearsInCurrentRole", "YearsSinceLastPromotion")'
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: bf70dda6-991d-400c-b749-70aa90949fbd
+    - text: 'Given that employees are only eligible for promotion if their ''JobLevel''
+        is less than 5, it is assumed that if an employee''s ''JobLevel'' is 5, their
+        ''YearsSinceLastPromotion'' must be greater than 0. A ''YearsSinceLastPromotion''
+        of 0 for a top-level employee would contradict the business logic that no
+        further promotion is possible.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("JobLevel != 5 OR YearsSinceLastPromotion > 0", "TerminalJobLevelConstraint")'
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: f8c15e77-a954-447d-a677-31df3cad4f4f
+  YearsSinceLastPromotion:
+    code:
+    - suggestion: '.hasDataType(''YearsSinceLastPromotion'', ''Integral'', lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''YearsSinceLastPromotion'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: c3dbea91-356b-4c58-aab2-299105e09cf2
+      source_assumptions:
+      - 7490596e-1a9e-4d60-8d68-9b0e57f4e9bb
+    - suggestion: .isComplete('YearsSinceLastPromotion')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 362f38f7-7f9f-4bc8-a3f6-254ccf8fccda
+      source_assumptions:
+      - 020d7656-8ba0-4966-b91f-1dbf45508a31
+    - suggestion: .isNonNegative('YearsSinceLastPromotion')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5cc14a5f-b530-4594-affc-ab7451de8d5c
+      source_assumptions:
+      - 9b68953e-e175-400f-a337-84a0eed4929e
+    assumptions:
+    - text: The 'YearsSinceLastPromotion' column is assumed to be of an integral data
+        type, as it is used in a numerical comparison (`>= 1`). Non-numeric values
+        would cause the operation to fail.
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 7490596e-1a9e-4d60-8d68-9b0e57f4e9bb
+    - text: The 'YearsSinceLastPromotion' column is expected to be complete with no
+        null values. The code does not handle missing data for this column before
+        using it to determine promotion eligibility, and nulls would lead to incorrect
+        calculations.
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: 020d7656-8ba0-4966-b91f-1dbf45508a31
+    - text: Values in the 'YearsSinceLastPromotion' column are expected to be non-negative.
+        The column represents a time duration, and the logic `YearsSinceLastPromotion
+        >= 1` implies that negative values are not anticipated and would be semantically
+        incorrect.
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 9b68953e-e175-400f-a337-84a0eed4929e
+  '["MonthlyIncome","SalarySlab"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `SalarySlab` = ''Upto 5k'' THEN `MonthlyIncome`
+        <= 5000 WHEN `SalarySlab` = ''5k-10k'' THEN (`MonthlyIncome` > 5000 AND `MonthlyIncome`
+        <= 10000) WHEN `SalarySlab` = ''10k-15k'' THEN (`MonthlyIncome` > 10000 AND
+        `MonthlyIncome` <= 15000) WHEN `SalarySlab` = ''15k+'' THEN `MonthlyIncome`
+        > 15000 ELSE false END", "SalarySlab_and_MonthlyIncome_consistency", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6df818ca-9c8e-4fd0-b973-7693a17b2667
+      source_assumptions:
+      - 1ad093e9-6f69-4951-8dff-eac43d474744
+    assumptions:
+    - text: 'The ''SalarySlab'' column must be consistent with the ''MonthlyIncome''
+        column. The value in ''SalarySlab'' for each row should accurately represent
+        the income bracket of the ''MonthlyIncome'' value. The code uses ''SalarySlab''
+        to determine caps and special pay pools, which are then applied to ''MonthlyIncome''.
+        This implies a direct relationship:
+
+        - If ''SalarySlab'' is ''Upto 5k'', ''MonthlyIncome'' must be <= 5000.
+
+        - If ''SalarySlab'' is ''5k-10k'', ''MonthlyIncome'' must be > 5000 and <=
+        10000.
+
+        - If ''SalarySlab'' is ''10k-15k'', ''MonthlyIncome'' must be > 10000 and
+        <= 15000.
+
+        - If ''SalarySlab'' is ''15k+'', ''MonthlyIncome'' must be > 15000.
+
+        This can be represented as a Deequ constraint like:
+
+        .satisfies("CASE WHEN SalarySlab = ''Upto 5k'' THEN MonthlyIncome <= 5000
+        WHEN SalarySlab = ''5k-10k'' THEN (MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000) WHEN SalarySlab = ''10k-15k'' THEN (MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000) WHEN SalarySlab = ''15k+'' THEN MonthlyIncome > 15000 ELSE false
+        END", "SalarySlab and MonthlyIncome consistency", _.isOne)'
+      sources:
+      - start_line: 31
+        end_line: 43
+        file: ''
+      - start_line: 59
+        end_line: 61
+        file: ''
+      uid: 1ad093e9-6f69-4951-8dff-eac43d474744
+  PerformanceRating:
+    code:
+    - suggestion: .isContainedIn("PerformanceRating", ["3", "4"])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 46e5e873-7e2a-4a9e-b2c2-d9a2336b944d
+      source_assumptions:
+      - 13f09f94-b182-445a-8132-7f4e52b55be9
+    assumptions:
+    - text: The 'PerformanceRating' column must not contain any null values. The code
+        does not handle nulls, and operations like mapping (line 28) and boolean checks
+        (line 47) would fail or produce unexpected NaN/False results, which would
+        propagate through subsequent merit and promotion calculations.
+      sources:
+      - start_line: 28
+        end_line: 28
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: 7d0ee4e1-2e82-4962-9086-c158c2e8b31d
+    - text: 'The ''PerformanceRating'' column must only contain the integer values
+        3 and 4. The code uses these values as keys in a dictionary to calculate ''perf_guideline_pct''
+        (lines 27-28) and explicitly checks for the value 4 to determine promotion
+        eligibility (line 47). Any other values would lead to missing data (NaN) in
+        the derived ''perf_guideline_pct'' column and incorrect promotion logic.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isContainedIn("PerformanceRating", ["3", "4"])'
+      sources:
+      - start_line: 27
+        end_line: 28
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: 13f09f94-b182-445a-8132-7f4e52b55be9
+  SalarySlab:
+    code:
+    - suggestion: .isContainedIn("SalarySlab", ["Upto 5k", "5k-10k", "10k-15k", "15k+"])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: eddbe435-b6da-45a1-8bb8-0d856c820831
+      source_assumptions:
+      - c40a24f3-775a-4a78-b104-a301eca87960
+    - suggestion: '.hasDataType("SalarySlab", "String", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("SalarySlab",
+        "String", lambda x: x == 1)'
+      level: error
+      uid: 45de6fa6-dd23-465e-ac6a-5c511b5d5d17
+      source_assumptions:
+      - 7ea8b33d-11f6-42f6-a26a-ab691e9c333d
+    assumptions:
+    - text: 'The ''SalarySlab'' column must be a non-null, categorical column containing
+        only values from the set: [''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+''].
+        The code on lines 31-32 uses a dictionary to map these specific string values
+        to percentages. Any value not in this set (including nulls) will result in
+        a NaN in the ''slab_cap_pct'' column, which will propagate to downstream calculations
+        like ''proposed_merit_pct'' (line 42). The filtering on line 59 further confirms
+        the expectation of these specific categories.'
+      sources:
+      - start_line: 31
+        end_line: 32
+        file: ''
+      - start_line: 42
+        end_line: 42
+        file: ''
+      - start_line: 59
+        end_line: 59
+        file: ''
+      uid: c40a24f3-775a-4a78-b104-a301eca87960
+    - text: The 'SalarySlab' column must have a string data type. The code relies
+        on string-based operations, such as dictionary key lookups (line 32) and checking
+        for inclusion in a list of strings (line 59).
+      sources:
+      - start_line: 31
+        end_line: 32
+        file: ''
+      - start_line: 59
+        end_line: 59
+        file: ''
+      uid: 7ea8b33d-11f6-42f6-a26a-ab691e9c333d
+  '["YearsInCurrentRole","YearsSinceLastPromotion"]':
+    code:
+    - suggestion: '.isGreaterThanOrEqualTo("YearsInCurrentRole", "YearsSinceLastPromotion",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.isGreaterThanOrEqualTo("YearsInCurrentRole",
+        "YearsSinceLastPromotion", lambda x: x == 1.0)'' failed on data sample: Value:
+        0.8877551020408163 does not meet the constraint requirement!'
+      level: error
+      uid: 9dde8ce0-a0c5-4e7d-8eb9-04af7d33d5fb
+      source_assumptions:
+      - c52adf7c-f0de-41d0-85ae-106d16954e41
+    assumptions:
+    - text: 'For each employee record, the value in ''YearsInCurrentRole'' must be
+        greater than or equal to the value in ''YearsSinceLastPromotion''. An employee''s
+        tenure in their current role cannot be shorter than the time elapsed since
+        their last promotion. This can be expressed as a Deequ constraint: .satisfies("`YearsInCurrentRole`
+        >= `YearsSinceLastPromotion`", "RoleTenure_vs_PromotionTime")'
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: c52adf7c-f0de-41d0-85ae-106d16954e41
+column_data_flow_locations:
+  '["EmpID","EmployeeNumber"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 25
+    end_line: 25
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  '["MonthlyIncome","SalarySlab"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 31
+    end_line: 32
+    file: ''
+  - start_line: 42
+    end_line: 43
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 59
+    end_line: 61
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  '["YearsInCurrentRole","YearsSinceLastPromotion"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 46
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  '["JobLevel","PerformanceRating","YearsInCurrentRole","YearsSinceLastPromotion"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 40
+    end_line: 43
+    file: ''
+  - start_line: 46
+    end_line: 52
+    file: ''
+  - start_line: 53
+    end_line: 56
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  '["AgeGroup","BusinessTravel","MonthlyIncome","PercentSalaryHike","PerformanceRating","SalarySlab"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 24
+    end_line: 24
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 37
+    end_line: 37
+    file: ''
+  - start_line: 40
+    end_line: 40
+    file: ''
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 46
+    end_line: 51
+    file: ''
+  - start_line: 52
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 55
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 59
+    end_line: 59
+    file: ''
+  - start_line: 60
+    end_line: 60
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 64
+    end_line: 64
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  '["JobLevel","MonthlyIncome","PerformanceRating","YearsInCurrentRole","YearsSinceLastPromotion"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 40
+    end_line: 43
+    file: ''
+  - start_line: 46
+    end_line: 52
+    file: ''
+  - start_line: 53
+    end_line: 56
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 90
+    file: ''
+  '["AgeGroup","MonthlyIncome"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 41
+    end_line: 43
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  '["Department","EmpID","MonthlyIncome"]':
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  BusinessTravel:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 24
+    end_line: 24
+    file: ''
+  - start_line: 37
+    end_line: 37
+    file: ''
+  - start_line: 41
+    end_line: 43
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  EmployeeNumber:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 25
+    end_line: 25
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  PerformanceRating:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 40
+    end_line: 43
+    file: ''
+  - start_line: 46
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  SalarySlab:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 31
+    end_line: 32
+    file: ''
+  - start_line: 42
+    end_line: 43
+    file: ''
+  - start_line: 59
+    end_line: 61
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  AgeGroup:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 41
+    end_line: 43
+    file: ''
+  - start_line: 63
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  PercentSalaryHike:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 40
+    end_line: 43
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  MonthlyIncome:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  YearsInCurrentRole:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 46
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  YearsSinceLastPromotion:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 46
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  JobLevel:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 46
+    end_line: 56
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  Department:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 77
+    end_line: 78
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  EmpID:
+  - start_line: 15
+    end_line: 15
+    file: ''
+  - start_line: 68
+    end_line: 75
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 84
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+fixing_results:
+  '["JobLevel","PerformanceRating","YearsInCurrentRole","YearsSinceLastPromotion"]':
+    f457d3c3-7b7b-4ede-ba82-26d2b2808f18: '.isGreaterThanOrEqualTo("YearsInCurrentRole",
+      "YearsSinceLastPromotion", assertion=lambda v: v >= 0.88)'
+    2554d7b1-451f-4412-885c-601fc7990b40: .satisfies("JobLevel != 5 OR YearsSinceLastPromotion
+      >= 0", "TerminalJobLevelConstraint")
+consolidation_results:
+  AgeGroup:
+  - idx_to_remove: c4517758-4efa-4706-a18d-54c8ad31160c
+    redundant_with:
+    - 1744669f-d6b9-4cd1-9ca2-961549f37443
+  BusinessTravel:
+  - idx_to_remove: 4b123f0b-d2ed-48c6-b029-1aabc992279f
+    redundant_with:
+    - b1eb7bdf-24ba-417d-b68f-ffe3b91e80c3
+  EmployeeNumber:
+  - idx_to_remove: b30d2d27-97cc-47d3-a454-7e3bab556479
+    redundant_with:
+    - 88245a2f-ea60-4a25-a234-b3c913f98872
+  MonthlyIncome:
+  - idx_to_remove: 31597891-9414-4206-8d26-43729ce39c0a
+    redundant_with:
+    - 3394d078-58bc-435a-ab49-acab6a408f8b
+  JobLevel:
+  - idx_to_remove: 03aa6f3d-0abc-4674-848c-37c3318f2fd7
+    redundant_with:
+    - c5d1e016-fe22-40bf-99ed-3c13b47a7911
+  PerformanceRating:
+  - idx_to_remove: 4222a564-3c43-4d19-aaa2-c1266ff39700
+    redundant_with:
+    - 46e5e873-7e2a-4a9e-b2c2-d9a2336b944d
+  SalarySlab:
+  - idx_to_remove: b0d18b10-2bc4-4ef1-9bcd-5f298f4f6273
+    redundant_with:
+    - eddbe435-b6da-45a1-8bb8-0d856c820831
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 12884
+    prompt_tokens: 10903
+    completion_tokens: 1981
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 71402
+    prompt_tokens: 30030
+    completion_tokens: 41372
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 8779
+    prompt_tokens: 3285
+    completion_tokens: 5494
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 57026
+    prompt_tokens: 19130
+    completion_tokens: 37896
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 58841
+    prompt_tokens: 23730
+    completion_tokens: 35111
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 55083
+    prompt_tokens: 36720
+    completion_tokens: 18363
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 72498
+    prompt_tokens: 40434
+    completion_tokens: 32064
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 93509
+    prompt_tokens: 75876
+    completion_tokens: 17633
+  code_fixing:
+    cost: 0.0
+    total_tokens: 12838
+    prompt_tokens: 2987
+    completion_tokens: 9851
+  consolidate_constraints:
+    cost: 0.0
+    total_tokens: 38087
+    prompt_tokens: 17041
+    completion_tokens: 21046

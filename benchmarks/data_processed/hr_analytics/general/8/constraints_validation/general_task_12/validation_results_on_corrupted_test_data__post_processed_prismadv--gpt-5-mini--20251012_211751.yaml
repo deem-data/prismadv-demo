@@ -1,0 +1,306 @@
+results:
+  YearsAtCompany:
+    code:
+    - suggestion: .isComplete('YearsAtCompany')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isNonNegative('YearsAtCompany')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `TotalWorkingYears` IS NULL OR `YearsAtCompany`
+        <= `TotalWorkingYears` THEN 1 ELSE 0 END", "YearsAtCompany <= TotalWorkingYears",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `YearsAtCompany` > 0 THEN 1 ELSE 0 END",
+        "Positive YearsAtCompany share", lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  AgeGroup:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `AgeGroup` IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')
+        THEN 1 ELSE 0 END", "Valid AgeGroup", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Age","AgeGroup"]':
+    code:
+    - suggestion: '.satisfies("((AgeGroup = ''18-25'' AND Age >= 18 AND Age <= 25)
+        OR (AgeGroup = ''26-35'' AND Age > 25 AND Age <= 35) OR (AgeGroup = ''36-45''
+        AND Age > 35 AND Age <= 45) OR (AgeGroup = ''46-55'' AND Age > 45 AND Age
+        <= 55) OR (AgeGroup = ''55+'' AND Age > 55))", "agegroup_matches_age", lambda
+        x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  YearsInCurrentRole:
+    code:
+    - suggestion: .isComplete('YearsInCurrentRole')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.isNonNegative(''YearsInCurrentRole'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `YearsAtCompany` IS NULL OR `YearsAtCompany`
+        <= 0 OR `YearsInCurrentRole` <= `YearsAtCompany` THEN 1 ELSE 0 END", "YearsInRole<=YearsAtCompany",
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `YearsInCurrentRole` <= 100 THEN 1 ELSE 0
+        END", "Upper bound YearsInCurrentRole", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  YearsWithCurrManager:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`YearsWithCurrManager` AS double)
+        IS NOT NULL THEN 1 ELSE 0 END", "Numeric YearsWithCurrManager", lambda x:
+        x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `YearsWithCurrManager` IS NULL OR (TRY_CAST(`YearsWithCurrManager`
+        AS double) >= 0 AND TRY_CAST(`YearsWithCurrManager` AS double) <= 50) THEN
+        1 ELSE 0 END", "YearsWithCurrManager Range 0-50 or NULL", lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  EmpID:
+    code:
+    - suggestion: '.hasUniqueness([''EmpID''], lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN TRIM(CAST(`EmpID` AS STRING)) <> '''' THEN
+        1 ELSE 0 END", "EmpID non-empty after trim", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Department:
+    code:
+    - suggestion: .isContainedIn('Department', ['Sales', 'Research & Development',
+        'Human Resources'])
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `JobRole` IN (''Sales Executive'', ''Sales
+        Representative'', ''Healthcare Representative'') AND `Department` = ''Sales''
+        THEN 1 WHEN `JobRole` IN (''Research Scientist'', ''Laboratory Technician'',
+        ''Research Director'', ''Manufacturing Director'') AND `Department` = ''Research
+        & Development'' THEN 1 WHEN `JobRole` = ''Human Resources'' AND `Department`
+        = ''Human Resources'' THEN 1 WHEN `JobRole` NOT IN (''Sales Executive'', ''Sales
+        Representative'', ''Healthcare Representative'', ''Research Scientist'', ''Laboratory
+        Technician'', ''Research Director'', ''Manufacturing Director'', ''Human Resources'')
+        THEN 1 ELSE 0 END", "Role-Department consistency", lambda x: x >= 0.92)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("CASE WHEN `JobRole` IN (''Sales
+        Executive'', ''Sales Representative'', ''Healthcare Representative'') AND
+        `Department` = ''Sales'' THEN 1 WHEN `JobRole` IN (''Research Scientist'',
+        ''Laboratory Technician'', ''Research Director'', ''Manufacturing Director'')
+        AND `Department` = ''Research & Development'' THEN 1 WHEN `JobRole` = ''Human
+        Resources'' AND `Department` = ''Human Resources'' THEN 1 WHEN `JobRole` NOT
+        IN (''Sales Executive'', ''Sales Representative'', ''Healthcare Representative'',
+        ''Research Scientist'', ''Laboratory Technician'', ''Research Director'',
+        ''Manufacturing Director'', ''Human Resources'') THEN 1 ELSE 0 END", "Role-Department
+        consistency", lambda x: x >= 0.92)'' failed on data sample: Value: 0.8962585034013606
+        does not meet the constraint requirement!'
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN TRIM(`Department`) IN (''Sales'', ''Research
+        & Development'', ''Human Resources'') THEN 1 ELSE 0 END", "Trimmed & Valid
+        Department", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Income","SalarySlab"]':
+    code:
+    - suggestion: .satisfies("(!(MonthlyIncome > 0 AND MonthlyIncome <= 5000) OR SalarySlab
+        = 'Upto 5k') AND (!(MonthlyIncome > 5000 AND MonthlyIncome <= 10000) OR SalarySlab
+        = '5k-10k') AND (!(MonthlyIncome > 10000 AND MonthlyIncome <= 15000) OR SalarySlab
+        = '10k-15k') AND (!(MonthlyIncome > 15000) OR SalarySlab = '15k+')", "income_to_slab_consistency")
+      status: true
+      reason_if_failed: ''
+      level: warning
+  JobLevel:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(JobLevel AS INT) IN (1,2,3,4,5)
+        THEN 1 ELSE 0 END", "JobLevel in expected set 1-5", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  JobRole:
+    code:
+    - suggestion: .isComplete('JobRole')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `JobRole` IN (''Sales Executive'',''Sales
+        Representative'',''Healthcare Representative'',''Research Scientist'',''Laboratory
+        Technician'',''Research Director'',''Manufacturing Director'',''Human Resources'')
+        THEN 1 ELSE 0 END", "Valid JobRole fraction", lambda x: x >= 0.90)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN (`JobRole` = ''Sales Executive'' AND `Department`
+        = ''Sales'') OR (`JobRole` = ''Sales Representative'' AND `Department` = ''Sales'')
+        OR (`JobRole` = ''Healthcare Representative'' AND `Department` = ''Sales'')
+        OR (`JobRole` = ''Research Scientist'' AND `Department` = ''Research & Development'')
+        OR (`JobRole` = ''Laboratory Technician'' AND `Department` = ''Research &
+        Development'') OR (`JobRole` = ''Research Director'' AND `Department` = ''Research
+        & Development'') OR (`JobRole` = ''Manufacturing Director'' AND `Department`
+        = ''Research & Development'') OR (`JobRole` = ''Human Resources'' AND `Department`
+        = ''Human Resources'') OR (`JobRole` NOT IN (''Sales Executive'',''Sales Representative'',''Healthcare
+        Representative'',''Research Scientist'',''Laboratory Technician'',''Research
+        Director'',''Manufacturing Director'',''Human Resources'')) THEN 1 ELSE 0
+        END", "Role-Department consistency", lambda x: x >= 0.90)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("CASE WHEN (`JobRole` = ''Sales Executive''
+        AND `Department` = ''Sales'') OR (`JobRole` = ''Sales Representative'' AND
+        `Department` = ''Sales'') OR (`JobRole` = ''Healthcare Representative'' AND
+        `Department` = ''Sales'') OR (`JobRole` = ''Research Scientist'' AND `Department`
+        = ''Research & Development'') OR (`JobRole` = ''Laboratory Technician'' AND
+        `Department` = ''Research & Development'') OR (`JobRole` = ''Research Director''
+        AND `Department` = ''Research & Development'') OR (`JobRole` = ''Manufacturing
+        Director'' AND `Department` = ''Research & Development'') OR (`JobRole` =
+        ''Human Resources'' AND `Department` = ''Human Resources'') OR (`JobRole`
+        NOT IN (''Sales Executive'',''Sales Representative'',''Healthcare Representative'',''Research
+        Scientist'',''Laboratory Technician'',''Research Director'',''Manufacturing
+        Director'',''Human Resources'')) THEN 1 ELSE 0 END", "Role-Department consistency",
+        lambda x: x >= 0.90)'' failed on data sample: Value: 0.8962585034013606 does
+        not meet the constraint requirement!'
+      level: warning
+  YearsSinceLastPromotion:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `YearsSinceLastPromotion` = floor(`YearsSinceLastPromotion`)
+        AND `YearsSinceLastPromotion` IS NOT NULL THEN 1 ELSE 0 END", "Integer YearsSinceLastPromotion",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.isNonNegative("YearsSinceLastPromotion", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `YearsSinceLastPromotion` BETWEEN 0 AND 40
+        THEN 1 ELSE 0 END", "Reasonable max YearsSinceLastPromotion", lambda x: x
+        >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  PerformanceRating:
+    code:
+    - suggestion: .isComplete('PerformanceRating')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.isContainedIn(''PerformanceRating'', [''3'', ''4''], lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["PerformanceRating","YearsInCurrentRole","YearsSinceLastPromotion"]':
+    code:
+    - suggestion: '.haveCompleteness(columns=[''PerformanceRating'', ''YearsInCurrentRole'',
+        ''YearsSinceLastPromotion''], assertion=lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("NOT ((PerformanceRating >= 4 AND YearsInCurrentRole
+        >= 2 AND YearsSinceLastPromotion >= 2) AND (PerformanceRating = 3 AND YearsInCurrentRole
+        >= 1 AND YearsSinceLastPromotion >= 1))", "ready_flags_mutually_exclusive",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("YearsAtCompany <= 0 OR YearsInCurrentRole <= YearsAtCompany",
+        "years_in_role_le_years_at_company_when_positive", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("TotalWorkingYears <= 0 OR YearsAtCompany <= TotalWorkingYears",
+        "years_at_company_le_total_working_years_when_positive", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  SalarySlab:
+    code:
+    - suggestion: '.isContainedIn(''SalarySlab'', [''Upto 5k'',''5k-10k'',''10k-15k'',''15k+''],
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  TotalWorkingYears:
+    code:
+    - suggestion: .isComplete('TotalWorkingYears')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.isNonNegative(''TotalWorkingYears'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN `TotalWorkingYears` > 0 THEN 1 ELSE 0 END'',
+        ''Some positive TotalWorkingYears'', lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''CASE WHEN `TotalWorkingYears` IS NOT NULL AND `YearsAtCompany`
+        IS NOT NULL THEN CASE WHEN `TotalWorkingYears` >= `YearsAtCompany` THEN 1
+        ELSE 0 END ELSE 1 END'', ''TotalWorkingYears >= YearsAtCompany'', lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["TotalWorkingYears","YearsAtCompany"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `YearsAtCompany` <= `TotalWorkingYears` THEN
+        1 ELSE 0 END", "years_company_le_total", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `YearsInCurrentRole` <= `YearsAtCompany`
+        THEN 1 ELSE 0 END", "role_le_company", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["TotalWorkingYears","company_to_career_ratio"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `YearsAtCompany` >= 0 AND `YearsAtCompany`
+        <= `TotalWorkingYears` THEN 1 ELSE 0 END", "years_at_company_within_total_working",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["YearsAtCompany","YearsSinceLastPromotion"]':
+    code:
+    - suggestion: '.satisfies("`YearsSinceLastPromotion` <= `YearsAtCompany`", "years_since_promo_le_years_at_company",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("`YearsAtCompany` != 0 OR `YearsSinceLastPromotion`
+        == 0", "zero_tenure_promotion_consistency", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("`TotalWorkingYears` >= `YearsAtCompany`", "total_vs_company_tenure",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.haveCompleteness([''YearsAtCompany'', ''YearsSinceLastPromotion''],
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("`YearsAtCompany` >= 0 AND `YearsSinceLastPromotion`
+        >= 0", "non_negative_tenure_fields", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error

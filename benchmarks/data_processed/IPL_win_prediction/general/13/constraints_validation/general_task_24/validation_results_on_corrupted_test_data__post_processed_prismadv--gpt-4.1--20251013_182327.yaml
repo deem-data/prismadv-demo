@@ -1,0 +1,190 @@
+results:
+  team1:
+    code:
+    - suggestion: .isComplete('team1')
+      status: true
+      reason_if_failed: ''
+      level: error
+  team2:
+    code:
+    - suggestion: .isComplete('team2')
+      status: true
+      reason_if_failed: ''
+      level: error
+  match_type:
+    code:
+    - suggestion: .isComplete('match_type')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isContainedIn('match_type', ['League', 'Final', 'Qualifier 1',
+        'Qualifier 2', 'Eliminator', 'Semi Final', 'Elimination Final'])
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''`match_type` = "League"'', ''All matches are League
+        type'', lambda x: x >= 0.94)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies(''`match_type` = "League"'', ''All
+        matches are League type'', lambda x: x >= 0.94)'' failed on data sample: Value:
+        0.9346049046321526 does not meet the constraint requirement!'
+      level: warning
+  target_overs:
+    code:
+    - suggestion: '.satisfies(''`target_overs` IS NOT NULL'', ''At least one non-null
+        target_overs'', lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN `target_overs` IS NULL OR CAST(`target_overs`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END'', ''Numeric or Null target_overs'',
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  result_margin:
+    code:
+    - suggestion: .satisfies('(`result` != "runs") OR (`result_margin` IS NOT NULL)',
+        'result_margin present for runs results')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies('(`result_margin` IS NULL) OR (`result_margin` > 0 AND
+        `result_margin` < 400)', 'result_margin in cricket-typical positive range')
+      status: true
+      reason_if_failed: ''
+      level: warning
+  target_runs:
+    code:
+    - suggestion: .satisfies("CASE WHEN `result` IN ('runs','wickets','tie') THEN
+        `target_runs` >= 1 ELSE TRUE END", "target_runs >= 1 for standings computation")
+      status: true
+      reason_if_failed: ''
+      level: error
+  season:
+    code:
+    - suggestion: '.hasCompleteness(''season'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isNonNegative('season')
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasDistinctness([''season''], lambda x: x <= 0.2)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  winner:
+    code:
+    - suggestion: .satisfies("CASE WHEN `result` IN ('runs', 'wickets') THEN `winner`
+        IS NOT NULL ELSE TRUE END", "Winner present for decided matches")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies("CASE WHEN `result` IN ('runs', 'wickets') THEN (`winner`
+        = `team1` OR `winner` = `team2`) ELSE TRUE END", "Winner must be one of the
+        two teams")
+      status: false
+      reason_if_failed: 'Constraint ''satisfies("CASE WHEN `result` IN (''runs'',
+        ''wickets'') THEN (`winner` = `team1` OR `winner` = `team2`) ELSE TRUE END",
+        "Winner must be one of the two teams")'' failed on data sample: Value: 0.989100817438692
+        does not meet the constraint requirement!'
+      level: error
+  result:
+    code:
+    - suggestion: .isComplete('result')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies("`result` IN ('runs', 'wickets', 'tie', 'no result')",
+        "Valid Results")
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["result","result_margin"]':
+    code:
+    - suggestion: .satisfies('(`result` != "runs") OR (`result_margin` IS NOT NULL
+        AND CAST(`result_margin` AS DOUBLE) IS NOT NULL AND `result_margin` >= 0)',
+        'Result runs requires valid result_margin')
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["result","result_margin","target_runs"]':
+    code:
+    - suggestion: .satisfies('((`result` NOT IN ("runs", "wickets")) OR (`target_runs`
+        IS NOT NULL AND `result_margin` IS NOT NULL AND CAST(`target_runs` AS DOUBLE)
+        IS NOT NULL AND CAST(`result_margin` AS DOUBLE) IS NOT NULL))', 'Runs or wickets
+        results require non-null numeric target_runs and result_margin')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies('((`result` = "runs" AND `result_margin` > 0 AND `target_runs`
+        > `result_margin`) OR (`result` = "wickets" AND `result_margin` > 0) OR (`result`
+        = "tie" AND (`result_margin` = 0 OR `result_margin` IS NULL)) OR (`result`
+        NOT IN ("runs", "wickets", "tie")))', 'Logical consistency of result, target_runs,
+        and result_margin')
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["result","winner"]':
+    code:
+    - suggestion: .satisfies("(CASE WHEN result IN ('runs', 'wickets') THEN winner
+        IS NOT NULL ELSE TRUE END)", "Winner Required For Decisive Result")
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["season","team1","team2"]':
+    code:
+    - suggestion: .satisfies('team1 IS NOT NULL AND team2 IS NOT NULL AND team1 !=
+        team2', 'Valid Team Columns')
+      status: false
+      reason_if_failed: 'Constraint ''satisfies(''team1 IS NOT NULL AND team2 IS NOT
+        NULL AND team1 != team2'', ''Valid Team Columns'')'' failed on data sample:
+        Value: 0.9700272479564033 does not meet the constraint requirement!'
+      level: error
+  '["target_overs","target_runs"]':
+    code:
+    - suggestion: '.haveCompleteness([''target_runs'', ''target_overs''], lambda x:
+        x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: .satisfies('(target_runs IS NULL OR target_runs >= 1) AND (target_overs
+        IS NULL OR target_overs > 0)', 'Valid Target Runs and Overs')
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["team1","team2"]':
+    code:
+    - suggestion: .satisfies('team1 != team2', 'No team plays against itself')
+      status: false
+      reason_if_failed: 'Constraint ''satisfies(''team1 != team2'', ''No team plays
+        against itself'')'' failed on data sample: Value: 0.9700272479564033 does
+        not meet the constraint requirement!'
+      level: error
+    - suggestion: '.haveCompleteness([''team1'', ''team2''], lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["team1","team2","winner"]':
+    code:
+    - suggestion: '.hasUniqueness([''season'', ''team1'', ''team2''], lambda x: x
+        >= 0.83)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: .satisfies('team1 != team2', 'Team1 not equal to Team2')
+      status: false
+      reason_if_failed: 'Constraint ''satisfies(''team1 != team2'', ''Team1 not equal
+        to Team2'')'' failed on data sample: Value: 0.9700272479564033 does not meet
+        the constraint requirement!'
+      level: error
+    - suggestion: .satisfies('(winner IS NULL) OR (winner = team1) OR (winner = team2)',
+        'Winner must be either team1 or team2 or null')
+      status: false
+      reason_if_failed: 'Constraint ''satisfies(''(winner IS NULL) OR (winner = team1)
+        OR (winner = team2)'', ''Winner must be either team1 or team2 or null'')''
+        failed on data sample: Value: 0.989100817438692 does not meet the constraint
+        requirement!'
+      level: error

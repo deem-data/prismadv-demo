@@ -1,0 +1,183 @@
+results:
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL
+        THEN 1 ELSE 0 END'', ''IMDB_Rating parseable as double'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CASE WHEN CAST(`IMDB_Rating` AS DOUBLE) BETWEEN 0.0
+        AND 10.0 THEN 1 ELSE 0 END'', ''IMDB_Rating in 0..10'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''CASE WHEN `IMDB_Rating` IS NOT NULL AND CAST(`IMDB_Rating`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END'', ''Non-null numeric IMDB_Rating
+        fraction >= 0.95'', lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Certificate:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NOT NULL AND `Certificate`
+        != '''' THEN 1 ELSE 0 END", "Some non-empty Certificate exists", lambda x:
+        x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Certificate` = ''nan'' THEN 0 ELSE 1 END",
+        "No literal ''nan'' left in Certificate", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Genre:
+    code:
+    - suggestion: .isComplete('Genre')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("trim(Genre) <> ''''", "Genre not empty", lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("NOT regexp_like(Genre, '',,'') AND NOT regexp_like(Genre,
+        ''^,'') AND NOT regexp_like(Genre, '',$'')", "Genre token structure: no empty
+        tokens (no repeated/trailing commas)", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("regexp_like(Genre, ''^ *(Action|Adventure|Animation|Biography|Comedy|Crime|Drama|Family|Fantasy|Film-Noir|History|Horror|Music|Musical|Mystery|Romance|Sci-Fi|Sport|Thriller|War|Western)(
+        *, *(Action|Adventure|Animation|Biography|Comedy|Crime|Drama|Family|Fantasy|Film-Noir|History|Horror|Music|Musical|Mystery|Romance|Sci-Fi|Sport|Thriller|War|Western))*
+        *$'')", "Genre tokens belong to allowed canonical genres", lambda x: x ==
+        1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN cardinality(array_distinct(transform(split(Genre,
+        '',''), x -> trim(x)))) <= 21 THEN 1 ELSE 0 END", "Genre token cardinality
+        <= 21", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Gross:
+    code:
+    - suggestion: '.satisfies("CASE WHEN cast(regexp_replace(Gross, '','', '''') as
+        double) IS NOT NULL THEN 1 ELSE 0 END", ">= 20% parseable Gross for meaningful
+        tie-breaker", lambda x: x >= 0.20)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN cast(regexp_replace(Gross, '','', '''') as
+        double) IS NOT NULL THEN 1 ELSE 0 END", ">= 80% Gross values parseable (numeric-like)",
+        lambda x: x >= 0.80)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN cast(regexp_replace(Gross, '','', '''') as
+        double) IS NULL THEN 1 WHEN cast(regexp_replace(Gross, '','', '''') as double)
+        >= 0 THEN 1 ELSE 0 END", "All parsed Gross values non-negative", lambda x:
+        x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Poster_Link:
+    code:
+    - suggestion: '.satisfies("CASE WHEN trim(Released_Year) RLIKE ''^[0-9]{4}$''
+        THEN CASE WHEN trim(Poster_Link) IS NOT NULL AND trim(Poster_Link) != ''''
+        AND lower(trim(Poster_Link)) != ''nan'' THEN 1 ELSE 0 END ELSE 1 END", "Poster_Link
+        present for valid Year rows", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN trim(Poster_Link) IS NOT NULL THEN CASE WHEN
+        lower(trim(Poster_Link)) RLIKE ''^(https?://|/|data:).+'' THEN 1 ELSE 0 END
+        ELSE 0 END", "Poster_Link is embeddable URL/path", lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Meta_score:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Meta_score` IS NOT NULL THEN 1 ELSE 0 END",
+        "Has any Meta_score", lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`Meta_score` AS DOUBLE) IS NOT NULL
+        THEN 1 ELSE 0 END", "Meta_score parseable as numeric", lambda x: x >= 0.85)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies("CASE WHEN TRY_CAST(`Meta_score` AS
+        DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Meta_score parseable as numeric",
+        lambda x: x >= 0.85)'' failed on data sample: Value: 0.8225 does not meet
+        the constraint requirement!'
+      level: warning
+  No_of_Votes:
+    code:
+    - suggestion: '.hasCompleteness(''No_of_Votes'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `No_of_Votes` RLIKE ''^[0-9]+$'' THEN 1 ELSE
+        0 END", "No_of_Votes_digits_only", lambda x: x >= 0.99)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies("CASE WHEN `No_of_Votes` RLIKE ''^[0-9]+$''
+        THEN 1 ELSE 0 END", "No_of_Votes_digits_only", lambda x: x >= 0.99)'' failed
+        on data sample: Value: 0.0 does not meet the constraint requirement!'
+      level: error
+    - suggestion: '.satisfies("CASE WHEN CAST(CAST(`No_of_Votes` AS DOUBLE) AS BIGINT)
+        = CAST(`No_of_Votes` AS DOUBLE) THEN 1 ELSE 0 END", "No_of_Votes_integer_valued",
+        lambda x: x == 1)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies("CASE WHEN CAST(CAST(`No_of_Votes`
+        AS DOUBLE) AS BIGINT) = CAST(`No_of_Votes` AS DOUBLE) THEN 1 ELSE 0 END",
+        "No_of_Votes_integer_valued", lambda x: x == 1)'' failed on data sample: Value:
+        0.95 does not meet the constraint requirement!'
+      level: error
+    - suggestion: '.satisfies("CASE WHEN CAST(`No_of_Votes` AS DOUBLE) >= 0 THEN 1
+        ELSE 0 END", "No_of_Votes_non_negative", lambda x: x == 1)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies("CASE WHEN CAST(`No_of_Votes` AS DOUBLE)
+        >= 0 THEN 1 ELSE 0 END", "No_of_Votes_non_negative", lambda x: x == 1)'' failed
+        on data sample: Value: 0.975 does not meet the constraint requirement!'
+      level: warning
+  Released_Year:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Released_Year` RLIKE ''^[0-9]{4}$'' THEN
+        1 ELSE 0 END", "Released_Year_4digit", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN CAST(`Released_Year` AS INT) BETWEEN 1888
+        AND 2025 THEN 1 ELSE 0 END", "Released_Year_in_range", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `Released_Year` RLIKE ''^[0-9]{4}$'' THEN
+        1 ELSE 0 END", "Valid_Released_Year_Coverage", lambda x: x >= 0.90)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Runtime:
+    code:
+    - suggestion: .isComplete('Runtime')
+      status: true
+      reason_if_failed: ''
+      level: error
+  Series_Title:
+    code:
+    - suggestion: '.satisfies("CASE WHEN trim(Series_Title) IS NOT NULL AND trim(Series_Title)
+        <> '''' THEN 1 ELSE 0 END", "Series_Title non-null and not empty after trim",
+        lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN Series_Title NOT LIKE ''%<%'' AND Series_Title
+        NOT LIKE ''%>%'' THEN 1 ELSE 0 END", "Series_Title does not contain angle
+        brackets (< or >)", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasMaxLength("Series_Title", lambda x: x <= 500)'
+      status: true
+      reason_if_failed: ''
+      level: warning

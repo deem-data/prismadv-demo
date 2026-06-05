@@ -1,0 +1,153 @@
+results:
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies("Meta_score IS NULL AND IMDB_Rating IS NULL", "IMDB_Rating
+        must be present if Meta_score is missing", lambda x: x == 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Gross:
+    code:
+    - suggestion: '.satisfies("`IMDB_Rating` IS NOT NULL AND `Meta_score` IS NOT NULL",
+        "Sufficient valid data for IMDB_Rating and Meta_score correlation", lambda
+        x: x >= 0.01)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL", "IMDB_Rating
+        is numeric", lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL", "No_of_Votes
+        is numeric", lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("`Runtime` RLIKE ''.*[0-9]{2,3}.*''", "Runtime contains
+        extractable minutes", lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["Gross","IMDB_Rating","Meta_score","No_of_Votes","Runtime"]':
+    code:
+    - suggestion: '.satisfies("`Meta_score` IS NOT NULL OR `IMDB_Rating` IS NOT NULL",
+        "IMDB_Rating present if Meta_score missing", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("IMDB_Rating >= 0.0", "IMDB_Rating non-negative", lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("Meta_score IS NULL OR Meta_score >= 0.0", "Meta_score
+        non-negative if present", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("No_of_Votes >= 0", "No_of_Votes non-negative", lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("Gross IS NULL OR (CAST(REPLACE(Gross, '','', '''')
+        AS DOUBLE) >= 0)", "Gross_USD non-negative after parsing", lambda x: x ==
+        1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("Gross IS NULL OR (CAST(REPLACE(Gross,
+        '','', '''') AS DOUBLE) >= 0)", "Gross_USD non-negative after parsing", lambda
+        x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Gross` cannot be resolved. Did you mean one of the following? [`id`, `Genre`,
+        `Star1`, `Star2`, `Star3`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((isnull(''Gross) OR (cast(''REPLACE(''Gross, ,, ) as
+        double) >= 0)) as int)) AS sum(CAST(((Gross IS NULL) OR (CAST(REPLACE(Gross,
+        ,, ) AS DOUBLE) >= 0)) AS INT))#1616730, count(1) AS count(1)#1616731L]
+
+        +- LogicalRDD [id#1614528L, Poster_Link#1614529, Series_Title#1614530, Released_Year#1614531L,
+        Certificate#1614532, Runtime#1614533, Genre#1614534, IMDB_Rating#1614535,
+        Overview#1614536, Meta_score#1614537, Director#1614538, Star1#1614539, Star2#1614540,
+        Star3#1614541, Star4#1614542, No_of_Votes#1614543L], false
+
+        '
+      level: error
+    - suggestion: '.satisfies("regexp_extract(Runtime, ''([0-9]{2,3})'', 1) IS NOT
+        NULL AND CAST(regexp_extract(Runtime, ''([0-9]{2,3})'', 1) AS INT) BETWEEN
+        45 AND 240", "Runtime parsed and within bounds", lambda x: x == 1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("regexp_extract(Runtime, ''([0-9]{2,3})'',
+        1) IS NOT NULL AND CAST(regexp_extract(Runtime, ''([0-9]{2,3})'', 1) AS INT)
+        BETWEEN 45 AND 240", "Runtime parsed and within bounds", lambda x: x == 1.0)''
+        failed on data sample: Value: 0.995 does not meet the constraint requirement!'
+      level: error
+  '["IMDB_Rating","Meta_score"]':
+    code:
+    - suggestion: '.satisfies("`IMDB_Rating` IS NOT NULL AND `Meta_score` IS NOT NULL",
+        "MinValidRatingsMeta", lambda x: x > 0.8)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Meta_score:
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''Meta_score''], lambda x:
+        x >= 0.01)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies("IMDB_Rating IS NULL OR (IMDB_Rating >= 0 AND IMDB_Rating
+        <= 10)", "IMDB_Rating_Value_Range")
+      status: true
+      reason_if_failed: ''
+      level: warning
+  No_of_Votes:
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''Meta_score'', lambda x: x >
+        0.2)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Released_Year:
+    code:
+    - suggestion: .isUnique("Series_Title", "Released_Year")
+      status: false
+      reason_if_failed: 'Constraint ''.isUnique("Series_Title", "Released_Year")''
+        failed on data sample: Value: 0.995 does not meet the constraint requirement!
+        Released_Year'
+      level: error
+    - suggestion: '.isPositive("Released_Year", assertion=lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Runtime:
+    code:
+    - suggestion: '.satisfies(''Meta_score IS NULL AND IMDB_Rating IS NULL'', ''No
+        both null for imputation'', lambda x: x == 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''IMDB_Rating IS NOT NULL AND Meta_score IS NOT NULL'',
+        ''Min two for correlation and imputation model'', lambda x: x >= (2 / 599))'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Series_Title:
+    code:
+    - suggestion: .isUnique('Series_Title', 'Released_Year')
+      status: false
+      reason_if_failed: 'Constraint ''.isUnique(''Series_Title'', ''Released_Year'')''
+        failed on data sample: Value: 0.995 does not meet the constraint requirement!
+        Released_Year'
+      level: error
+    - suggestion: .isComplete('Series_Title')
+      status: true
+      reason_if_failed: ''
+      level: error

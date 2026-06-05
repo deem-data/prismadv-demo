@@ -1,0 +1,159 @@
+results:
+  IMDB_Rating:
+    code:
+    - suggestion: '.hasMin(''IMDB_Rating'', lambda m: m >= 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasMax(''IMDB_Rating'', lambda m: m <= 10)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: .isComplete('IMDB_Rating')
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''IMDB_Rating >= 7.0'', ''High-quality titles present'',
+        lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Director:
+    code:
+    - suggestion: .isComplete('Director')
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["Director","Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda u:
+        u == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Genre:
+    code:
+    - suggestion: '.satisfies("(NOT (IMDB_Rating >= 7.0 AND CAST(regexp_extract(Runtime,
+        ''^([1-9][0-9]{1,2}) min$'', 1) AS INT) BETWEEN 80 AND 140)) OR (Genre IS
+        NOT NULL AND length(trim(Genre)) > 0)", "Genre present for shortlisted rows",
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Gross:
+    code:
+    - suggestion: '.satisfies("(`Gross` IS NULL) OR (length(trim(`Gross`)) = 0) OR
+        (lower(trim(`Gross`)) IN (''nan'',''none'')) OR (NOT (lower(regexp_replace(trim(`Gross`),
+        '','', '''')) RLIKE ''^(-)?inf$''))", "Gross must not contain infinite values",
+        lambda x: x == 1)'
+      status: false
+      reason_if_failed: 'Constraint ''.satisfies("(`Gross` IS NULL) OR (length(trim(`Gross`))
+        = 0) OR (lower(trim(`Gross`)) IN (''nan'',''none'')) OR (NOT (lower(regexp_replace(trim(`Gross`),
+        '','', '''')) RLIKE ''^(-)?inf$''))", "Gross must not contain infinite values",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Gross` cannot be resolved. Did you mean one of the following? [`id`, `Genre`,
+        `Star1`, `Star2`, `Star3`].; line 1 pos 1;
+
+        ''Aggregate [sum(cast(((isnull(''Gross) OR (''length(''trim(''Gross)) = 0))
+        OR (''lower(''trim(''Gross)) IN (nan,none) OR NOT RLIKE(''lower(''regexp_replace(''trim(''Gross),
+        ,, )), ^(-)?inf$))) as int)) AS sum(CAST((((Gross IS NULL) OR (length(trim(Gross))
+        = 0)) OR ((lower(trim(Gross)) IN (nan, none)) OR (NOT RLIKE(lower(regexp_replace(trim(Gross),
+        ,, )), ^(-)?inf$)))) AS INT))#165580, count(1) AS count(1)#165581L]
+
+        +- LogicalRDD [id#163612L, Poster_Link#163613, Series_Title#163614, Released_Year#163615L,
+        Certificate#163616, Runtime#163617, Genre#163618, IMDB_Rating#163619, Overview#163620,
+        Meta_score#163621, Director#163622, Star1#163623, Star2#163624, Star3#163625,
+        Star4#163626, No_of_Votes#163627L], false
+
+        '
+      level: warning
+  '["IMDB_Rating","Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.satisfies("CAST(IMDB_Rating AS DOUBLE) < 7.0 OR (Series_Title
+        IS NOT NULL AND Released_Year IS NOT NULL AND CAST(Released_Year AS INT) IS
+        NOT NULL AND CAST(Released_Year AS INT) BETWEEN 1900 AND year(current_date()))",
+        "Keys present and integer-castable within range for rating >= 7.0", lambda
+        v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["IMDB_Rating","Runtime"]':
+    code:
+    - suggestion: '.satisfies("IMDB_Rating IS NULL OR Runtime RLIKE ''^[1-9][0-9]{1,2}
+        min$''", "runtime_format_given_rating", lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  No_of_Votes:
+    code:
+    - suggestion: '.isNonNegative("No_of_Votes", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CAST(`No_of_Votes` AS STRING) RLIKE ''^[0-9]+$''",
+        "Votes digits-only", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `IMDB_Rating` >= 7.0 AND regexp_extract(`Runtime`,
+        ''^([1-9][0-9]{1,2}) min$'', 1) <> '''' AND CAST(regexp_extract(`Runtime`,
+        ''^([1-9][0-9]{1,2}) min$'', 1) AS INT) BETWEEN 80 AND 140 THEN `No_of_Votes`
+        IS NOT NULL ELSE TRUE END", "Votes present for shortlisted candidates", lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Released_Year:
+    code:
+    - suggestion: '.satisfies(''CAST(`Released_Year` AS DOUBLE) = CAST(CAST(`Released_Year`
+        AS INT) AS DOUBLE)'', ''Released_Year is integer-like'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''CAST(`Released_Year` AS INT) BETWEEN 1900 AND year(current_date())'',
+        ''Released_Year within plausible historical range'', lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Runtime:
+    code:
+    - suggestion: '.satisfies("`Runtime` IS NOT NULL AND trim(`Runtime`) <> ''''",
+        "Runtime non-empty after trim", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasPattern("Runtime", "^([1-9][0-9]{1,2}) min$", lambda x: x ==
+        1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CAST(regexp_extract(`Runtime`, ''^([1-9][0-9]{1,2})
+        min$'', 1) AS INT) BETWEEN 80 AND 140", "Runtime within target window", lambda
+        x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["Released_Year","Runtime","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda v:
+        v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Series_Title:
+    code:
+    - suggestion: '.hasCompleteness(''Series_Title'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''length(trim(`Series_Title`)) > 0'', ''Non-empty titles'',
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("lower(trim(`Series_Title`)) NOT IN (''nan'',''none'',''null'')",
+        ''No placeholder titles'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning

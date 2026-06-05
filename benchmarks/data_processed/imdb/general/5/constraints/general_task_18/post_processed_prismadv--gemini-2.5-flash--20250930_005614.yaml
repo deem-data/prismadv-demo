@@ -1,0 +1,1201 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-flash
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies("IMDB_Rating IS NOT NULL AND Meta_score IS NOT NULL",
+        "At least two valid records for correlation", lambda x: x >= 2)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("IMDB_Rating IS NOT NULL AND Meta_score
+        IS NOT NULL", "At least two valid records for correlation", lambda x: x >=
+        2)'' failed on data sample: Value: 0.8564273789649416 does not meet the constraint
+        requirement!'
+      level: error
+      uid: f8b91aa3-4568-4d93-8fe2-62c1b5b6f52d
+      source_assumptions:
+      - aea5cc60-a876-4be7-abe0-3ab55dfa2e81
+    - suggestion: '.satisfies("Meta_score IS NULL AND IMDB_Rating IS NULL", "IMDB_Rating
+        must be present if Meta_score is missing", lambda x: x == 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 61b31c5c-884f-40e6-8a08-a84990d706a1
+      source_assumptions:
+      - 7edfc938-344c-4b16-a82f-784e979b8358
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e700cdc1-972f-4318-a131-adc0bfc13f83
+      source_assumptions:
+      - cf0e0472-230c-458b-84d1-67c11fe14052
+    assumptions:
+    - text: For the correlation (`r`) between 'IMDB_Rating' and 'Meta_score' to be
+        a valid numeric value (not NaN), and for the subsequent linear regression
+        model (`np.polyfit`) to be successfully fitted, there must be at least two
+        records where both 'IMDB_Rating' and 'Meta_score' are non-null. This is crucial
+        for the calculation of blending weights (`w_rating`, `w_meta`) and the 'content_quality'
+        score, as NaN values would propagate.
+      sources:
+      - start_line: 67
+        end_line: 92
+        file: ''
+      uid: aea5cc60-a876-4be7-abe0-3ab55dfa2e81
+    - text: When imputing missing 'Meta_score' values using the fitted linear model,
+        the code assumes that for records where 'Meta_score' is missing, the corresponding
+        'IMDB_Rating' value is always present (non-null). This ensures that the imputation
+        via linear regression can be successfully performed; otherwise, the imputed
+        'Meta_score' values would remain null.
+      sources:
+      - start_line: 79
+        end_line: 83
+        file: ''
+      uid: 7edfc938-344c-4b16-a82f-784e979b8358
+    - text: The combination of 'Series_Title' and 'Released_Year' columns is assumed
+        to uniquely identify each record in the dataset. This composite key is used
+        for setting a MultiIndex and is critical for downstream operations such as
+        ranking and publishing, implying that no two records should have the same
+        title and release year.
+      sources:
+      - start_line: 94
+        end_line: 101
+        file: ''
+      uid: cf0e0472-230c-458b-84d1-67c11fe14052
+  Gross:
+    code:
+    - suggestion: '.satisfies("`IMDB_Rating` IS NOT NULL AND `Meta_score` IS NOT NULL",
+        "Sufficient valid data for IMDB_Rating and Meta_score correlation", lambda
+        x: x >= 0.01)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9583cda1-2660-4bf3-bfda-ac51d7e4ea46
+      source_assumptions:
+      - 2fe82c61-124b-4f33-85db-276be49c45b9
+    - suggestion: '.satisfies("CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL", "IMDB_Rating
+        is numeric", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: cc4ddafb-1a94-4bef-a70b-cab1f980e431
+      source_assumptions:
+      - f4f0b9d1-3853-4401-acbe-a6cc482bf9b0
+    - suggestion: '.satisfies("CAST(`Meta_score` AS DOUBLE) IS NOT NULL", "Meta_score
+        is numeric", lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CAST(`Meta_score` AS DOUBLE) IS
+        NOT NULL", "Meta_score is numeric", lambda x: x >= 0.95)'' failed on data
+        sample: Value: 0.8564273789649416 does not meet the constraint requirement!'
+      level: warning
+      uid: 80919378-cba4-4b14-bf6c-2189db69e766
+      source_assumptions:
+      - f4f0b9d1-3853-4401-acbe-a6cc482bf9b0
+    - suggestion: '.satisfies("CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL", "No_of_Votes
+        is numeric", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 460d17a8-306b-4d40-85c7-9f146883a028
+      source_assumptions:
+      - f4f0b9d1-3853-4401-acbe-a6cc482bf9b0
+    - suggestion: '.satisfies("CAST(regexp_replace(`Gross`, '','', '''') AS DOUBLE)
+        IS NOT NULL", "Gross is numeric after comma removal", lambda x: x >= 0.90)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CAST(regexp_replace(`Gross`, '','',
+        '''') AS DOUBLE) IS NOT NULL", "Gross is numeric after comma removal", lambda
+        x: x >= 0.90)'' failed on data sample: Value: 0.8280467445742905 does not
+        meet the constraint requirement!'
+      level: warning
+      uid: 46b4b7f3-1661-4964-abf9-a41e8cafce5e
+      source_assumptions:
+      - f4f0b9d1-3853-4401-acbe-a6cc482bf9b0
+    - suggestion: '.satisfies("`Runtime` RLIKE ''.*[0-9]{2,3}.*''", "Runtime contains
+        extractable minutes", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4189f69a-bd29-4656-abd4-565697a608f4
+      source_assumptions:
+      - 99f269a4-7f94-47b3-ae2b-1d360bdda4af
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 07653a43-0f7b-4066-8ac4-f2dcc8ac019d
+      source_assumptions:
+      - d11df221-3985-4e42-85c1-36be0726d04f
+    assumptions:
+    - text: The 'IMDB_Rating' and 'Meta_score' columns are expected to have a linear
+        relationship, and a sufficient number of records (at least 2) must have non-null
+        values for both columns to enable correlation calculation and linear regression
+        for imputing missing 'Meta_score' values using 'IMDB_Rating'.
+      sources:
+      - start_line: 67
+        end_line: 77
+        file: ''
+      - start_line: 82
+        end_line: 83
+        file: ''
+      uid: 2fe82c61-124b-4f33-85db-276be49c45b9
+    - text: The 'IMDB_Rating', 'Meta_score', 'No_of_Votes', and 'Gross' columns are
+        all expected to represent quantitative measures that contribute to a movie's
+        popularity. Specifically, 'IMDB_Rating', 'Meta_score', and 'No_of_Votes' should
+        be convertible to numeric types. The 'Gross' column, after removing commas,
+        should also be convertible to a numeric type (representing USD), allowing
+        for transformation (log-transform, normalization) and combination into a meaningful
+        'popularity_index_base'. While the code handles missing and non-numeric 'Gross'
+        values gracefully, the underlying assumption is that these columns primarily
+        contain valid numerical data or data that can be made numerical.
+      sources:
+      - start_line: 67
+        end_line: 83
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: f4f0b9d1-3853-4401-acbe-a6cc482bf9b0
+    - text: The 'Runtime' column is expected to contain string values from which a
+        numerical duration (in minutes) can be extracted and converted to an integer.
+        This extracted runtime is then used as a multiplicative factor ('runtime_adj')
+        to modify the 'popularity_index_base', implying that 'Runtime' values should
+        be consistently formatted (e.g., 'XX min') and contain valid numerical durations
+        for a meaningful adjustment.
+      sources:
+      - start_line: 51
+        end_line: 52
+        file: ''
+      - start_line: 96
+        end_line: 96
+        file: ''
+      uid: 99f269a4-7f94-47b3-ae2b-1d360bdda4af
+    - text: The combination of 'Series_Title' and 'Released_Year' columns is expected
+        to be unique across all records in the dataset, as it is intended to serve
+        as a unique identifier for each movie title for downstream ranking and output
+        publishing keys.
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: d11df221-3985-4e42-85c1-36be0726d04f
+  '["Gross","IMDB_Rating","Meta_score","No_of_Votes","Runtime"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 326c2bce-90ff-4ac2-bc0b-a3edd64fb91d
+      source_assumptions:
+      - 0b2ddd8f-b385-494c-9d71-57ea6d89b68e
+    - suggestion: '.satisfies("`Meta_score` IS NOT NULL OR `IMDB_Rating` IS NOT NULL",
+        "IMDB_Rating present if Meta_score missing", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 01956770-de29-4f94-a79b-f277e4e1a185
+      source_assumptions:
+      - 131b953b-3c91-44d5-b300-d0012b763285
+    - suggestion: '.satisfies("IMDB_Rating >= 0.0", "IMDB_Rating non-negative", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4ed19af0-601a-4c83-ae8f-41c1e05e87ca
+      source_assumptions:
+      - bcd53b94-f921-4bd7-8d75-e8d387b69537
+    - suggestion: '.satisfies("Meta_score IS NULL OR Meta_score >= 0.0", "Meta_score
+        non-negative if present", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 08bb2607-1b45-42de-94f6-db30c76af804
+      source_assumptions:
+      - bcd53b94-f921-4bd7-8d75-e8d387b69537
+    - suggestion: '.satisfies("No_of_Votes >= 0", "No_of_Votes non-negative", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d5043459-3257-434c-8af5-bd0e9743fbac
+      source_assumptions:
+      - bcd53b94-f921-4bd7-8d75-e8d387b69537
+    - suggestion: '.satisfies("Gross IS NULL OR (CAST(REPLACE(Gross, '','', '''')
+        AS DOUBLE) >= 0)", "Gross_USD non-negative after parsing", lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 37d8921e-909a-4189-893d-b8d24693f0ad
+      source_assumptions:
+      - bcd53b94-f921-4bd7-8d75-e8d387b69537
+    - suggestion: '.satisfies("regexp_extract(Runtime, ''([0-9]{2,3})'', 1) IS NOT
+        NULL AND CAST(regexp_extract(Runtime, ''([0-9]{2,3})'', 1) AS INT) BETWEEN
+        45 AND 240", "Runtime parsed and within bounds", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c85d7423-65d8-443e-b069-a0aaaad5c767
+      source_assumptions:
+      - bcd53b94-f921-4bd7-8d75-e8d387b69537
+    assumptions:
+    - text: The combination of 'Series_Title' and 'Released_Year' columns is assumed
+        to uniquely identify each record in the dataset. This uniqueness is critical
+        for establishing primary keys for downstream ranking and output publishing,
+        as indicated by the attempt to set a MultiIndex.
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 0b2ddd8f-b385-494c-9d71-57ea6d89b68e
+    - text: For the imputation of missing 'Meta_score' values to be successful, it
+        is assumed that the 'IMDB_Rating' column is complete (contains no null values)
+        for all records where 'Meta_score' is missing. This ensures that a predictor
+        is always available for the linear regression-based imputation.
+      sources:
+      - start_line: 67
+        end_line: 83
+        file: ''
+      uid: 131b953b-3c91-44d5-b300-d0012b763285
+    - text: All raw numerical columns that are transformed and then combined to form
+        the 'PopularityIndex' ('IMDB_Rating', 'Meta_score', 'No_of_Votes', 'Gross'
+        (after parsing to 'Gross_USD'), and 'Runtime' (after parsing to 'runtime_minutes'))
+        are assumed to contain values that are non-negative. This ensures that their
+        derived components contribute positively or neutrally to the final popularity
+        score, reflecting the intended meaning of 'popularity'.
+      sources:
+      - start_line: 44
+        end_line: 96
+        file: ''
+      uid: bcd53b94-f921-4bd7-8d75-e8d387b69537
+  '["IMDB_Rating","Meta_score"]':
+    code:
+    - suggestion: '.satisfies("`IMDB_Rating` IS NOT NULL AND `Meta_score` IS NOT NULL",
+        "MinValidRatingsMeta", lambda x: x > 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bcbc7c92-1892-409e-93d0-624f18b1b6ac
+      source_assumptions:
+      - 5ec2b451-c937-47e8-983d-6ef504c1095e
+    - suggestion: '.satisfies("`IMDB_Rating` IS NOT NULL AND `Meta_score` IS NOT NULL",
+        "DesirableValidRatingsMeta", lambda x: x > 10)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`IMDB_Rating` IS NOT NULL AND `Meta_score`
+        IS NOT NULL", "DesirableValidRatingsMeta", lambda x: x > 10)'' failed on data
+        sample: Value: 0.8564273789649416 does not meet the constraint requirement!'
+      level: warning
+      uid: 86f454ee-109f-48b1-9b34-56a254ed5ecc
+      source_assumptions:
+      - 5ec2b451-c937-47e8-983d-6ef504c1095e
+    - suggestion: '.satisfies("`IMDB_Rating` >= 0.0 AND `IMDB_Rating` <= 10.0", "IMDB_Rating_Value_Range",
+        lambda x: x == num_rows)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"`IMDB_Rating` >= 0.0 AND `IMDB_Rating`\
+        \ <= 10.0\", \"IMDB_Rating_Value_Range\", lambda x: x == num_rows)' failed\
+        \ on data sample: Can't execute the assertion: An exception was raised by\
+        \ the Python Proxy. Return Message: Traceback (most recent call last):\n \
+        \ File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/py4j/clientserver.py\"\
+        , line 617, in _call_proxy\n    return_value = getattr(self.pool[obj_id],\
+        \ method)(*params)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/pydeequ/scala_utils.py\"\
+        , line 38, in apply\n    return self.lambda_function(arg)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"<string>\", line 1, in <lambda>\nNameError: name 'num_rows' is not\
+        \ defined\n!"
+      level: error
+      uid: cf157ea1-354a-4b6d-864d-c7e61258537e
+      source_assumptions:
+      - c436f1f0-d9d2-4bc8-aedc-6580c7ac2c23
+    - suggestion: '.satisfies("`Meta_score` IS NULL OR (`Meta_score` >= 0.0 AND `Meta_score`
+        <= 100.0)", "Meta_score_Value_Range", lambda x: x >= 0.95 * num_rows)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"`Meta_score` IS NULL OR (`Meta_score`\
+        \ >= 0.0 AND `Meta_score` <= 100.0)\", \"Meta_score_Value_Range\", lambda\
+        \ x: x >= 0.95 * num_rows)' failed on data sample: Can't execute the assertion:\
+        \ An exception was raised by the Python Proxy. Return Message: Traceback (most\
+        \ recent call last):\n  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/py4j/clientserver.py\"\
+        , line 617, in _call_proxy\n    return_value = getattr(self.pool[obj_id],\
+        \ method)(*params)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/pydeequ/scala_utils.py\"\
+        , line 38, in apply\n    return self.lambda_function(arg)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"<string>\", line 1, in <lambda>\nNameError: name 'num_rows' is not\
+        \ defined\n!"
+      level: warning
+      uid: 86b3edc2-b3ec-4de8-baf7-a54ba08b76a5
+      source_assumptions:
+      - c436f1f0-d9d2-4bc8-aedc-6580c7ac2c23
+    - suggestion: '.satisfies("`Meta_score` IS NOT NULL OR `IMDB_Rating` IS NOT NULL",
+        "IMDB_Rating_Present_For_Meta_Imputation", lambda x: x == num_rows)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"`Meta_score` IS NOT NULL OR `IMDB_Rating`\
+        \ IS NOT NULL\", \"IMDB_Rating_Present_For_Meta_Imputation\", lambda x: x\
+        \ == num_rows)' failed on data sample: Can't execute the assertion: An exception\
+        \ was raised by the Python Proxy. Return Message: Traceback (most recent call\
+        \ last):\n  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/py4j/clientserver.py\"\
+        , line 617, in _call_proxy\n    return_value = getattr(self.pool[obj_id],\
+        \ method)(*params)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/pydeequ/scala_utils.py\"\
+        , line 38, in apply\n    return self.lambda_function(arg)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"<string>\", line 1, in <lambda>\nNameError: name 'num_rows' is not\
+        \ defined\n!"
+      level: error
+      uid: 0fffd3e0-92ab-445f-94ad-ee53bc71d9c2
+      source_assumptions:
+      - c3e2c498-b4c7-4057-af55-30a2c31635e9
+    assumptions:
+    - text: For the correlation coefficient between 'IMDB_Rating' and 'Meta_score'
+        to be computed, and for the linear regression model to be fitted successfully,
+        there must be a sufficient number of records where *both* 'IMDB_Rating' and
+        'Meta_score' are non-null. The code explicitly checks for at least two such
+        records (`meta_valid_mask.sum() > 1`), but for statistically meaningful results,
+        a higher threshold might be desirable. If this condition is not met, the correlation
+        will be `NaN`, and the regression model fitting will fail or produce an unstable
+        model.
+      sources:
+      - start_line: 67
+        end_line: 69
+        file: ''
+      - start_line: 71
+        end_line: 71
+        file: ''
+      - start_line: 73
+        end_line: 77
+        file: ''
+      uid: 5ec2b451-c937-47e8-983d-6ef504c1095e
+    - text: When performing linear regression to impute 'Meta_score' based on 'IMDB_Rating',
+        the 'IMDB_Rating' column (serving as the independent variable for records
+        where both 'IMDB_Rating' and 'Meta_score' are non-null) is assumed to have
+        at least two distinct values. If 'IMDB_Rating' is constant across all valid
+        records, `np.polyfit` will raise a `numpy.linalg.LinAlgError`, halting the
+        script.
+      sources:
+      - start_line: 73
+        end_line: 77
+        file: ''
+      uid: dbc6bcf6-5e9b-4c7a-af93-f6c4dc597693
+    - text: The 'IMDB_Rating' column is expected to contain numerical values primarily
+        within the range of 0.0 to 10.0, as it is normalized by dividing by 10.0 to
+        produce a value between 0.0 and 1.0. Similarly, the 'Meta_score' column (both
+        original values and those imputed by the model) is expected to contain numerical
+        values primarily within the range of 0.0 to 100.0, as it is normalized by
+        dividing by 100.0 and imputed values are explicitly clipped to this range.
+        Values significantly outside these ranges would lead to `rating_norm` or `meta_norm`
+        being outside the expected 0-1 range, potentially distorting the `content_quality`
+        calculation.
+      sources:
+      - start_line: 44
+        end_line: 44
+        file: ''
+      - start_line: 79
+        end_line: 83
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: c436f1f0-d9d2-4bc8-aedc-6580c7ac2c23
+    - text: 'When ''Meta_score'' is missing, the ''IMDB_Rating'' column is assumed
+        to be present (non-null) to enable the imputation of ''Meta_score'' using
+        the linear model. If ''IMDB_Rating'' were also null for these records, the
+        imputation would result in `NaN`s, which would propagate and affect the final
+        `content_quality` calculation. (Note: The provided data profile indicates
+        ''IMDB_Rating'' has 100% completeness, which satisfies this assumption for
+        all records, including those where ''Meta_score'' is null.)'
+      sources:
+      - start_line: 79
+        end_line: 83
+        file: ''
+      uid: c3e2c498-b4c7-4057-af55-30a2c31635e9
+  Meta_score:
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''Meta_score''], lambda x:
+        x >= 0.01)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a880dc7a-f17a-4d99-b549-9f55cb148962
+      source_assumptions:
+      - e58936c3-8f9f-431a-8601-bcad876bf7eb
+    - suggestion: '.satisfies("Meta_score IS NULL OR (Meta_score >= 0 AND Meta_score
+        <= 100)", "Meta_score_Value_Range", lambda x: x == _num_rows_)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"Meta_score IS NULL OR (Meta_score\
+        \ >= 0 AND Meta_score <= 100)\", \"Meta_score_Value_Range\", lambda x: x ==\
+        \ _num_rows_)' failed on data sample: Can't execute the assertion: An exception\
+        \ was raised by the Python Proxy. Return Message: Traceback (most recent call\
+        \ last):\n  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/py4j/clientserver.py\"\
+        , line 617, in _call_proxy\n    return_value = getattr(self.pool[obj_id],\
+        \ method)(*params)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/pydeequ/scala_utils.py\"\
+        , line 38, in apply\n    return self.lambda_function(arg)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"<string>\", line 1, in <lambda>\nNameError: name '_num_rows_' is\
+        \ not defined\n!"
+      level: error
+      uid: 5b407b80-7b17-470c-8588-ea457239aa5e
+      source_assumptions:
+      - e58936c3-8f9f-431a-8601-bcad876bf7eb
+    - suggestion: .satisfies("IMDB_Rating IS NULL OR (IMDB_Rating >= 0 AND IMDB_Rating
+        <= 10)", "IMDB_Rating_Value_Range")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 00ec0e79-b37e-4810-81b8-67094dddfa10
+      source_assumptions:
+      - 7ee7e0f0-5f2b-421d-ae5e-c01c28089f02
+    - suggestion: '.satisfies("No_of_Votes IS NULL OR No_of_Votes >= 0", "No_of_Votes_NonNegative",
+        lambda x: x == _num_rows_)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"No_of_Votes IS NULL OR No_of_Votes\
+        \ >= 0\", \"No_of_Votes_NonNegative\", lambda x: x == _num_rows_)' failed\
+        \ on data sample: Can't execute the assertion: An exception was raised by\
+        \ the Python Proxy. Return Message: Traceback (most recent call last):\n \
+        \ File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/py4j/clientserver.py\"\
+        , line 617, in _call_proxy\n    return_value = getattr(self.pool[obj_id],\
+        \ method)(*params)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/pydeequ/scala_utils.py\"\
+        , line 38, in apply\n    return self.lambda_function(arg)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"<string>\", line 1, in <lambda>\nNameError: name '_num_rows_' is\
+        \ not defined\n!"
+      level: warning
+      uid: 8364d619-d96f-4cc1-af44-b0dd5a15c066
+      source_assumptions:
+      - 853e080b-327d-42f7-8420-c253a5aa98fc
+    - suggestion: '.satisfies("Gross IS NULL OR (TRY_CAST(regexp_replace(Gross, '','',
+        '''') AS DOUBLE) IS NOT NULL AND TRY_CAST(regexp_replace(Gross, '','', '''')
+        AS DOUBLE) >= 0)", "Gross_ParsableAndNonNegative", lambda x: x == _num_rows_)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"Gross IS NULL OR (TRY_CAST(regexp_replace(Gross,\
+        \ ',', '') AS DOUBLE) IS NOT NULL AND TRY_CAST(regexp_replace(Gross, ',',\
+        \ '') AS DOUBLE) >= 0)\", \"Gross_ParsableAndNonNegative\", lambda x: x ==\
+        \ _num_rows_)' failed on data sample: Can't execute the assertion: An exception\
+        \ was raised by the Python Proxy. Return Message: Traceback (most recent call\
+        \ last):\n  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/py4j/clientserver.py\"\
+        , line 617, in _call_proxy\n    return_value = getattr(self.pool[obj_id],\
+        \ method)(*params)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/pydeequ/scala_utils.py\"\
+        , line 38, in apply\n    return self.lambda_function(arg)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"<string>\", line 1, in <lambda>\nNameError: name '_num_rows_' is\
+        \ not defined\n!"
+      level: warning
+      uid: 8cf9bcae-372e-4fe4-9b1b-89a0ed16bcd5
+      source_assumptions:
+      - 853e080b-327d-42f7-8420-c253a5aa98fc
+    - suggestion: '.satisfies("Runtime IS NULL OR regexp_extract(Runtime, ''([0-9]{2,3})'',
+        1) IS NOT NULL", "Runtime_Parsable", lambda x: x == _num_rows_)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"Runtime IS NULL OR regexp_extract(Runtime,\
+        \ '([0-9]{2,3})', 1) IS NOT NULL\", \"Runtime_Parsable\", lambda x: x == _num_rows_)'\
+        \ failed on data sample: Can't execute the assertion: An exception was raised\
+        \ by the Python Proxy. Return Message: Traceback (most recent call last):\n\
+        \  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/py4j/clientserver.py\"\
+        , line 617, in _call_proxy\n    return_value = getattr(self.pool[obj_id],\
+        \ method)(*params)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"/Users/haochen/Library/Caches/pypoetry/virtualenvs/prismadv-MP3ihth8-py3.12/lib/python3.12/site-packages/pydeequ/scala_utils.py\"\
+        , line 38, in apply\n    return self.lambda_function(arg)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"<string>\", line 1, in <lambda>\nNameError: name '_num_rows_' is\
+        \ not defined\n!"
+      level: warning
+      uid: c59a8e5e-1246-4e16-b91c-bb3748c75016
+      source_assumptions:
+      - 853e080b-327d-42f7-8420-c253a5aa98fc
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 56bc837b-0028-4d40-91f7-f7805c52bdb6
+      source_assumptions:
+      - e2ebd29e-2b4a-4bc8-96f4-0aa7ecf0d69e
+    assumptions:
+    - text: 'The ''IMDB_Rating'' and ''Meta_score'' columns are expected to be numerically
+        comparable (e.g., both representing ratings) and to have a sufficient number
+        of non-null pairs to allow for correlation calculation and subsequent linear
+        regression for imputation. For rows where ''Meta_score'' is missing, ''IMDB_Rating''
+        is assumed to be present and numeric to enable imputation. Both original and
+        imputed ''Meta_score'' values are expected to fall within the range [0, 100].
+
+        We could represent this assumption as Deequ constraints like this:
+
+        .hasDataType("IMDB_Rating", DoubleType)
+
+        .hasDataType("Meta_score", DoubleType)
+
+        .hasMinCompleteness(Seq("IMDB_Rating", "Meta_score"), 0.01) // Ensure enough
+        valid pairs for correlation
+
+        .isContainedIn("Meta_score", Option(0.0), Option(100.0)) // For original and
+        imputed values'
+      sources:
+      - start_line: 67
+        end_line: 83
+        file: ''
+      uid: e58936c3-8f9f-431a-8601-bcad876bf7eb
+    - text: 'The normalized ''IMDB_Rating'' (`rating_norm`) and normalized ''Meta_score''
+        (`meta_norm`) are assumed to be on a comparable scale (e.g., [0, 1]) and represent
+        similar aspects of "content quality," allowing for their weighted linear combination
+        into `content_quality`.
+
+        We could represent this assumption as Deequ constraints like this:
+
+        .isContainedIn("rating_norm", Option(0.0), Option(1.0))
+
+        .isContainedIn("meta_norm", Option(0.0), Option(1.0))
+
+        .isContainedIn("content_quality", Option(0.0), Option(1.0))'
+      sources:
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: 7ee7e0f0-5f2b-421d-ae5e-c01c28089f02
+    - text: 'The derived features `content_quality` (from ''IMDB_Rating'' and ''Meta_score''),
+        `votes_norm` (from ''No_of_Votes''), `gross_norm` (from ''Gross_USD''), and
+        `runtime_adj` (from ''Runtime'') are all assumed to be on a comparable normalized
+        scale (e.g., [0, 1]) and represent distinct factors contributing to a movie''s
+        "popularity," allowing for their weighted summation and multiplication to
+        form the `PopularityIndex`.
+
+        We could represent this assumption as Deequ constraints like this:
+
+        .isContainedIn("content_quality", Option(0.0), Option(1.0))
+
+        .isContainedIn("votes_norm", Option(0.0), Option(1.0))
+
+        .isContainedIn("gross_norm", Option(0.0), Option(1.0))
+
+        .isContainedIn("runtime_adj", Option(0.8), Option(1.0))
+
+        .isContainedIn("PopularityIndex", Option(0.0), Option(1.0))'
+      sources:
+      - start_line: 95
+        end_line: 96
+        file: ''
+      uid: 853e080b-327d-42f7-8420-c253a5aa98fc
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' columns is
+        assumed to uniquely identify each movie title in the dataset. This composite
+        key is crucial for downstream operations like ranking and output publishing.
+
+        We could represent this assumption as a Deequ constraint like this:
+
+        .isUnique(Seq("Series_Title", "Released_Year"))'
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: e2ebd29e-2b4a-4bc8-96f4-0aa7ecf0d69e
+  No_of_Votes:
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: eee8e30e-e908-4273-a3c9-5920fc48578e
+      source_assumptions:
+      - ef41b539-e7ce-4b31-ba9d-9dd861e02191
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''Meta_score'', lambda x: x >
+        0.2)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3bbfd2d8-2162-4a1a-9384-fc904033e382
+      source_assumptions:
+      - cd972bad-a951-4e47-8436-c98472a52344
+    assumptions:
+    - text: The combination of 'Series_Title' and 'Released_Year' columns is expected
+        to uniquely identify each record in the dataset. This uniqueness is crucial
+        for the downstream task of ranking and for generating unique keys in the output,
+        as indicated by the explicit comment on line 94 and the `set_index` operation
+        on line 101. A Deequ constraint to validate this assumption would be `.isUnique(['Series_Title',
+        'Released_Year'])`.
+      sources:
+      - start_line: 94
+        end_line: 101
+        file: ''
+      uid: ef41b539-e7ce-4b31-ba9d-9dd861e02191
+    - text: The 'IMDB_Rating' and 'Meta_score' columns are assumed to exhibit a positive
+        correlation. This relationship is fundamental for calibrating the blending
+        weights for 'content_quality' and for the linear imputation of missing 'Meta_score'
+        values using 'IMDB_Rating'. The code specifically uses `r - 0.2` in its calibration
+        (line 88), implying an expectation of a correlation `r` greater than 0.2 for
+        the correlation to actively influence the weights beyond a baseline 50/50
+        split. A Deequ constraint could check for this, e.g., `.hasCorrelation('IMDB_Rating',
+        'Meta_score', Constraint.greaterThan(0.2))`.
+      sources:
+      - start_line: 67
+        end_line: 77
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      - start_line: 92
+        end_line: 92
+        file: ''
+      uid: cd972bad-a951-4e47-8436-c98472a52344
+  Released_Year:
+    code:
+    - suggestion: '.hasDataType("Released_Year", "Integral", assertion=lambda x: x
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Released_Year",
+        "Integral", assertion=lambda x: x == 1.0)'
+      level: error
+      uid: 0ef42bb4-923b-452d-ad90-989aee25899f
+      source_assumptions:
+      - 35436d94-3af5-46e5-a097-efa98bbe5688
+    - suggestion: .isUnique("Series_Title", "Released_Year")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a913aedf-73a2-4073-967a-5fef44563c79
+      source_assumptions:
+      - 9a48cf48-03b9-402f-8b83-b2f8d55d10de
+    - suggestion: '.isPositive("Released_Year", assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 65582e7a-bafb-4806-8b0f-f3354247eb76
+      source_assumptions:
+      - 57f02db3-b74a-411d-b29a-e784bbbbc9ad
+    assumptions:
+    - text: 'The ''Released_Year'' column is expected to be of an integral data type,
+        such as integer, as indicated by the provided data description and its use
+        in indexing and output operations. We could represent this assumption as a
+        deequ constraint like this: .isDataType("Integral")'
+      sources:
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 106
+        end_line: 109
+        file: ''
+      - start_line: 114
+        end_line: 115
+        file: ''
+      uid: 35436d94-3af5-46e5-a097-efa98bbe5688
+    - text: 'The ''Released_Year'' column should not contain any missing or null values.
+        This is crucial for its role in uniquely identifying rows when combined with
+        ''Series_Title'' and for proper indexing. The provided data description also
+        indicates 100% completeness. We could represent this assumption as a deequ
+        constraint like this: .isComplete()'
+      sources:
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 94
+        end_line: 94
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 106
+        end_line: 109
+        file: ''
+      - start_line: 114
+        end_line: 115
+        file: ''
+      uid: d7a37202-f90c-4aed-bab2-05911107a0cf
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' columns is
+        assumed to uniquely identify each row. This is explicitly stated in a comment
+        (line 94) and used to set a MultiIndex for downstream processing and output
+        keys (line 101). We could represent this assumption as a deequ constraint
+        like this: .isUnique("Series_Title", "Released_Year")'
+      sources:
+      - start_line: 94
+        end_line: 94
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 9a48cf48-03b9-402f-8b83-b2f8d55d10de
+    - text: 'The ''Released_Year'' column should contain positive integer values,
+        as it represents a year, which cannot be zero or negative. We could represent
+        this assumption as a deequ constraint like this: .isGreaterThan(0)'
+      sources:
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 106
+        end_line: 109
+        file: ''
+      - start_line: 114
+        end_line: 115
+        file: ''
+      uid: 57f02db3-b74a-411d-b29a-e784bbbbc9ad
+  Runtime:
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fb1e8d6d-4b6a-42fc-9a3b-0d9f624da7f3
+      source_assumptions:
+      - 88dce489-ee50-4126-9af0-4d86040854eb
+    - suggestion: '.satisfies(''Meta_score IS NULL AND IMDB_Rating IS NULL'', ''No
+        both null for imputation'', lambda x: x == 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c9567b36-e1ec-4aaf-b9f6-f0cc788ae373
+      source_assumptions:
+      - 69bb3e77-c273-4196-9408-53ad69a0feee
+    - suggestion: '.satisfies(''IMDB_Rating IS NOT NULL AND Meta_score IS NOT NULL'',
+        ''Min two for correlation and imputation model'', lambda x: x >= (2 / 599))'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 985a48e4-e315-4cea-ad05-bdb53103a261
+      source_assumptions:
+      - 9719f01b-f6ee-4fd0-af51-2103b7f76f81
+    assumptions:
+    - text: The combination of 'Series_Title' and 'Released_Year' columns is expected
+        to be unique across all records. This is crucial as the code explicitly uses
+        this pair as a composite key for identifying titles and setting a MultiIndex
+        for downstream processing and publishing.
+      sources:
+      - start_line: 94
+        end_line: 94
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 88dce489-ee50-4126-9af0-4d86040854eb
+    - text: For any record where the 'Meta_score' column is missing (null), the 'IMDB_Rating'
+        column must contain a non-null numeric value. This is a critical prerequisite
+        for enabling the imputation of the missing 'Meta_score' values using a linear
+        regression model that relies on 'IMDB_Rating'.
+      sources:
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 73
+        end_line: 77
+        file: ''
+      - start_line: 80
+        end_line: 83
+        file: ''
+      uid: 69bb3e77-c273-4196-9408-53ad69a0feee
+    - text: A minimum of two records must have both 'IMDB_Rating' and 'Meta_score'
+        columns present (non-null) simultaneously. This is necessary to calculate
+        a meaningful correlation between these two columns, which is then used to
+        determine the blending weights for 'content_quality' and to fit the imputation
+        model.
+      sources:
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 68
+        end_line: 68
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 88
+        end_line: 90
+        file: ''
+      uid: 9719f01b-f6ee-4fd0-af51-2103b7f76f81
+  '["Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a77b6e9b-3ac8-4163-a80b-6ece4e28718c
+      source_assumptions:
+      - bb4d48d6-e083-4430-8dbd-cdc225411d7d
+    assumptions:
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' columns should
+        be unique across all records in the dataset. This uniqueness is crucial for
+        identifying individual movie titles for ranking and as publishing keys, as
+        indicated by the code''s attempt to set a MultiIndex using these columns.
+        We could represent this assumption as a deequ constraint like this: .isUnique([''Series_Title'',
+        ''Released_Year''])'
+      sources:
+      - start_line: 94
+        end_line: 101
+        file: ''
+      uid: bb4d48d6-e083-4430-8dbd-cdc225411d7d
+  Series_Title:
+    code:
+    - suggestion: .isUnique('Series_Title', 'Released_Year')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a297982d-53fa-499a-bceb-1cad6acadd8b
+      source_assumptions:
+      - a2b45855-edb3-4865-bb1e-edff2ff5da8a
+    - suggestion: .hasDataType('Series_Title', String)
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Series_Title'',
+        String)'
+      level: error
+      uid: 5617dbea-cb47-4c31-adda-8021ae1ba207
+      source_assumptions:
+      - a71d8959-67fc-4a4e-8982-e9d72a8c030b
+    - suggestion: .isComplete('Series_Title')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 83c83c58-0421-48fb-ad61-f30ae14921f6
+      source_assumptions:
+      - 3fd2bdad-30a7-4025-b19d-cfb003923c9c
+    assumptions:
+    - text: "The combination of 'Series_Title' and 'Released_Year' columns should\
+        \ uniquely identify each row. The code explicitly states that this combination\
+        \ is used as a unique identifier for ranking and output publishing keys, and\
+        \ it attempts to set them as a MultiIndex. Duplicates would violate this unique\
+        \ identification. \nWe could represent this assumption as a deequ constraint\
+        \ like this:\n.isUnique('Series_Title', 'Released_Year')"
+      sources:
+      - start_line: 94
+        end_line: 94
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: a2b45855-edb3-4865-bb1e-edff2ff5da8a
+    - text: "The 'Series_Title' column is expected to contain string values. It is\
+        \ used as a label in a MultiIndex and for direct output, which implies a string\
+        \ representation. The data description confirms its primary data type as String.\
+        \ \nWe could represent this assumption as a deequ constraint like this:\n\
+        .hasDataType('Series_Title', String)"
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 106
+        end_line: 109
+        file: ''
+      - start_line: 114
+        end_line: 115
+        file: ''
+      uid: a71d8959-67fc-4a4e-8982-e9d72a8c030b
+    - text: "The 'Series_Title' column should not contain any null or missing values.\
+        \ The code uses this column directly as part of a unique identifier for indexing\
+        \ and for output without any explicit handling for nulls, suggesting that\
+        \ nulls are not expected. The provided data characteristics also show 100%\
+        \ completeness. \nWe could represent this assumption as a deequ constraint\
+        \ like this:\n.isComplete('Series_Title')"
+      sources:
+      - start_line: 101
+        end_line: 101
+        file: ''
+      - start_line: 106
+        end_line: 109
+        file: ''
+      - start_line: 114
+        end_line: 115
+        file: ''
+      uid: 3fd2bdad-30a7-4025-b19d-cfb003923c9c
+column_data_flow_locations:
+  IMDB_Rating:
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 74
+    end_line: 74
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  - start_line: 95
+    end_line: 95
+    file: ''
+  - start_line: 96
+    end_line: 96
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 112
+    file: ''
+  - start_line: 114
+    end_line: 114
+    file: ''
+  - start_line: 115
+    end_line: 115
+    file: ''
+  No_of_Votes:
+  - start_line: 8
+    end_line: 15
+    file: ''
+  - start_line: 47
+    end_line: 48
+    file: ''
+  - start_line: 95
+    end_line: 96
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 111
+    file: ''
+  - start_line: 114
+    end_line: 115
+    file: ''
+  Runtime:
+  - start_line: 18
+    end_line: 30
+    file: ''
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 96
+    end_line: 96
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 112
+    file: ''
+  - start_line: 114
+    end_line: 115
+    file: ''
+  Gross:
+  - start_line: 8
+    end_line: 15
+    file: ''
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 55
+    end_line: 64
+    file: ''
+  - start_line: 95
+    end_line: 95
+    file: ''
+  - start_line: 107
+    end_line: 107
+    file: ''
+  - start_line: 114
+    end_line: 114
+    file: ''
+  Meta_score:
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 67
+    end_line: 69
+    file: ''
+  - start_line: 73
+    end_line: 77
+    file: ''
+  - start_line: 79
+    end_line: 80
+    file: ''
+  - start_line: 82
+    end_line: 83
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 92
+    end_line: 92
+    file: ''
+  - start_line: 95
+    end_line: 96
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 112
+    file: ''
+  - start_line: 114
+    end_line: 115
+    file: ''
+  Series_Title:
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 112
+    file: ''
+  - start_line: 114
+    end_line: 115
+    file: ''
+  Released_Year:
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 106
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 112
+    file: ''
+  - start_line: 114
+    end_line: 115
+    file: ''
+fixing_results:
+  Gross:
+    9583cda1-2660-4bf3-bfda-ac51d7e4ea46: '.satisfies("`IMDB_Rating` IS NOT NULL AND
+      `Meta_score` IS NOT NULL", "Sufficient valid data for IMDB_Rating and Meta_score
+      correlation", lambda x: x >= 0.01)'
+    80919378-cba4-4b14-bf6c-2189db69e766: '.satisfies("CAST(`Meta_score` AS DOUBLE)
+      IS NOT NULL", "Meta_score is numeric", lambda x: x >= 0.85)'
+  '["IMDB_Rating","Meta_score"]':
+    bcbc7c92-1892-409e-93d0-624f18b1b6ac: '.satisfies("`IMDB_Rating` IS NOT NULL AND
+      `Meta_score` IS NOT NULL", "MinValidRatingsMeta", lambda x: x > 0.8)'
+    cf157ea1-354a-4b6d-864d-c7e61258537e: '.satisfies("NOT (`IMDB_Rating` >= 0.0 AND
+      `IMDB_Rating` <= 10.0)", "IMDB_Rating_Value_Range", lambda x: x == 0)'
+    86b3edc2-b3ec-4de8-baf7-a54ba08b76a5: .satisfies("`Meta_score` IS NULL OR (`Meta_score`
+      >= 0.0 AND `Meta_score` <= 100.0)", "Meta_score_Value_Range")
+    0fffd3e0-92ab-445f-94ad-ee53bc71d9c2: '.satisfies("`Meta_score` IS NULL AND `IMDB_Rating`
+      IS NULL", "IMDB_Rating_Present_For_Meta_Imputation", lambda x: x == 0)'
+  Meta_score:
+    00ec0e79-b37e-4810-81b8-67094dddfa10: .satisfies("IMDB_Rating IS NULL OR (IMDB_Rating
+      >= 0 AND IMDB_Rating <= 10)", "IMDB_Rating_Value_Range")
+    8364d619-d96f-4cc1-af44-b0dd5a15c066: .satisfies("No_of_Votes IS NULL OR No_of_Votes
+      >= 0", "No_of_Votes_NonNegative")
+    8cf9bcae-372e-4fe4-9b1b-89a0ed16bcd5: .satisfies("Gross IS NULL OR (TRY_CAST(regexp_replace(Gross,
+      ',', '') AS DOUBLE) IS NOT NULL AND TRY_CAST(regexp_replace(Gross, ',', '')
+      AS DOUBLE) >= 0)", "Gross_ParsableAndNonNegative")
+    c59a8e5e-1246-4e16-b91c-bb3748c75016: .satisfies("Runtime IS NULL OR regexp_extract(Runtime,
+      '([0-9]{2,3})', 1) IS NOT NULL", "Runtime_Parsable")
+  Released_Year:
+    a913aedf-73a2-4073-967a-5fef44563c79: .isUnique("Series_Title", "Released_Year")
+  Runtime:
+    985a48e4-e315-4cea-ad05-bdb53103a261: '.satisfies(''IMDB_Rating IS NOT NULL AND
+      Meta_score IS NOT NULL'', ''Min two for correlation and imputation model'',
+      lambda x: x >= (2 / 599))'
+  Series_Title:
+    a297982d-53fa-499a-bceb-1cad6acadd8b: .isUnique('Series_Title', 'Released_Year')
+consolidation_results:
+  Released_Year:
+  - idx_to_remove: a55a3082-865b-4baf-ab75-74eeba98c648
+    redundant_with:
+    - 65582e7a-bafb-4806-8b0f-f3354247eb76
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  code_fixing:
+    cost: 0.0
+    total_tokens: 101320
+    prompt_tokens: 16735
+    completion_tokens: 84585
+  consolidate_constraints:
+    cost: 0.0
+    total_tokens: 19001
+    prompt_tokens: 9234
+    completion_tokens: 9767

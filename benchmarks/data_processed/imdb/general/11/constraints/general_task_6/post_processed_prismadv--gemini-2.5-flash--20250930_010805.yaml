@@ -1,0 +1,1152 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-flash
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes''], lambda x:
+        x >= 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fec3b2f7-3ef3-4346-b0d6-43d6f8a4335b
+      source_assumptions:
+      - 228a082d-a6d8-4f32-9f0a-eb38a919cb03
+    - suggestion: '.hasUniqueness([''Poster_Link'', ''EligibleFamilyFriendly'', ''CompositeScore''],
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''Poster_Link'', ''EligibleFamilyFriendly'',
+        ''CompositeScore''], lambda x: x == 1.0)'' failed on data sample: Input data
+        does not include column EligibleFamilyFriendly!'
+      level: warning
+      uid: 8080d9c5-70c3-4c97-aff2-6890cd667262
+      source_assumptions:
+      - e6825099-f74b-4330-a991-fdbad0a09b37
+    assumptions:
+    - text: The 'IMDB_Rating' and 'No_of_Votes' columns are expected to be sufficiently
+        complete and contain valid numeric data such that their calculated correlation
+        (after numeric conversion and dropping nulls) is meaningful and representative.
+        This ensures a robust correlation calculation, which is then used to dynamically
+        weight their contributions to the 'CompositeScore'. A low number of non-null
+        pairs would make the correlation unreliable.
+      sources:
+      - start_line: 25
+        end_line: 26
+        file: ''
+      - start_line: 29
+        end_line: 30
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 71
+        end_line: 71
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      - start_line: 75
+        end_line: 77
+        file: ''
+      uid: 228a082d-a6d8-4f32-9f0a-eb38a919cb03
+    - text: The combination of 'Poster_Link', 'EligibleFamilyFriendly', and 'CompositeScore'
+        columns is expected to be unique across the dataset. This ensures that the
+        deduplication process, which prioritizes records based on 'EligibleFamilyFriendly'
+        (descending) and 'CompositeScore' (descending) before dropping duplicate 'Poster_Link'
+        entries, consistently selects a single, uniquely identifiable record for each
+        poster without arbitrary choices.
+      sources:
+      - start_line: 88
+        end_line: 89
+        file: ''
+      - start_line: 94
+        end_line: 95
+        file: ''
+      uid: e6825099-f74b-4330-a991-fdbad0a09b37
+  Certificate:
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'', ''Released_Year'',
+        ''Runtime''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 95a40b17-1c9c-4597-8479-80d9730479a2
+      source_assumptions:
+      - 020188a7-4d6c-455b-a0eb-ed2d8fd8354f
+      - 2406a650-b852-4312-be34-448cd426f59d
+    - suggestion: '.haveCompleteness([''Poster_Link''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3d935c9d-f852-4d26-9673-ff4a4abcb6d0
+      source_assumptions:
+      - 4ff0f4f1-729d-4983-94c2-05c817e2b2db
+    - suggestion: '.satisfies("`Series_Title` IS NOT NULL AND `Gross` IS NOT NULL
+        AND `Certificate` IS NOT NULL AND `Genre` IS NOT NULL", "Required output columns
+        completeness", lambda x: x >= 0.7779632721202003)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5d058dbd-bea1-4ae2-9c1f-3f65ca6903c2
+      source_assumptions:
+      - acbd5e84-b84f-4707-99f8-11f14985b6b6
+    assumptions:
+    - text: 'The `IMDB_Rating` and `No_of_Votes` columns are expected to have a sufficient
+        number of non-null pairs to allow for a meaningful calculation of their correlation,
+        which is dynamically used to weight components of the `CompositeScore`. This
+        implies that the combined completeness of these two columns for non-null pairs
+        should meet a certain threshold to ensure the correlation is statistically
+        significant and representative. We could represent this assumption as a Deequ
+        constraint by asserting a minimum number of non-null pairs: `.assertConstraint
+        { df => df.select(''IMDB_Rating'', ''No_of_Votes'').dropna().count() >= threshold_value
+        }`'
+      sources:
+      - start_line: 25
+        end_line: 71
+        file: ''
+      uid: 020188a7-4d6c-455b-a0eb-ed2d8fd8354f
+    - text: 'The combination of `EligibleFamilyFriendly` (derived from the `Certificate`
+        column) and `CompositeScore` columns is assumed to provide a meaningful and
+        stable hierarchical sorting order, with `EligibleFamilyFriendly` taking precedence,
+        to correctly rank items before deduplication. This implies that these columns
+        should contain values suitable for ordering, and `EligibleFamilyFriendly`
+        should primarily be boolean and `CompositeScore` numerical and non-null. While
+        not a direct Deequ constraint, the underlying data quality could be checked:
+        `.isContainedIn(''EligibleFamilyFriendly'', Array(true, false))`, `.hasNoNulls(''EligibleFamilyFriendly'')`,
+        and `.hasNoNulls(''CompositeScore'')`.'
+      sources:
+      - start_line: 75
+        end_line: 94
+        file: ''
+      uid: 2406a650-b852-4312-be34-448cd426f59d
+    - text: 'When deduplicating records based on the `Poster_Link` column, the pre-sorting
+        by `EligibleFamilyFriendly` (derived from `Certificate`) and `CompositeScore`
+        is assumed to correctly identify and retain the ''best'' or most relevant
+        record among those sharing the same `Poster_Link`. This implies that the sorting
+        logic effectively prioritizes desired records. A post-deduplication check
+        for uniqueness of `Poster_Link` can be done: `.isUnique(''Poster_Link'')`.'
+      sources:
+      - start_line: 94
+        end_line: 95
+        file: ''
+      uid: 4ff0f4f1-729d-4983-94c2-05c817e2b2db
+    - text: 'The final output requires the presence of all columns specified in `ranked_cols`:
+        ''Series_Title'', ''Released_Year'', ''IMDB_Rating'', ''No_of_Votes'', ''Gross'',
+        ''Certificate'', ''Genre'', ''Poster_Link'', and ''CompositeScore''. These
+        columns are expected to exist in the DataFrame for successful export. We could
+        represent this assumption as a Deequ constraint like this: `.hasColumns(Seq(''Series_Title'',
+        ''Released_Year'', ''IMDB_Rating'', ''No_of_Votes'', ''Gross'', ''Certificate'',
+        ''Genre'', ''Poster_Link'', ''CompositeScore''))`.'
+      sources:
+      - start_line: 101
+        end_line: 108
+        file: ''
+      uid: acbd5e84-b84f-4707-99f8-11f14985b6b6
+  '["Certificate","Genre","Gross","IMDB_Rating","No_of_Votes","Poster_Link","Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: x ==
+        x)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 48e976db-0efe-4202-94ad-e2ef183ad7d7
+      source_assumptions:
+      - 462db5d3-3724-4e8c-b05f-425abc6e93ef
+    - suggestion: '.haveCompleteness([''Series_Title'', ''Released_Year'', ''IMDB_Rating'',
+        ''No_of_Votes'', ''Genre'', ''Poster_Link''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 48adc3f8-68b8-481d-acda-f4b7d2624942
+      source_assumptions:
+      - d321d8d1-1d8e-4966-af5a-8133216d5370
+    - suggestion: '.haveCompleteness([''Gross''], lambda x: x >= 0.828)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: f2e8b31b-ec41-4b13-9185-b25b3003c65f
+      source_assumptions:
+      - d321d8d1-1d8e-4966-af5a-8133216d5370
+    - suggestion: '.haveCompleteness([''Certificate''], lambda x: x >= 0.898)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3f295138-3089-4a2e-88e3-a9cbcf0d67a1
+      source_assumptions:
+      - d321d8d1-1d8e-4966-af5a-8133216d5370
+    assumptions:
+    - text: The 'IMDB_Rating' and 'No_of_Votes' columns are expected to be numeric
+        and contain sufficient non-null values to allow for a meaningful correlation
+        calculation. The calculated correlation is then used to dynamically weight
+        the components of a composite score, implying that these two metrics are related
+        in a way that their correlation can inform their relative importance.
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 71
+        end_line: 71
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      uid: 462db5d3-3724-4e8c-b05f-425abc6e93ef
+    - text: The columns 'IMDB_Rating', 'No_of_Votes', 'Released_Year', and 'Gross'
+        (and implicitly 'Runtime' if present in the original DataFrame) are assumed
+        to contain values that, after their respective transformations and normalizations,
+        are numeric and contribute meaningfully to the `composite_score`. Specifically,
+        the normalized values (e.g., `rating_norm`, `votes_norm`, `recency_score`,
+        `gross_norm`, `runtime_bonus`) are expected to be within a comparable range
+        (e.g., 0-1) to allow for a valid weighted sum without unexpected `NaN` propagation.
+      sources:
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 7499b99d-d076-486e-9eb1-e0fa95020a89
+    - text: The 'Poster_Link' column is assumed to act as a unique identifier for
+        the final display items. In cases where multiple records share the same 'Poster_Link',
+        the sorting by 'EligibleFamilyFriendly' (derived from 'Certificate') and 'CompositeScore'
+        (derived from 'IMDB_Rating', 'No_of_Votes', 'Released_Year', 'Gross', and
+        'Runtime') is assumed to correctly identify the canonical record to be kept
+        during deduplication.
+      sources:
+      - start_line: 94
+        end_line: 95
+        file: ''
+      uid: 40b264a5-89b9-4c24-b58d-4c152d75ea83
+    - text: The columns 'Series_Title', 'Released_Year', 'IMDB_Rating', 'No_of_Votes',
+        'Gross', 'Certificate', 'Genre', 'Poster_Link', and 'CompositeScore' are assumed
+        to exist in the final `ranked` DataFrame and contain data suitable for export
+        to CSV, including appropriate data types and completeness.
+      sources:
+      - start_line: 101
+        end_line: 105
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: d321d8d1-1d8e-4966-af5a-8133216d5370
+  Genre:
+    code:
+    - suggestion: .isComplete('Genre')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 726f5cf1-84cb-4216-9c3d-22c410763c40
+      source_assumptions:
+      - 02e53154-393d-40d9-be95-9014226d0875
+    - suggestion: .hasDataType('Genre', 'String')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Genre'', ''String'')'
+      level: warning
+      uid: 09064f2d-6596-4b80-9acb-b1931c74e627
+      source_assumptions:
+      - 49cd05c4-a440-49f1-8b36-08bc4fc563a5
+    assumptions:
+    - text: 'The ''Genre'' column is expected to be complete and should not contain
+        any null or missing values in the input data. Although the code converts values
+        to string (line 0052), which would turn nulls into the string ''nan'', there''s
+        no subsequent handling of the ''nan'' string (e.g., filtering or replacing
+        it), implying that such values are not expected to be present in the input
+        and would be undesirable in the output. This is further supported by the dataset
+        description showing 1.0 completeness for the ''Genre'' column.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete(''Genre'')'
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      - start_line: 101
+        end_line: 105
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: 02e53154-393d-40d9-be95-9014226d0875
+    - text: 'The ''Genre'' column is expected to contain values that are of string
+        data type in the input data. The explicit conversion to string (line 0052)
+        confirms that a string representation is required for downstream operations
+        and direct export. This is consistent with the dataset description, which
+        identifies ''Genre'' as a String data type with all values being strings.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasColumnType(''Genre'', ColumnType.String)'
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      - start_line: 101
+        end_line: 105
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: 49cd05c4-a440-49f1-8b36-08bc4fc563a5
+  Gross:
+    code:
+    - suggestion: '.hasCorrelation("IMDB_Rating", "No_of_Votes", lambda x: x == x)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8b1bf16d-dbce-407f-a5b9-d3daf50bbac8
+      source_assumptions:
+      - 6e3674c4-4685-49a7-b2b5-950ca77d8f93
+    - suggestion: '.satisfies("CAST(IMDB_Rating AS DOUBLE) IS NOT NULL AND CAST(No_of_Votes
+        AS DOUBLE) IS NOT NULL AND CAST(Released_Year AS INT) IS NOT NULL AND CAST(REGEXP_EXTRACT(Runtime,
+        ''^(\\d+)'') AS DOUBLE) IS NOT NULL", "Crucial numeric data validity for composite
+        score", lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 41ebdc3a-9c86-4d0f-86f3-8d17ae894cc9
+      source_assumptions:
+      - 6a7219fd-14c5-489e-9bbe-3277d2314b25
+    - suggestion: '.haveCompleteness(["Series_Title", "Released_Year", "IMDB_Rating",
+        "No_of_Votes", "Gross", "Certificate", "Genre", "Poster_Link", "CompositeScore"],
+        lambda x: x >= 0.80)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness(["Series_Title", "Released_Year",
+        "IMDB_Rating", "No_of_Votes", "Gross", "Certificate", "Genre", "Poster_Link",
+        "CompositeScore"], lambda x: x >= 0.80)'' failed on data sample: Input data
+        does not include column CompositeScore!'
+      level: warning
+      uid: a0cd00bc-ea66-4cfd-9335-58b0ba83785c
+      source_assumptions:
+      - 319568bf-e770-4ac0-9b3e-c64bafcdd11d
+    assumptions:
+    - text: The 'IMDB_Rating' and 'No_of_Votes' columns are expected to contain numerical
+        values that allow for a meaningful correlation calculation. The calculated
+        correlation between these two columns is assumed to be relevant for dynamically
+        weighting components of the `composite_score`.
+      sources:
+      - start_line: 32
+        end_line: 33
+        file: ''
+      - start_line: 70
+        end_line: 71
+        file: ''
+      uid: 6e3674c4-4685-49a7-b2b5-950ca77d8f93
+    - text: The 'IMDB_Rating', 'No_of_Votes', 'Released_Year', 'Gross', and 'Runtime'
+        columns are all expected to contribute meaningful, valid data to the `composite_score`.
+        Specifically, valid numerical data in 'IMDB_Rating', 'No_of_Votes', 'Released_Year',
+        and 'Runtime' is crucial, as missing or invalid values in these will result
+        in a null `composite_score`. The 'Gross' column, however, is handled to contribute
+        `0.0` for missing/invalid values, preventing `NaN` propagation from this specific
+        column.
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      - start_line: 25
+        end_line: 26
+        file: ''
+      - start_line: 29
+        end_line: 30
+        file: ''
+      - start_line: 35
+        end_line: 36
+        file: ''
+      - start_line: 41
+        end_line: 43
+        file: ''
+      - start_line: 58
+        end_line: 63
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 6a7219fd-14c5-489e-9bbe-3277d2314b25
+    - text: The set of columns specified for final output ('Series_Title', 'Released_Year',
+        'IMDB_Rating', 'No_of_Votes', 'Gross', 'Certificate', 'Genre', 'Poster_Link',
+        'CompositeScore') are all expected to exist in the processed DataFrame and
+        retain appropriate data types for successful CSV export.
+      sources:
+      - start_line: 101
+        end_line: 105
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: 319568bf-e770-4ac0-9b3e-c64bafcdd11d
+  '["IMDB_Rating","No_of_Votes"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: x ==
+        x)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 11f37cad-7116-4d55-a4f2-47d54352cfea
+      source_assumptions:
+      - 9e6b9f67-be0b-4672-823c-c319077c9a04
+    assumptions:
+    - text: 'The ''IMDB_Rating'' and ''No_of_Votes'' columns must contain valid numeric
+        values for all records, and each column should have at least two distinct
+        values. This is crucial because the code calculates their correlation (line
+        33) after numeric coercion. If nulls are introduced during coercion or if
+        there''s insufficient variance, the correlation coefficient would be undefined
+        (NaN). An undefined correlation would propagate NaN values to the `vote_weight`
+        and `rating_weight` (lines 71, 73), leading to an undefined `composite_score`
+        (lines 75-81) for affected records, which would impact downstream ranking
+        and filtering. We could represent this assumption as a deequ constraint like
+        this:
+
+        `.hasNoNulls("IMDB_Rating")`
+
+        `.hasNoNulls("No_of_Votes")`
+
+        `.hasNumberOfDistinctValues("IMDB_Rating", _ >= 2)`
+
+        `.hasNumberOfDistinctValues("No_of_Votes", _ >= 2)`
+
+        `.isGTE("IMDB_Rating", 0.0)`
+
+        `.isLTE("IMDB_Rating", 10.0)`
+
+        `.isGTE("No_of_Votes", 0)`'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 29
+        end_line: 29
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 71
+        end_line: 71
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 9e6b9f67-be0b-4672-823c-c319077c9a04
+  Poster_Link:
+    code:
+    - suggestion: '.hasDataType("Poster_Link", "String", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Poster_Link",
+        "String", lambda x: x == 1.0)'
+      level: error
+      uid: a42a248b-7c6b-408a-9d64-505e7717219e
+      source_assumptions:
+      - 55e09891-7258-41a7-a3a0-9d6db14fef62
+    - suggestion: .isComplete("Poster_Link")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7c8b492b-005e-4be1-aec8-5642775ebf19
+      source_assumptions:
+      - d491de4b-66e9-47b2-8001-a87ea9f29fe1
+    - suggestion: '.hasMinLength("Poster_Link", lambda x: x == 1.0, 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.hasMinLength(\"Poster_Link\", lambda x: x ==\
+        \ 1.0, 1)' failed on data sample: An error occurred while calling o23238.run.\n\
+        : java.lang.ClassCastException: class java.lang.Integer cannot be cast to\
+        \ class java.lang.String (java.lang.Integer and java.lang.String are in module\
+        \ java.base of loader 'bootstrap')\n\tat scala.Option.foreach(Option.scala:407)\n\
+        \tat com.amazon.deequ.constraints.AnalysisBasedConstraint.pickValueAndAssert(AnalysisBasedConstraint.scala:80)\n\
+        \tat com.amazon.deequ.constraints.AnalysisBasedConstraint.$anonfun$evaluate$2(AnalysisBasedConstraint.scala:60)\n\
+        \tat scala.Option.map(Option.scala:230)\n\tat com.amazon.deequ.constraints.AnalysisBasedConstraint.evaluate(AnalysisBasedConstraint.scala:60)\n\
+        \tat com.amazon.deequ.constraints.ConstraintDecorator.evaluate(Constraint.scala:60)\n\
+        \tat com.amazon.deequ.checks.Check.$anonfun$evaluate$1(Check.scala:1246)\n\
+        \tat scala.collection.immutable.List.map(List.scala:293)\n\tat com.amazon.deequ.checks.Check.evaluate(Check.scala:1246)\n\
+        \tat com.amazon.deequ.VerificationSuite.$anonfun$evaluate$1(VerificationSuite.scala:269)\n\
+        \tat scala.collection.immutable.List.map(List.scala:293)\n\tat com.amazon.deequ.VerificationSuite.evaluate(VerificationSuite.scala:269)\n\
+        \tat com.amazon.deequ.VerificationSuite.doVerificationRun(VerificationSuite.scala:132)\n\
+        \tat com.amazon.deequ.VerificationRunBuilder.run(VerificationRunBuilder.scala:172)\n\
+        \tat jdk.internal.reflect.GeneratedMethodAccessor118.invoke(Unknown Source)\n\
+        \tat java.base/jdk.internal.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n\
+        \tat java.base/java.lang.reflect.Method.invoke(Method.java:569)\n\tat py4j.reflection.MethodInvoker.invoke(MethodInvoker.java:244)\n\
+        \tat py4j.reflection.ReflectionEngine.invoke(ReflectionEngine.java:374)\n\t\
+        at py4j.Gateway.invoke(Gateway.java:282)\n\tat py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)\n\
+        \tat py4j.commands.CallCommand.execute(CallCommand.java:79)\n\tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:840)\n"
+      level: error
+      uid: 4d2a895c-5169-43b5-904a-fa4709bcd362
+      source_assumptions:
+      - d491de4b-66e9-47b2-8001-a87ea9f29fe1
+    - suggestion: .isUnique("Poster_Link")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 99d6e5db-5ef8-4047-abe0-c0886592b331
+      source_assumptions:
+      - 887f47b6-91e8-42d3-ad97-076ac7db58e4
+    assumptions:
+    - text: 'The ''Poster_Link'' column is expected to primarily contain string values,
+        or values that are safely coercible to string. The code explicitly uses `.astype(str)`
+        to ensure all values are treated as strings.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("Poster_Link", "String", 1.0)'
+      sources:
+      - start_line: 19
+        end_line: 19
+        file: ''
+      uid: 55e09891-7258-41a7-a3a0-9d6db14fef62
+    - text: 'The ''Poster_Link'' column should not contain null or empty string values.
+        The column is used as a key for deduplication and is a critical output field.
+        If nulls were present, `.astype(str)` would convert them to the string ''nan'',
+        which would then be treated as a valid value for deduplication, potentially
+        leading to incorrect deduplication or meaningless output. Similarly, empty
+        strings would undermine its utility as a meaningful identifier.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("Poster_Link")
+
+        .hasMinLength("Poster_Link", 1, 1.0)'
+      sources:
+      - start_line: 19
+        end_line: 19
+        file: ''
+      - start_line: 95
+        end_line: 95
+        file: ''
+      - start_line: 103
+        end_line: 103
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: d491de4b-66e9-47b2-8001-a87ea9f29fe1
+    - text: 'The ''Poster_Link'' column is expected to contain values that serve as
+        unique and valid identifiers for movie posters, likely in a URL format. The
+        code explicitly uses this column to deduplicate records (`drop_duplicates`),
+        implying that if multiple rows share the same ''Poster_Link'' value, they
+        refer to the same logical movie poster. Therefore, the values should be consistently
+        formatted and meaningful (e.g., valid URLs) to enable effective deduplication
+        and provide useful output.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("Poster_Link LIKE ''http://%'' OR Poster_Link LIKE ''https://%''",
+        "Is a valid URL format", 0.99)'
+      sources:
+      - start_line: 95
+        end_line: 95
+        file: ''
+      - start_line: 103
+        end_line: 103
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      uid: 887f47b6-91e8-42d3-ad97-076ac7db58e4
+  No_of_Votes:
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: x ==
+        x)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bd749dae-4f9b-476f-a85e-5b9f37505c14
+      source_assumptions:
+      - 3e28b0bd-c89b-484f-b2e6-a589bb43f347
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'', ''Released_Year'',
+        ''Runtime''], lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8949fcd9-c5f0-47da-999a-0b54709b53e4
+      source_assumptions:
+      - 477cd0d7-96a8-47d3-8bda-f3e1ff137a31
+    assumptions:
+    - text: 'The `vote_weight` (line 71) is derived from the pairwise correlation
+        between ''IMDB_Rating'' and ''No_of_Votes''. For this correlation to be a
+        valid, finite number, a sufficient number of records must contain valid numeric
+        values in both ''IMDB_Rating'' and ''No_of_Votes'' columns. Rows with non-numeric
+        or null values in either column are excluded from the correlation calculation
+        (line 33). If the remaining valid pairs are too few, or if the values in the
+        remaining data are constant, the correlation may be undefined or NaN, which
+        will cause `vote_weight` to be invalid and propagate to the `composite_score`.
+        We could represent this assumption as a Deequ constraint like this:
+
+        `.addConstraint(Constraint.assert_that(AnalysisRunner.onData(df).addAnalyzer(Correlation("IMDB_Rating",
+        "No_of_Votes")).run().metric(Correlation("IMDB_Rating", "No_of_Votes")).get().value().get()).isNotNull())`'
+      sources:
+      - start_line: 25
+        end_line: 25
+        file: ''
+      - start_line: 29
+        end_line: 29
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 71
+        end_line: 71
+        file: ''
+      uid: 3e28b0bd-c89b-484f-b2e6-a589bb43f347
+    - text: 'The `composite_score` (lines 75-81) is a critical metric for ranking
+        (line 94), and it is computed as a weighted sum of derived values from ''IMDB_Rating'',
+        ''No_of_Votes'', ''Released_Year'', and ''Runtime''. If any of these source
+        columns contain non-numeric or null values for a given record, their respective
+        derived score components will become NaN, which will cause the `composite_score`
+        for that record to also be NaN. This implicitly assumes that these columns
+        are sufficiently complete with valid numeric data to ensure a high percentage
+        of records have a calculable `composite_score` for effective ranking. We could
+        represent this assumption as Deequ constraints like these:
+
+        `.hasCompleteness("IMDB_Rating", 0.95)
+
+        .hasCompleteness("No_of_Votes", 0.95)
+
+        .hasCompleteness("Released_Year", 0.95)
+
+        .hasCompleteness("Runtime", 0.95)` (using example thresholds for completeness).'
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      - start_line: 25
+        end_line: 26
+        file: ''
+      - start_line: 29
+        end_line: 30
+        file: ''
+      - start_line: 35
+        end_line: 36
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      - start_line: 94
+        end_line: 94
+        file: ''
+      uid: 477cd0d7-96a8-47d3-8bda-f3e1ff137a31
+  Released_Year:
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes''], lambda x:
+        x >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e520e98b-508e-460d-863f-e8c4d1c2b8bb
+      source_assumptions:
+      - 7efe30aa-58ad-4d07-aedc-82b6ea790663
+      - d240d6b9-f448-400d-965c-a0398df7532a
+    - suggestion: '.satisfies("IMDB_Rating >= 0 AND IMDB_Rating <= 10.0", "IMDB_Rating_Range",
+        lambda x: x >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f1a63d27-b63f-4a8a-9248-b8361b06aa6c
+      source_assumptions:
+      - 7efe30aa-58ad-4d07-aedc-82b6ea790663
+      - d240d6b9-f448-400d-965c-a0398df7532a
+    - suggestion: '.satisfies("No_of_Votes >= 0", "No_of_Votes_NonNegative", lambda
+        x: x >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d11d9a5c-9535-41a4-a717-6bfaac14b704
+      source_assumptions:
+      - 7efe30aa-58ad-4d07-aedc-82b6ea790663
+      - d240d6b9-f448-400d-965c-a0398df7532a
+    - suggestion: '.satisfies("Released_Year >= 1900 AND Released_Year <= YEAR(CURRENT_DATE())",
+        "Released_Year_Range", lambda x: x >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ad95fc0b-b176-45b7-918a-4f12d10afa4e
+      source_assumptions:
+      - d240d6b9-f448-400d-965c-a0398df7532a
+    - suggestion: '.satisfies("Gross >= 0", "Gross_NonNegative", lambda x: x >= 0.9)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("Gross >= 0", "Gross_NonNegative",
+        lambda x: x >= 0.9)'' failed on data sample: Empty state for analyzer Compliance(Gross_NonNegative,Gross
+        >= 0,None,List(),None), all input values were NULL.'
+      level: error
+      uid: 747ce378-1bfb-43ca-9da0-573a11f679a5
+      source_assumptions:
+      - d240d6b9-f448-400d-965c-a0398df7532a
+    - suggestion: '.satisfies("CAST(REGEXP_EXTRACT(Runtime, ''^(\\d+)'', 1) AS INT)
+        >= 0", "Runtime_Numeric_NonNegative", lambda x: x >= 0.9)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CAST(REGEXP_EXTRACT(Runtime, ''^(\\d+)'',
+        1) AS INT) >= 0", "Runtime_Numeric_NonNegative", lambda x: x >= 0.9)'' failed
+        on data sample: Empty state for analyzer Compliance(Runtime_Numeric_NonNegative,CAST(REGEXP_EXTRACT(Runtime,
+        ''^(\d+)'', 1) AS INT) >= 0,None,List(),None), all input values were NULL.'
+      level: error
+      uid: eb52a470-0356-42d0-a515-18c9bc8c7259
+      source_assumptions:
+      - d240d6b9-f448-400d-965c-a0398df7532a
+    assumptions:
+    - text: 'The correlation calculation between ''IMDB_Rating'' and ''No_of_Votes''
+        (line 33) assumes that a significant proportion of records have valid, non-null
+        numeric values in *both* columns. This ensures a meaningful correlation coefficient
+        is computed, which in turn influences the `vote_weight`. A high joint null
+        count would make the correlation unreliable. We could represent this assumption
+        as Deequ constraints like: `.hasMinCompleteness(Seq("IMDB_Rating", "No_of_Votes"),
+        0.9)` (e.g., at least 90% of rows should have both non-null) and `.isNonNegative("IMDB_Rating")`,
+        `.isLessThanOrEqualTo("IMDB_Rating", 10.0)`, `.isNonNegative("No_of_Votes")`.'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: 7efe30aa-58ad-4d07-aedc-82b6ea790663
+    - text: 'The `composite_score` calculation (lines 75-81) critically depends on
+        the numeric validity and range of ''Released_Year'', ''IMDB_Rating'', ''No_of_Votes'',
+        ''Gross'', and ''Runtime''. It is assumed that these columns contain values
+        convertible to numeric types. Specifically, ''Released_Year'' is assumed to
+        be a valid year in the past or present (i.e., less than or equal to `datetime.now().year`),
+        ensuring a non-negative `age`. Invalid or out-of-range values would lead to
+        `NaN`s in intermediate scores and propagate to the `composite_score`, degrading
+        ranking quality. Deequ constraints could include: `.isContainedIn("Released_Year",
+        (1900, datetime.now().year))` (assuming a reasonable minimum year), `.isNonNegative("IMDB_Rating")`,
+        `.isLessThanOrEqualTo("IMDB_Rating", 10.0)`, `.isNonNegative("No_of_Votes")`,
+        `.isNonNegative("Gross")`, `.isNonNegative("Runtime")` (after parsing), and
+        `.hasNoNulls("Released_Year")` (given dataset description).'
+      sources:
+      - start_line: 21
+        end_line: 81
+        file: ''
+      uid: d240d6b9-f448-400d-965c-a0398df7532a
+    - text: 'The deduplication process (lines 94-95) assumes that `Poster_Link` is
+        the primary identifier for uniqueness *after* selection, and that for any
+        duplicate `Poster_Link` values, the record with the highest `EligibleFamilyFriendly`
+        (True prioritized over False) and then the highest `CompositeScore` is the
+        correct one to retain. This implies these columns provide a consistent and
+        meaningful ordering for selecting the ''best'' record. A Deequ constraint
+        to validate the outcome of this process would be: `.isUnique("Poster_Link")`
+        on the DataFrame *after* this deduplication step.'
+      sources:
+      - start_line: 94
+        end_line: 95
+        file: ''
+      uid: e49c0176-019a-4004-8f0e-c228ef60107b
+    - text: 'The final output generation (lines 101-105, 108) assumes that the `ranked`
+        DataFrame will contain all the specified columns: ''Series_Title'', ''Released_Year'',
+        ''IMDB_Rating'', ''No_of_Votes'', ''Gross'', ''Certificate'', ''Genre'', ''Poster_Link'',
+        and ''CompositeScore''. The absence of any of these columns would cause the
+        export operation to fail. Deequ constraints could be: `.hasColumn("Series_Title")`,
+        `.hasColumn("Released_Year")`, `.hasColumn("IMDB_Rating")`, `.hasColumn("No_of_Votes")`,
+        `.hasColumn("Gross")`, `.hasColumn("Certificate")`, `.hasColumn("Genre")`,
+        `.hasColumn("Poster_Link")`, `.hasColumn("CompositeScore")`.'
+      sources:
+      - start_line: 101
+        end_line: 105
+        file: ''
+      uid: 861d35e4-09bd-4e3d-a904-76f996350302
+  Runtime:
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'', ''Released_Year'',
+        ''Gross'', ''Runtime''], lambda x: x >= 0.8280467445742905)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d6e9858b-51f0-4f77-9c87-4127479e35d4
+      source_assumptions:
+      - 74f56d74-437c-42f3-9387-f09736186e65
+      - a61c912f-669b-4126-993a-f585ef228441
+    - suggestion: '.haveCompleteness([''Certificate''], lambda x: x >= 0.9)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''Certificate''], lambda
+        x: x >= 0.9)'' failed on data sample: Value: 0.8981636060100167 does not meet
+        the constraint requirement!'
+      level: warning
+      uid: 6c92831c-52fd-42ca-a50a-73ae51f7b76f
+      source_assumptions:
+      - a61c912f-669b-4126-993a-f585ef228441
+    assumptions:
+    - text: The 'IMDB_Rating' and 'No_of_Votes' columns are assumed to contain numeric
+        values for a significant number of records such that their pairwise correlation
+        can be meaningfully computed (line 33). This correlation is subsequently used
+        to dynamically weight components of the `composite_score`. If these columns
+        have a high number of nulls or non-numeric values, the correlation calculation
+        might fail or be based on too few data points.
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: 9170588e-1f0a-46ea-863f-b49159a98132
+    - text: The `composite_score` is a weighted sum of normalized values derived from
+        'IMDB_Rating', 'No_of_Votes', 'Released_Year', 'Gross', and 'Runtime'. It
+        is assumed that these source columns, after parsing and normalization, yield
+        numeric and non-null intermediate scores (`rating_norm`, `votes_norm`, `recency_score`,
+        `gross_norm`, `runtime_bonus`) for a high percentage of records. Significant
+        nulls in any of these derived scores will propagate and result in a null `composite_score`,
+        impacting subsequent filtering and ranking.
+      sources:
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 74f56d74-437c-42f3-9387-f09736186e65
+    - text: The `work` DataFrame is sorted using `EligibleFamilyFriendly` (derived
+        from 'Certificate') and `CompositeScore` (derived from 'IMDB_Rating', 'No_of_Votes',
+        'Released_Year', 'Gross', 'Runtime'). This implies that both columns are expected
+        to be sufficiently complete and of appropriate data types (boolean for `EligibleFamilyFriendly`,
+        numeric for `CompositeScore`) to ensure consistent and meaningful ranking.
+        Specifically, `CompositeScore` should have a very low percentage of null values
+        to avoid unpredictable sorting behavior.
+      sources:
+      - start_line: 94
+        end_line: 94
+        file: ''
+      uid: a61c912f-669b-4126-993a-f585ef228441
+  Series_Title:
+    code:
+    - suggestion: '.hasCompleteness(''Series_Title'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 21aaa6a2-04b2-4ffd-bd1b-19fc50b35116
+      source_assumptions:
+      - 6d588f24-1ae0-49ae-9911-3e59c1407279
+    - suggestion: '.hasDataType(''Series_Title'', ConstrainableDataTypes.String, lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Series_Title'',
+        ConstrainableDataTypes.String, lambda x: x == 1.0)'
+      level: error
+      uid: a6fe1de2-078e-4bcc-9063-345ee0817f37
+      source_assumptions:
+      - 32318ddb-11f8-4aa4-892a-c83cbcd5e600
+    assumptions:
+    - text: 'The ''Series_Title'' column should not contain null values, as it is
+        directly selected and written to the output CSV without any explicit handling
+        for missing values. The presence of null values could lead to incomplete or
+        malformed entries in the output. We could represent this assumption as a deequ
+        constraint like this: .hasCompleteness(''Series_Title'', lambda x: x == 1.0)'
+      sources:
+      - start_line: 17
+        end_line: 17
+        file: ''
+      - start_line: 101
+        end_line: 105
+        file: ''
+      uid: 6d588f24-1ae0-49ae-9911-3e59c1407279
+    - text: 'The ''Series_Title'' column should contain values that are strings or
+        can be implicitly converted to strings without error, as it is read from the
+        input CSV and directly included in the final output CSV without any explicit
+        type conversions. Non-string values might lead to unexpected formatting or
+        errors during CSV writing. We could represent this assumption as a deequ constraint
+        like this: .hasDataType(''Series_Title'', ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 17
+        end_line: 17
+        file: ''
+      - start_line: 101
+        end_line: 105
+        file: ''
+      uid: 32318ddb-11f8-4aa4-892a-c83cbcd5e600
+column_data_flow_locations:
+  Poster_Link:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 19
+    end_line: 19
+    file: ''
+  - start_line: 95
+    end_line: 95
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 105
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  Released_Year:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 21
+    end_line: 22
+    file: ''
+  - start_line: 54
+    end_line: 55
+    file: ''
+  - start_line: 75
+    end_line: 81
+    file: ''
+  - start_line: 91
+    end_line: 91
+    file: ''
+  - start_line: 101
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  IMDB_Rating:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 25
+    end_line: 26
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 88
+    end_line: 89
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 102
+    end_line: 102
+    file: ''
+  - start_line: 105
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  No_of_Votes:
+  - start_line: 29
+    end_line: 30
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 65
+    end_line: 68
+    file: ''
+  - start_line: 75
+    end_line: 81
+    file: ''
+  - start_line: 89
+    end_line: 89
+    file: ''
+  - start_line: 94
+    end_line: 94
+    file: ''
+  - start_line: 102
+    end_line: 102
+    file: ''
+  - start_line: 105
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  Runtime:
+  - start_line: 35
+    end_line: 37
+    file: ''
+  - start_line: 75
+    end_line: 81
+    file: ''
+  - start_line: 89
+    end_line: 89
+    file: ''
+  - start_line: 94
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  Gross:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 41
+    end_line: 43
+    file: ''
+  - start_line: 58
+    end_line: 63
+    file: ''
+  - start_line: 75
+    end_line: 81
+    file: ''
+  - start_line: 89
+    end_line: 89
+    file: ''
+  - start_line: 101
+    end_line: 104
+    file: ''
+  - start_line: 105
+    end_line: 105
+    file: ''
+  - start_line: 107
+    end_line: 107
+    file: ''
+  Certificate:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 88
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  - start_line: 94
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 105
+    file: ''
+  - start_line: 107
+    end_line: 108
+    file: ''
+  Genre:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 52
+    end_line: 52
+    file: ''
+  - start_line: 88
+    end_line: 88
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 101
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  Series_Title:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 88
+    end_line: 91
+    file: ''
+  - start_line: 94
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 98
+    file: ''
+  - start_line: 101
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+fixing_results:
+  Certificate:
+    5d058dbd-bea1-4ae2-9c1f-3f65ca6903c2: '.satisfies("`Series_Title` IS NOT NULL
+      AND `Gross` IS NOT NULL AND `Certificate` IS NOT NULL AND `Genre` IS NOT NULL",
+      "Required output columns completeness", lambda x: x >= 0.7779632721202003)'
+  Gross:
+    41ebdc3a-9c86-4d0f-86f3-8d17ae894cc9: '.satisfies("CAST(IMDB_Rating AS DOUBLE)
+      IS NOT NULL AND CAST(No_of_Votes AS DOUBLE) IS NOT NULL AND CAST(Released_Year
+      AS INT) IS NOT NULL AND CAST(REGEXP_EXTRACT(Runtime, ''^(\\d+)'') AS DOUBLE)
+      IS NOT NULL", "Crucial numeric data validity for composite score", lambda x:
+      x >= 0.0)'
+  Released_Year:
+    ad95fc0b-b176-45b7-918a-4f12d10afa4e: '.satisfies("Released_Year >= 1900 AND Released_Year
+      <= YEAR(CURRENT_DATE())", "Released_Year_Range", lambda x: x >= 0.9)'
+  Runtime:
+    d6e9858b-51f0-4f77-9c87-4127479e35d4: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'',
+      ''Released_Year'', ''Gross'', ''Runtime''], lambda x: x >= 0.8280467445742905)'
+    6c92831c-52fd-42ca-a50a-73ae51f7b76f: '.haveCompleteness([''Certificate''], lambda
+      x: x >= 0.898)'
+consolidation_results:
+  '["Certificate","Genre","Gross","IMDB_Rating","No_of_Votes","Poster_Link","Released_Year","Series_Title"]':
+  - idx_to_remove: dafa0142-5486-4831-9c8c-3c444f5ec012
+    redundant_with:
+    - 48adc3f8-68b8-481d-acda-f4b7d2624942
+  Poster_Link:
+  - idx_to_remove: b3c99924-4700-4b09-bb0e-805cb2b29c56
+    redundant_with:
+    - 99d6e5db-5ef8-4047-abe0-c0886592b331
+  Runtime:
+  - idx_to_remove: 2e681e26-114e-4041-9a6a-f88932721409
+    redundant_with:
+    - d6e9858b-51f0-4f77-9c87-4127479e35d4
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  code_fixing:
+    cost: 0.0
+    total_tokens: 55156
+    prompt_tokens: 9235
+    completion_tokens: 45921
+  consolidate_constraints:
+    cost: 0.0
+    total_tokens: 31391
+    prompt_tokens: 10061
+    completion_tokens: 21330

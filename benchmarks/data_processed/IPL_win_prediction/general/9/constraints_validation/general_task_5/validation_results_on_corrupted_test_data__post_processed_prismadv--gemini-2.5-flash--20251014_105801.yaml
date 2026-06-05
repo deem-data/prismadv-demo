@@ -1,0 +1,171 @@
+results:
+  team1:
+    code:
+    - suggestion: .satisfies("LENGTH(TRIM(team1)) > 0", "team1 should not be empty
+        or whitespace")
+      status: true
+      reason_if_failed: ''
+      level: error
+  team2:
+    code:
+    - suggestion: .isComplete("team2")
+      status: true
+      reason_if_failed: ''
+      level: error
+  match_type:
+    code:
+    - suggestion: .isComplete("match_type")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("`match_type` = ''League''", "at least one League match",
+        lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  super_over:
+    code:
+    - suggestion: '.isContainedIn(''super_over'', [''Y'', ''N''], lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  date:
+    code:
+    - suggestion: .isComplete('date')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasPattern(''date'', r''^(?:\d{4}[-/]\d{2}[-/]\d{2}|\d{2}[-/]\d{2}[-/]\d{4})$'',
+        assertion=lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  season:
+    code:
+    - suggestion: .isComplete(column='season')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.isNonNegative(column=''season'', assertion=lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  id:
+    code:
+    - suggestion: .isComplete("id")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isUnique("id")
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["date","match_type","result","season","super_over","team1","team2","winner"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `team1` <> `team2` THEN 1 ELSE 0 END", "Distinct
+        Teams", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `result` = ''tie'' THEN CASE WHEN `super_over`
+        = ''Y'' THEN 1 ELSE 0 END ELSE 1 END", "Tie implies Super Over", lambda x:
+        x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `super_over` = ''Y'' THEN CASE WHEN `result`
+        = ''tie'' THEN 1 ELSE 0 END ELSE 1 END", "Super Over implies Tie", lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `result` IN (''runs'', ''wickets'', ''tie'')
+        THEN CASE WHEN `winner` IS NOT NULL AND (`winner` = `team1` OR `winner` =
+        `team2`) THEN 1 ELSE 0 END ELSE 1 END", "Winner for decisive results", lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN `result` = ''no result'' THEN CASE WHEN `winner`
+        IS NULL OR `winner` = '''' THEN 1 ELSE 0 END ELSE 1 END", "No winner for no
+        result matches", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasUniqueness([''season'', ''date'', ''team1'', ''team2''], lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["date","season"]':
+    code:
+    - suggestion: .satisfies("date IS NOT NULL AND season IS NOT NULL AND YEAR(date)
+        = season", "Date year must match season integer")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies("result = 'no result' OR winner = team1 OR winner = team2",
+        "Winner must be one of the participating teams or no result")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .satisfies("team1 != team2", "Teams in a match must be distinct")
+      status: true
+      reason_if_failed: ''
+      level: error
+  winner:
+    code:
+    - suggestion: '.satisfies("winner = team1 OR winner = team2 OR winner IS NULL",
+        "Winner is one of the teams or null", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasCompleteness("winner", lambda x: x >= 0.99)'
+      status: false
+      reason_if_failed: 'Constraint ''.hasCompleteness("winner", lambda x: x >= 0.99)''
+        failed on data sample: Value: 0.989100817438692 does not meet the constraint
+        requirement!'
+      level: warning
+  result:
+    code:
+    - suggestion: .isContainedIn('result', ['tie', 'runs', 'wickets', 'no result'])
+      status: false
+      reason_if_failed: 'Constraint ''.isContainedIn(''result'', [''tie'', ''runs'',
+        ''wickets'', ''no result''])'' failed on data sample: Value: 0.9509536784741145
+        does not meet the constraint requirement!'
+      level: error
+  '["result","super_over"]':
+    code:
+    - suggestion: '.satisfies("((result = ''tie'') AND (super_over = ''Y'')) OR ((result
+        != ''tie'') AND (super_over = ''N''))", "Tie and Super Over consistency",
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["result","team1","team2","winner"]':
+    code:
+    - suggestion: '.satisfies("NOT ((`result` = ''runs'' OR `result` = ''wickets''
+        OR (`result` = ''tie'' AND `super_over` = ''Y''))) OR (`winner` IS NOT NULL
+        AND (`winner` = `team1` OR `winner` = `team2`))", "Winner Expected Check",
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("NOT ((`result` = ''no result'' OR (`result` = ''tie''
+        AND (`super_over` != ''Y'' OR `super_over` IS NULL)))) OR (`winner` IS NULL
+        OR `winner` = '''')", "No Winner Expected Check", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("`team1` != `team2`", "Distinct Teams Check", lambda
+        x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["team1","team2"]':
+    code:
+    - suggestion: '.satisfies("team1 <> team2", "Teams must be distinct in a match",
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error

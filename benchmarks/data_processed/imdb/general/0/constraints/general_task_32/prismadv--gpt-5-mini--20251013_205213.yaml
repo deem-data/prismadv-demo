@@ -1,0 +1,1439 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-mini
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies("CASE WHEN cast(`IMDB_Rating` AS DOUBLE) IS NOT NULL
+        THEN 1 ELSE 0 END", "IMDB_Rating_parseable", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 029d5eeb-45e0-43c9-970a-a53c4687acff
+      source_assumptions:
+      - b7a2d5af-87e2-435f-a481-13b5d9ef572b
+    - suggestion: '.satisfies("CASE WHEN `IMDB_Rating` IS NOT NULL AND (NOT is_nan(cast(`IMDB_Rating`
+        AS DOUBLE))) THEN 1 ELSE 0 END", "IMDB_Rating_has_some_numeric", lambda x:
+        x > 0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `IMDB_Rating` IS NOT
+        NULL AND (NOT is_nan(cast(`IMDB_Rating` AS DOUBLE))) THEN 1 ELSE 0 END", "IMDB_Rating_has_some_numeric",
+        lambda x: x > 0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_ROUTINE] Cannot resolve function `is_nan` on search path [`system`.`builtin`,
+        `system`.`session`, `spark_catalog`.`default`].; line 1 pos 45'
+      level: error
+      uid: f088692b-60a2-43c9-805b-38d3c66553ba
+      source_assumptions:
+      - e36beec4-e991-4720-a86d-0f1bed856dae
+    - suggestion: '.satisfies("CASE WHEN `IMDB_Rating` IS NOT NULL AND (NOT is_nan(cast(`IMDB_Rating`
+        AS DOUBLE))) THEN 1 ELSE 0 END", "IMDB_Rating_enough_finite", lambda x: x
+        >= 12)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `IMDB_Rating` IS NOT
+        NULL AND (NOT is_nan(cast(`IMDB_Rating` AS DOUBLE))) THEN 1 ELSE 0 END", "IMDB_Rating_enough_finite",
+        lambda x: x >= 12)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_ROUTINE] Cannot resolve function `is_nan` on search path [`system`.`builtin`,
+        `system`.`session`, `spark_catalog`.`default`].; line 1 pos 45'
+      level: warning
+      uid: f871520e-b4a1-4dfc-b3f4-2f1d3a999935
+      source_assumptions:
+      - 6e7de9a6-6cd2-42ab-9abe-163277e95715
+    - suggestion: '.satisfies("CASE WHEN cast(`IMDB_Rating` AS DOUBLE) BETWEEN 0.0
+        AND 10.0 THEN 1 ELSE 0 END", "IMDB_Rating_in_range", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: cdea6801-e63f-4959-8f29-a5642ac86c10
+      source_assumptions:
+      - 1b538e17-5575-4961-b6c8-1888054fe0ae
+    assumptions:
+    - text: 'IMDB_Rating values must be parseable to numeric (float). The code calls
+        pd.to_numeric(df[''IMDB_Rating''], errors=''coerce'') which will convert non-parseable
+        strings to NaN; such coercion will remove values from mean/score calculations
+        and can break downstream rendering. Example validation rules you can convert
+        to Deequ or Great Expectations:
+
+        - Deequ (satisfy most values parseable): .satisfies("CASE WHEN TRY_CAST(`IMDB_Rating`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "IMDB_Rating_parseable", lambda
+        x: x >= 0.95)
+
+        - Great Expectations: expect_column_values_to_be_of_type or a custom expectation
+        that tries to cast values to float and expects a high fraction to succeed
+        (e.g. >= 0.95).'
+      sources:
+      - start_line: 19
+        end_line: 19
+        file: ''
+      - start_line: 23
+        end_line: 24
+        file: ''
+      - start_line: 29
+        end_line: 29
+        file: ''
+      uid: b7a2d5af-87e2-435f-a481-13b5d9ef572b
+    - text: 'There must be at least one finite numeric IMDB_Rating so that the mean
+        C = r.mean() is computable (otherwise C becomes NaN and ranking_score will
+        be invalid). Preferably many more than one; at minimum ensure at least one
+        non-null numeric value. Example Deequ constraint:
+
+        .satisfies("CASE WHEN `IMDB_Rating` IS NOT NULL AND (NOT is_nan(cast(`IMDB_Rating`
+        AS DOUBLE))) THEN 1 ELSE 0 END", "IMDB_Rating_has_some_numeric", lambda x:
+        x > 0)
+
+        (Or Great Expectations: expect_column_values_to_not_be_null after casting,
+        or assert that count of successfully cast values >= 1.)'
+      sources:
+      - start_line: 23
+        end_line: 24
+        file: ''
+      - start_line: 29
+        end_line: 29
+        file: ''
+      uid: e36beec4-e991-4720-a86d-0f1bed856dae
+    - text: 'To ensure the featured selection and rendering succeed, there should
+        be at least TOP_N = 12 rows with finite numeric IMDB_Rating (so featured.head(TOP_N)
+        can return items with valid ratings). This can be expressed as: at least 12
+        rows where IMDB_Rating is numeric and finite. Example Deequ constraint:
+
+        .satisfies("CASE WHEN `IMDB_Rating` IS NOT NULL AND (NOT is_nan(cast(`IMDB_Rating`
+        AS DOUBLE))) THEN 1 ELSE 0 END", "IMDB_Rating_enough_finite", lambda x: x
+        >= 12 / (1.0) )
+
+        (Implement as: count of rows with finite IMDB_Rating >= 12.)'
+      sources:
+      - start_line: 33
+        end_line: 34
+        file: ''
+      - start_line: 44
+        end_line: 55
+        file: ''
+      uid: 6e7de9a6-6cd2-42ab-9abe-163277e95715
+    - text: 'IMDB_Rating values are expected to be finite and within the conventional
+        IMDB range (0.0 through 10.0). The UI computes star_fill_pct = rating_val
+        * 10 and clamps to [0,100], and the HTML prints the rating with one decimal;
+        out-of-range or infinite values produce incorrect visuals. Example validation:
+
+        .satisfies("CASE WHEN cast(`IMDB_Rating` AS DOUBLE) BETWEEN 0.0 AND 10.0 THEN
+        1 ELSE 0 END", "IMDB_Rating_in_range", lambda x: x == 1.0)
+
+        (Or Great Expectations: expect_column_values_to_be_between(min_value=0.0,
+        max_value=10.0)).'
+      sources:
+      - start_line: 55
+        end_line: 55
+        file: ''
+      - start_line: 100
+        end_line: 101
+        file: ''
+      uid: 1b538e17-5575-4961-b6c8-1888054fe0ae
+  Certificate:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NULL OR TRIM(`Certificate`)
+        = '''' THEN 1 ELSE 0 END", "Missing_or_Blank_Certificate_Fraction", lambda
+        x: x <= 0.15)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 05272b97-f8fb-4799-9476-64553e86a761
+      source_assumptions:
+      - 26d7c3fa-8ecd-48f4-939f-804b3b74de92
+    - suggestion: '.hasNumberOfDistinctValues("Certificate", lambda x: x <= 50)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("Certificate",
+        lambda x: x <= 50)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: ccba9d58-486b-47ae-88bd-cb516827093e
+      source_assumptions:
+      - cad8aeaf-2b24-4d24-89e6-6d9b4d70467d
+    - suggestion: '.satisfies("CASE WHEN LENGTH(`Certificate`) <= 50 OR `Certificate`
+        IS NULL THEN 1 ELSE 0 END", "Certificate_max_length_50", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2fcec98a-f6ac-429b-a6ab-1be4c2265532
+      source_assumptions:
+      - cad8aeaf-2b24-4d24-89e6-6d9b4d70467d
+    - suggestion: '.satisfies("CASE WHEN (`Certificate` NOT LIKE ''%<%'' AND `Certificate`
+        NOT LIKE ''%>%'') OR `Certificate` IS NULL THEN 1 ELSE 0 END", "Certificate_no_angle_brackets",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9a5b3823-27c3-4326-a0af-44ac330efc0d
+      source_assumptions:
+      - 88e445a8-8bfe-4117-a766-f585cc4efabd
+    - suggestion: '.satisfies("CASE WHEN (`Certificate` IS NULL) OR (INSTR(`Certificate`,
+        ''\n'') = 0 AND INSTR(`Certificate`, ''\r'') = 0) THEN 1 ELSE 0 END", "Certificate_no_newlines",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: bbbe474d-ba36-49ca-969e-68da1500bb3e
+      source_assumptions:
+      - 774b7bb6-b20d-4cae-b9ba-9898a67257b0
+    - suggestion: '.hasDataType("Certificate", "String", lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Certificate",
+        "String", lambda x: x >= 0.99)'
+      level: warning
+      uid: 25caf113-fe9b-450e-808d-67fb5e34009c
+      source_assumptions:
+      - 774b7bb6-b20d-4cae-b9ba-9898a67257b0
+    assumptions:
+    - text: 'The ''Certificate'' column may contain NULL or empty/whitespace-only
+        values. The code explicitly checks for missing or blank certificates and substitutes
+        ''NR'' for display (so missing values are tolerated). Based on the dataset
+        completeness (~0.898), expect up to ~11% missing; a safe validation rule is
+        to allow a small fraction of missing/blank values (e.g. <= 15%).
+
+
+        Example deequ-style constraint you can use to validate input data:
+
+        .satisfies("CASE WHEN `Certificate` IS NULL OR TRIM(`Certificate`) = ''''
+        THEN 1 ELSE 0 END", "Missing_or_Blank_Certificate_Fraction", lambda x: x <=
+        0.15)
+
+        '
+      sources:
+      - start_line: 48
+        end_line: 50
+        file: ''
+      - start_line: 57
+        end_line: 63
+        file: ''
+      uid: 26d7c3fa-8ecd-48f4-939f-804b3b74de92
+    - text: 'The ''Certificate'' column is expected to be a short categorical/text
+        label (not free-form long text). The data shows a small number of distinct
+        values (~13). Validate that cardinality remains small (for example distinct_count
+        <= 50) and that most non-null values are short tokens rather than long paragraphs.
+
+
+        Example validation ideas (expressed informally; many validation frameworks
+        have a distinct_count analyzer):
+
+        - distinct_count(`Certificate`) <= 50
+
+        - .satisfies("CASE WHEN LENGTH(`Certificate`) <= 50 OR `Certificate` IS NULL
+        THEN 1 ELSE 0 END", "Certificate_max_length_50", lambda x: x >= 0.99)
+
+        '
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 43
+        end_line: 63
+        file: ''
+      uid: cad8aeaf-2b24-4d24-89e6-6d9b4d70467d
+    - text: 'Certificate values are used directly in rendered HTML (placed inside
+        a <span class="badge">). To avoid layout issues or injection of HTML, assume
+        certificate strings should not contain raw angle-bracketed HTML. Validate
+        that the vast majority of values do not contain ''<'' or ''>''.
+
+
+        Example deequ-style constraint:
+
+        .satisfies("CASE WHEN (`Certificate` NOT LIKE ''%<%'' AND `Certificate` NOT
+        LIKE ''%>%'') OR `Certificate` IS NULL THEN 1 ELSE 0 END", "Certificate_no_angle_brackets",
+        lambda x: x >= 0.99)
+
+        '
+      sources:
+      - start_line: 90
+        end_line: 99
+        file: ''
+      - start_line: 48
+        end_line: 50
+        file: ''
+      uid: 88e445a8-8bfe-4117-a766-f585cc4efabd
+    - text: 'Input values for ''Certificate'' should be representable as strings.
+        The code calls str(certificate) for non-missing values, so numeric-looking
+        values are acceptable but the column should not contain binary/complex types.
+        Validate that non-null values are castable to text and (optionally) do not
+        contain control characters/newlines that could break rendering.
+
+
+        Example constraint (simple version checking for no embedded newlines):
+
+        .satisfies("CASE WHEN (`Certificate` IS NULL) OR (INSTR(`Certificate`, ''\n'')
+        = 0 AND INSTR(`Certificate`, ''\r'') = 0) THEN 1 ELSE 0 END", "Certificate_no_newlines",
+        lambda x: x >= 0.99)
+
+        '
+      sources:
+      - start_line: 48
+        end_line: 50
+        file: ''
+      - start_line: 57
+        end_line: 63
+        file: ''
+      uid: 774b7bb6-b20d-4cae-b9ba-9898a67257b0
+  '["Certificate","certificate_display"]':
+    code: []
+    assumptions:
+    - text: 'The column certificate_display is a deterministic, normalized projection
+        of Certificate: if Certificate is null or empty (after trimming) then certificate_display
+        == ''NR'', otherwise certificate_display == the trimmed string form of Certificate.
+        This can be checked with a Deequ-style predicate such as: .satisfies("coalesce(nullif(trim(Certificate),
+        ''''), ''NR'') = certificate_display", "certificate_display_consistency").'
+      sources:
+      - start_line: 49
+        end_line: 50
+        file: ''
+      - start_line: 57
+        end_line: 63
+        file: ''
+      uid: 0adf31c7-b3c5-4d55-848f-0e2819339ecc
+    - text: 'certificate_display should contain no nulls and its values must be drawn
+        from the set (distinct non-empty Certificate values) union {''NR''}. Concretely:
+        .isComplete("certificate_display") and .isContainedIn("certificate_display",
+        allowed_values) where allowed_values = distinct(trim(Certificate)) U {''NR''}.
+        Additionally, every row with certificate_display != ''NR'' must have a non-null,
+        non-empty Certificate whose trimmed value equals certificate_display.'
+      sources:
+      - start_line: 49
+        end_line: 50
+        file: ''
+      - start_line: 98
+        end_line: 98
+        file: ''
+      uid: 72e309a6-02bd-4106-a593-69279800e7b2
+  Genre:
+    code:
+    - suggestion: .isComplete('Genre')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 817f2b7a-b7a2-4367-bf50-a1f76e8c036d
+      source_assumptions:
+      - 27f6b4d2-defb-4587-91f6-d5c330e2ca19
+    - suggestion: '.hasDataType(''Genre'', ''String'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Genre'', ''String'',
+        lambda x: x == 1)'
+      level: warning
+      uid: 76cf5a96-ff1e-41fe-8b0e-9cdbf4ddbb29
+      source_assumptions:
+      - 3e2cc63a-0310-4f1d-bb57-1fec432eae16
+    - suggestion: '.satisfies("CASE WHEN `Genre` NOT RLIKE ''<|>'' AND lower(`Genre`)
+        NOT RLIKE ''script'' THEN 1 ELSE 0 END", "No HTML/script in Genre", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 90989543-30fb-4bb8-b51b-4c01b78f9c4b
+      source_assumptions:
+      - 18667716-cfef-4404-b50b-a2281f7d1b28
+    assumptions:
+    - text: 'The ''Genre'' column must be present (no NULL / missing values) in the
+        input CSV. The code reads the CSV (df = pd.read_csv(...)) and later uses Genre
+        for rendering and JSON output without any null-checks before casting to str,
+        so the input must provide a value for every row. Example deequ-like constraint:
+        .satisfies("CASE WHEN `Genre` IS NOT NULL THEN 1 ELSE 0 END","Non-null Genre",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 96
+        end_line: 96
+        file: ''
+      - start_line: 130
+        end_line: 130
+        file: ''
+      uid: 27f6b4d2-defb-4587-91f6-d5c330e2ca19
+    - text: 'Every value in ''Genre'' should be a textual value (string or convertible
+        to string). The code uses str(getattr(row, ''Genre'')) and then writes the
+        value into HTML and JSON, so values must be representable as text (no complex
+        binary objects). Example deequ-like constraint: .satisfies("CASE WHEN `Genre`
+        IS NOT NULL AND length(cast(`Genre` AS string)) >= 0 THEN 1 ELSE 0 END","Genre
+        is textual", lambda x: x == 1)'
+      sources:
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 96
+        end_line: 96
+        file: ''
+      - start_line: 130
+        end_line: 130
+        file: ''
+      uid: 3e2cc63a-0310-4f1d-bb57-1fec432eae16
+    - text: '''Genre'' values must not contain raw/unescaped HTML or script content
+        (e.g., ''<'', ''>'', or the string ''script'') because the code injects Genre
+        directly into an HTML template without escaping, which could lead to layout
+        issues or XSS. Example constraint (regex-based): .satisfies("CASE WHEN `Genre`
+        NOT RLIKE ''<|>'' AND lower(`Genre`) NOT RLIKE ''script'' THEN 1 ELSE 0 END","No
+        HTML/script in Genre", lambda x: x == 1)'
+      sources:
+      - start_line: 96
+        end_line: 96
+        file: ''
+      - start_line: 109
+        end_line: 123
+        file: ''
+      uid: 18667716-cfef-4404-b50b-a2281f7d1b28
+  '["IMDB_Rating","No_of_Votes"]':
+    code: []
+    assumptions:
+    - text: 'There must be at least TOP_N (12) rows where both IMDB_Rating and No_of_Votes
+        are present (non-null) and finite. The script computes a ranking_score from
+        these two columns and then selects the top 12 rows, so if fewer than 12 rows
+        have both columns populated the featured selection will be incomplete. Actionable
+        check example: count rows satisfying (IMDB_Rating IS NOT NULL AND isFinite(IMDB_Rating)
+        AND No_of_Votes IS NOT NULL AND isFinite(No_of_Votes)) >= 12. In Deequ-like
+        form you could express this by filtering then asserting an atLeast count for
+        the dataset slice: .where("IMDB_Rating IS NOT NULL AND No_of_Votes IS NOT
+        NULL").hasSizeAtLeast(12).'
+      sources:
+      - start_line: 19
+        end_line: 34
+        file: ''
+      uid: a9370563-e80b-44d8-be1f-420f24c38606
+    - text: 'To ensure deterministic selection and stable rendering, the tuple (ranking_score,
+        IMDB_Rating, No_of_Votes) should not contain exact duplicates for the rows
+        used to pick the top entries. The code sorts by these three fields to break
+        ties; if many rows have identical values ties will be non-deterministic. Actionable
+        check example: assert uniqueness of the three-column combination for the set
+        of candidate rows (or at least for the top-K candidates). In Deequ-like form:
+        .isUnique(["ranking_score", "IMDB_Rating", "No_of_Votes"]). If full uniqueness
+        is too strict, require uniqueness within the top-N slice instead.'
+      sources:
+      - start_line: 29
+        end_line: 34
+        file: ''
+      - start_line: 51
+        end_line: 56
+        file: ''
+      uid: cd1063b2-9468-40aa-bb16-af7971bb0b40
+    - text: "Numeric-range and type agreement between the two columns: IMDB_Rating\
+        \ must be finite and within the expected 0.0\u201310.0 range (so star_fill_pct\
+        \ = rating * 10 stays within 0\u2013100 before clipping), and No_of_Votes\
+        \ must be a finite, non-negative integer. These constraints are required because\
+        \ the code casts IMDB_Rating to float and No_of_Votes to int and uses them\
+        \ in arithmetic and display. Actionable checks: IMDB_Rating >= 0.0 AND IMDB_Rating\
+        \ <= 10.0 AND isFinite(IMDB_Rating); No_of_Votes >= 0 AND isIntegral(No_of_Votes)\
+        \ AND isFinite(No_of_Votes). In Deequ-like form: .isContainedInRange(\"IMDB_Rating\"\
+        , 0.0, 10.0) and .isNonNegative(\"No_of_Votes\") plus an integer-type check\
+        \ (or assert approximateNumDistinctValues/type)."
+      sources:
+      - start_line: 19
+        end_line: 20
+        file: ''
+      - start_line: 51
+        end_line: 56
+        file: ''
+      - start_line: 29
+        end_line: 34
+        file: ''
+      uid: eefcccad-429a-4d65-93e4-9064d7ad7d03
+  '["IMDB_Rating","star_fill_pct"]':
+    code: []
+    assumptions:
+    - text: 'IMDB_Rating is expected to be a numeric, non-missing, finite value in
+        the range [0.0, 10.0] for records that are rendered (featured). This is required
+        because the code casts IMDB_Rating to float (rating_val) and formats it ("{c[''imdb_rating'']:.1f}")
+        and uses it to compute star_fill_pct. Actionable constraint examples:
+
+        - Deequ: .isComplete("IMDB_Rating") and .isContainedInRange("IMDB_Rating",
+        0.0, 10.0)
+
+        - Deequ (finite check): .satisfies("IMDB_Rating == IMDB_Rating AND IMDB_Rating
+        >= 0.0 AND IMDB_Rating <= 10.0", "imdb_rating_finite_and_in_range")'
+      sources:
+      - start_line: 19
+        end_line: 19
+        file: ''
+      - start_line: 51
+        end_line: 51
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 6a28f1a5-76c9-43b2-a51b-003b8d85df8f
+    - text: 'star_fill_pct must exactly reflect a clamped linear transformation of
+        IMDB_Rating: star_fill_pct == clamp(IMDB_Rating * 10.0, 0.0, 100.0). This
+        is how the visible star bar width is produced, so any divergence means the
+        UI will be inconsistent with the rating. Actionable constraint example (Deequ-like):
+
+        - .satisfies("star_fill_pct == least(100.0, greatest(0.0, IMDB_Rating * 10.0))",
+        "star_fill_matches_rating")'
+      sources:
+      - start_line: 51
+        end_line: 55
+        file: ''
+      - start_line: 100
+        end_line: 100
+        file: ''
+      uid: 0109a61d-bc8f-4675-9694-708a8eb21d92
+    - text: 'IMDB_Rating and No_of_Votes must both be numeric, non-missing, and finite
+        for the ranking calculation to be meaningful and for sorting to behave correctly.
+        The ranking_score is computed from both columns and then used to pick top-N
+        featured items; records with NaN/Inf in either column can produce invalid
+        scores or ordering. Actionable constraints:
+
+        - .isComplete("IMDB_Rating"), .isComplete("No_of_Votes")
+
+        - .satisfies("IMDB_Rating == IMDB_RATING AND No_of_Votes == No_of_Votes",
+        "finite_imdb_and_votes")
+
+        - Optionally validate ranking_score is finite: .isComplete("ranking_score")
+        and .satisfies("ranking_score == ranking_score", "ranking_score_finite")'
+      sources:
+      - start_line: 22
+        end_line: 30
+        file: ''
+      - start_line: 34
+        end_line: 34
+        file: ''
+      uid: 8b7024a8-5715-4102-ae7b-f843990d5200
+  Poster_Link:
+    code:
+    - suggestion: .isComplete("Poster_Link")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 19000247-aa37-48ec-b37d-bbabbf191c1a
+      source_assumptions:
+      - 8ed9d36c-bc31-4658-b0f0-0059536acdd8
+    - suggestion: '.satisfies("CASE WHEN `Poster_Link` IS NOT NULL AND trim(`Poster_Link`)
+        <> '''' THEN 1 ELSE 0 END", "Poster_Link not blank", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7be9702f-44be-4181-b906-e2e1d9552b57
+      source_assumptions:
+      - e506b8df-5379-4261-902f-ab512b32dc41
+    - suggestion: '.satisfies("CASE WHEN `Poster_Link` RLIKE ''^(https?://|/|\./|data:).+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$''
+        THEN 1 ELSE 0 END", "Poster_Link image URL or path", lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"CASE WHEN `Poster_Link` RLIKE '^(https?://|/|\\\
+        ./|data:).+\\.(jpg|jpeg|png|gif|webp|svg)(\\?.*)?$' THEN 1 ELSE 0 END\", \"\
+        Poster_Link image URL or path\", lambda x: x >= 0.95)' failed on data sample:\
+        \ org.apache.spark.SparkException: Job aborted due to stage failure: Task\
+        \ 2 in stage 653.0 failed 1 times, most recent failure: Lost task 2.0 in stage\
+        \ 653.0 (TID 1064) (head072.ml.tu-berlin.de executor driver): java.util.regex.PatternSyntaxException:\
+        \ Unknown inline modifier near index 55\n^(https?://|/|./|data:).+.(jpg|jpeg|png|gif|webp|svg)(?.*)?$\n\
+        \                                                       ^\n\tat java.base/java.util.regex.Pattern.error(Pattern.java:2028)\n\
+        \tat java.base/java.util.regex.Pattern.group0(Pattern.java:3049)\n\tat java.base/java.util.regex.Pattern.sequence(Pattern.java:2124)\n\
+        \tat java.base/java.util.regex.Pattern.expr(Pattern.java:2069)\n\tat java.base/java.util.regex.Pattern.compile(Pattern.java:1783)\n\
+        \tat java.base/java.util.regex.Pattern.<init>(Pattern.java:1429)\n\tat java.base/java.util.regex.Pattern.compile(Pattern.java:1069)\n\
+        \tat org.apache.spark.sql.catalyst.expressions.GeneratedClass$GeneratedIteratorForCodegenStage1.init(Unknown\
+        \ Source)\n\tat org.apache.spark.sql.execution.WholeStageCodegenEvaluatorFactory$WholeStageCodegenPartitionEvaluator.eval(WholeStageCodegenEvaluatorFactory.scala:40)\n\
+        \tat org.apache.spark.sql.execution.WholeStageCodegenExec.$anonfun$doExecute$4(WholeStageCodegenExec.scala:761)\n\
+        \tat org.apache.spark.sql.execution.WholeStageCodegenExec.$anonfun$doExecute$4$adapted(WholeStageCodegenExec.scala:759)\n\
+        \tat org.apache.spark.rdd.RDD.$anonfun$mapPartitionsWithIndex$2(RDD.scala:910)\n\
+        \tat org.apache.spark.rdd.RDD.$anonfun$mapPartitionsWithIndex$2$adapted(RDD.scala:910)\n\
+        \tat org.apache.spark.rdd.MapPartitionsRDD.compute(MapPartitionsRDD.scala:52)\n\
+        \tat org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:367)\n\tat\
+        \ org.apache.spark.rdd.RDD.iterator(RDD.scala:331)\n\tat org.apache.spark.rdd.MapPartitionsRDD.compute(MapPartitionsRDD.scala:52)\n\
+        \tat org.apache.spark.rdd.RDD.computeOrReadCheckpoint(RDD.scala:367)\n\tat\
+        \ org.apache.spark.rdd.RDD.iterator(RDD.scala:331)\n\tat org.apache.spark.shuffle.ShuffleWriteProcessor.write(ShuffleWriteProcessor.scala:59)\n\
+        \tat org.apache.spark.scheduler.ShuffleMapTask.runTask(ShuffleMapTask.scala:104)\n\
+        \tat org.apache.spark.scheduler.ShuffleMapTask.runTask(ShuffleMapTask.scala:54)\n\
+        \tat org.apache.spark.TaskContext.runTaskWithListeners(TaskContext.scala:166)\n\
+        \tat org.apache.spark.scheduler.Task.run(Task.scala:141)\n\tat org.apache.spark.executor.Executor$TaskRunner.$anonfun$run$4(Executor.scala:621)\n\
+        \tat org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally(SparkErrorUtils.scala:64)\n\
+        \tat org.apache.spark.util.SparkErrorUtils.tryWithSafeFinally$(SparkErrorUtils.scala:61)\n\
+        \tat org.apache.spark.util.Utils$.tryWithSafeFinally(Utils.scala:94)\n\tat\
+        \ org.apache.spark.executor.Executor$TaskRunner.run(Executor.scala:624)\n\t\
+        at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\n\
+        \tat java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\n\
+        \tat java.base/java.lang.Thread.run(Thread.java:829)\n\nDriver stacktrace:"
+      level: warning
+      uid: 1b19bfef-d8dd-4226-a44e-cb5df3647935
+      source_assumptions:
+      - f65b0737-1e37-4535-86b3-b8e4685b6834
+    - suggestion: '.satisfies("CASE WHEN `Poster_Link` NOT LIKE ''%\"%'' AND `Poster_Link`
+        NOT LIKE ''%<%'' AND `Poster_Link` NOT LIKE ''%>%'' THEN 1 ELSE 0 END", "Poster_Link
+        safe for HTML attribute", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a2528199-680e-4761-be37-4dc49f9fdd86
+      source_assumptions:
+      - 4a22e2af-5bdf-4327-951f-f9abd7423b04
+    assumptions:
+    - text: 'Poster_Link must be present (no nulls) for input rows that will be selected
+        as featured. The code reads Poster_Link without null-checking (casts to str
+        and then embeds the value into HTML and JSON), so the pipeline expects Poster_Link
+        to be non-null. Example deequ-like constraint: .satisfies("CASE WHEN `Poster_Link`
+        IS NOT NULL THEN 1 ELSE 0 END", "Poster_Link non-null", lambda x: x == 1.0).'
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      - start_line: 129
+        end_line: 130
+        file: ''
+      uid: 8ed9d36c-bc31-4658-b0f0-0059536acdd8
+    - text: 'Poster_Link should be a non-empty string (not blank). Empty strings or
+        strings like ''nan'' will be rendered into the <img src="..."> attribute and
+        produce broken or missing images. Example deequ-like constraint: .satisfies("CASE
+        WHEN `Poster_Link` IS NOT NULL AND trim(`Poster_Link`) <> '''' THEN 1 ELSE
+        0 END", "Poster_Link not blank", lambda x: x == 1.0).'
+      sources:
+      - start_line: 47
+        end_line: 48
+        file: ''
+      - start_line: 91
+        end_line: 94
+        file: ''
+      uid: e506b8df-5379-4261-902f-ab512b32dc41
+    - text: 'Poster_Link values should generally be valid image URLs or file paths
+        (e.g. start with http:// or https:// or / or ./ or a data: URI, and typically
+        end with an image extension such as .jpg, .jpeg, .png, .gif, .webp, .svg).
+        The rendering expects an image source, so a high fraction of Poster_Link values
+        should match an image-URL/path pattern. Example deequ-like constraint (allowing
+        some exceptions): .satisfies("CASE WHEN `Poster_Link` RLIKE ''^(https?://|/|\./|data:).+\\.(jpg|jpeg|png|gif|webp|svg)(\\?.*)?$''
+        THEN 1 ELSE 0 END", "Poster_Link image URL or path", lambda x: x >= 0.95).'
+      sources:
+      - start_line: 47
+        end_line: 47
+        file: ''
+      - start_line: 91
+        end_line: 94
+        file: ''
+      uid: f65b0737-1e37-4535-86b3-b8e4685b6834
+    - text: 'Poster_Link should not contain characters that can break HTML attributes
+        or introduce injection/XSS risk when embedded directly into src="..." (for
+        example, quotes (") or angle brackets < or >). Enforce that Poster_Link does
+        not contain ''"'', ''<'', or ''>'' characters. Example deequ-like constraint:
+        .satisfies("CASE WHEN `Poster_Link` NOT LIKE ''%"%'' AND `Poster_Link` NOT
+        LIKE ''%<%'' AND `Poster_Link` NOT LIKE ''%>%'' THEN 1 ELSE 0 END", "Poster_Link
+        safe for HTML attribute", lambda x: x == 1.0).'
+      sources:
+      - start_line: 91
+        end_line: 94
+        file: ''
+      - start_line: 108
+        end_line: 116
+        file: ''
+      uid: 4a22e2af-5bdf-4327-951f-f9abd7423b04
+  No_of_Votes:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `No_of_Votes` IS NOT NULL AND TRY_CAST(`No_of_Votes`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "No_of_Votes_is_numeric", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 12923459-8324-4d21-8860-431f46fdce63
+      source_assumptions:
+      - d57b894e-4c42-4aa6-a43c-2866e0b51d1a
+    - suggestion: '.satisfies("`No_of_Votes` IS NOT NULL AND `IMDB_Rating` IS NOT
+        NULL", "at_least_12_rows_with_votes_and_rating", lambda x: x >= 12)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`No_of_Votes` IS NOT NULL AND `IMDB_Rating`
+        IS NOT NULL", "at_least_12_rows_with_votes_and_rating", lambda x: x >= 12)''
+        failed on data sample: Value: 1.0 does not meet the constraint requirement!'
+      level: error
+      uid: 5b4105be-d73a-43aa-bcdb-94e72a270ee0
+      source_assumptions:
+      - 5540230b-aede-4a0f-9264-0cf60d2ef859
+    - suggestion: '.satisfies("CASE WHEN `No_of_Votes` IS NOT NULL AND TRY_CAST(`No_of_Votes`
+        AS DOUBLE) >= 0 THEN 1 ELSE 0 END", "No_of_Votes_non_negative", lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8fd5458f-9050-45bc-8485-b4f30cee6e0b
+      source_assumptions:
+      - 6b7d477f-fa4f-4a77-8b3f-f5f8fe876061
+    - suggestion: '.satisfies("CASE WHEN `No_of_Votes` IS NOT NULL AND floor(TRY_CAST(`No_of_Votes`
+        AS DOUBLE)) = TRY_CAST(`No_of_Votes` AS DOUBLE) THEN 1 ELSE 0 END", "No_of_Votes_integral",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 40d740ff-2a43-4c61-946d-31c0278b910f
+      source_assumptions:
+      - e1a9051c-0913-4537-bfaa-15b6321bbedb
+    assumptions:
+    - text: 'No_of_Votes must be parseable as a numeric (integral) value. The code
+        converts the column with pd.to_numeric(errors=''coerce'') and then uses it
+        in numeric operations (quantile, arithmetic) and finally casts values to int
+        for rendering. If values are not numeric they will become NaN and later int(...)
+        will fail for featured rows.
+
+        Suggested validation (Deequ/GE style):
+
+        .satisfies("CASE WHEN `No_of_Votes` IS NOT NULL AND TRY_CAST(`No_of_Votes`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "No_of_Votes_is_numeric", lambda
+        x: x == 1)
+
+        (This ensures every input value can be parsed as a finite number.)'
+      sources:
+      - start_line: 16
+        end_line: 20
+        file: ''
+      - start_line: 22
+        end_line: 29
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: d57b894e-4c42-4aa6-a43c-2866e0b51d1a
+    - text: 'Rows that will be displayed (the top-ranked/featured rows) must have
+        non-null No_of_Votes (and IMDB_Rating). The pipeline selects the top TOP_N
+        entries by ranking_score (which depends on No_of_Votes and IMDB_Rating) and
+        then calls int(...) on No_of_Votes when building cards. If the top rows have
+        missing votes, the code will error when casting/displaying.
+
+        Suggested validation: require at least TOP_N rows with both No_of_Votes and
+        IMDB_Rating present. Example (absolute count check): ensure count(`No_of_Votes`
+        IS NOT NULL AND `IMDB_Rating` IS NOT NULL) >= 12. In Deequ/GE you can express
+        this as a check that the fraction of rows with both not null >= 12/total_rows,
+        or an explicit row-count assertion.'
+      sources:
+      - start_line: 25
+        end_line: 34
+        file: ''
+      - start_line: 44
+        end_line: 52
+        file: ''
+      uid: 5540230b-aede-4a0f-9264-0cf60d2ef859
+    - text: 'No_of_Votes should be non-negative. The ranking formula divides by (v
+        + m) and negative vote counts would produce unexpected ranking scores and
+        negative vote displays; negative values are semantically invalid for vote
+        counts and will appear incorrectly in the UI.
+
+        Suggested validation:
+
+        .satisfies("CASE WHEN `No_of_Votes` >= 0 THEN 1 ELSE 0 END", "No_of_Votes_non_negative",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 29
+        end_line: 29
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 6b7d477f-fa4f-4a77-8b3f-f5f8fe876061
+    - text: 'No_of_Votes should be integer-valued (no fractional votes). The code
+        casts values to int for display (int(getattr(row, ''No_of_Votes''))), so fractional
+        values would be truncated unexpectedly. Validate that values are whole numbers.
+
+        Suggested validation:
+
+        .satisfies("CASE WHEN `No_of_Votes` IS NOT NULL AND floor(`No_of_Votes`) =
+        `No_of_Votes` THEN 1 ELSE 0 END", "No_of_Votes_integral", lambda x: x == 1)'
+      sources:
+      - start_line: 20
+        end_line: 20
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: e1a9051c-0913-4537-bfaa-15b6321bbedb
+  Released_Year:
+    code:
+    - suggestion: .isComplete("Released_Year")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0e2a26e5-fe44-45f0-9a5b-e86a1de3bfd2
+      source_assumptions:
+      - 4d9add49-a7f0-4cc5-9cdb-860f501de0b1
+    - suggestion: '.satisfies("CASE WHEN cast(`Released_Year` AS STRING) RLIKE ''^-?\\d+$''
+        THEN 1 ELSE 0 END", "Released_Year integer-convertible", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN cast(`Released_Year`
+        AS STRING) RLIKE ''^-?\\d+$'' THEN 1 ELSE 0 END", "Released_Year integer-convertible",
+        lambda x: x == 1.0)'' failed on data sample: Value: 0.0 does not meet the
+        constraint requirement!'
+      level: error
+      uid: dbd12220-1b71-4ee1-bc88-1d1745afe33d
+      source_assumptions:
+      - 6a3310fe-1f75-48a1-b471-7acb7328967b
+    - suggestion: '.satisfies("CASE WHEN `Released_Year` BETWEEN 1800 AND 2025 THEN
+        1 ELSE 0 END", "Released_Year plausible range", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9d4b7c0e-b487-40e0-b197-4dae1fcb7242
+      source_assumptions:
+      - f2e5274f-a2c2-4f13-b258-d72aacb8020b
+    assumptions:
+    - text: 'The ''Released_Year'' column should contain no NULL/missing values in
+        the input data. The code will display the year in the card title and use it
+        when creating the slug; if values are missing the UI would show ''None'' and
+        slugs would contain ''None''.
+
+        Representation (Deequ-like): .satisfies("CASE WHEN `Released_Year` IS NOT
+        NULL THEN 1 ELSE 0 END", "No null Released_Year", lambda x: x == 1.0)'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: 4d9add49-a7f0-4cc5-9cdb-860f501de0b1
+    - text: 'Every value in ''Released_Year'' must be integer-convertible (no non-numeric
+        strings or non-integer formats), because the code calls int(...) on the column''s
+        value before use. Ensure values are numeric/integer or string representations
+        of integers.
+
+        Representation (Deequ-like): .satisfies("CASE WHEN cast(`Released_Year` AS
+        STRING) RLIKE ''^-?\\d+$'' THEN 1 ELSE 0 END", "Released_Year integer-convertible",
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      uid: 6a3310fe-1f75-48a1-b471-7acb7328967b
+    - text: 'Released_Year values should be plausible calendar years (e.g., between
+        1800 and the current year 2025). This prevents nonsensical years (very large/future
+        values) from appearing in titles/slugs or breaking downstream display logic.
+
+        Representation (Deequ-like): .satisfies("CASE WHEN `Released_Year` BETWEEN
+        1800 AND 2025 THEN 1 ELSE 0 END", "Released_Year plausible range", lambda
+        x: x >= 0.99)'
+      sources:
+      - start_line: 95
+        end_line: 95
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: f2e5274f-a2c2-4f13-b258-d72aacb8020b
+  Runtime:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Runtime` IS NOT NULL THEN 1 ELSE 0 END",
+        "Runtime not null", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1e6b1689-84bb-4533-a217-00eec7baaa16
+      source_assumptions:
+      - ce7d948b-11f9-4f2b-99b2-6ce250e2c373
+    - suggestion: '.satisfies("CASE WHEN `Runtime` RLIKE ''.*([0-9]+).*'' THEN 1 ELSE
+        0 END", "Runtime contains digits", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6d1ef190-d071-4289-99cc-b5f91b1ae8b3
+      source_assumptions:
+      - c92e7d3b-74cb-4f72-a18a-74c986d335cf
+    - suggestion: '.satisfies("CASE WHEN CAST(regexp_extract(`Runtime`, ''([0-9]+)'')
+        AS INT) BETWEEN 1 AND 600 THEN 1 ELSE 0 END", "Runtime minutes in range 1-600",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bcd45ebd-e1c9-4457-80f8-68508827b461
+      source_assumptions:
+      - c532002c-bcdc-49cb-ba39-e73e44be32ec
+    - suggestion: '.satisfies("CASE WHEN `Runtime` RLIKE ''.*[0-9]+ *(min|mins|minutes).*''
+        THEN 1 ELSE 0 END", "Runtime in minute-style format", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 71d0be3d-1f1b-4013-9242-0fd9bb0eb1f9
+      source_assumptions:
+      - add610bf-af5d-4f14-ab32-d546010c0e75
+    assumptions:
+    - text: 'The ''Runtime'' column must not contain null / missing values. The code
+        calls .str.extract(...) and then .astype(int) (to create runtime_minutes)
+        and later uses int(getattr(row, ''runtime_minutes'')), which will fail if
+        the extracted value is missing. Represent this as a validation rule such as:
+
+        .satisfies("CASE WHEN `Runtime` IS NOT NULL THEN 1 ELSE 0 END", "Runtime not
+        null", lambda x: x == 1.0)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 48
+        end_line: 48
+        file: ''
+      uid: ce7d948b-11f9-4f2b-99b2-6ce250e2c373
+    - text: 'The ''Runtime'' column must contain at least one contiguous digit sequence
+        (the code uses the regex r''(\d+)'' to extract digits). In other words, every
+        input value should match a pattern containing digits so that .str.extract(r''(\d+)'')
+        returns a numeric string. Represent this as:
+
+        .satisfies("CASE WHEN `Runtime` RLIKE ''.*([0-9]+).*'' THEN 1 ELSE 0 END",
+        "Runtime contains digits", lambda x: x == 1.0)'
+      sources:
+      - start_line: 34
+        end_line: 36
+        file: ''
+      - start_line: 36
+        end_line: 36
+        file: ''
+      uid: c92e7d3b-74cb-4f72-a18a-74c986d335cf
+    - text: 'The first digit sequence extracted from ''Runtime'' should represent
+        a positive integer minute count and be convertible to an integer (the code
+        calls .astype(int) and later int(...)). To avoid runtime errors and nonsensical
+        values, require the extracted integer to be > 0 and within a reasonable range
+        (for example between 1 and 600 minutes). Example deequ-style rule:
+
+        .satisfies("CASE WHEN CAST(regexp_extract(`Runtime`, ''([0-9]+)'') AS INT)
+        BETWEEN 1 AND 600 THEN 1 ELSE 0 END", "Runtime minutes in range 1-600", lambda
+        x: x == 1.0)'
+      sources:
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 62
+        end_line: 62
+        file: ''
+      uid: c532002c-bcdc-49cb-ba39-e73e44be32ec
+    - text: 'To ensure the extracted digits correspond to total minutes (not e.g.
+        ''1h 30m'' where the first digit sequence would be ''1''), prefer a minute-based
+        format. At minimum, require that the majority of values use a minute-style
+        format such as ''90 min'' or ''120 minutes''. A tolerant validation (allowing
+        some exceptions) could be:
+
+        .satisfies("CASE WHEN `Runtime` RLIKE ''.*[0-9]+ *(min|mins|minutes).*'' THEN
+        1 ELSE 0 END", "Runtime in minute-style format", lambda x: x >= 0.95)
+
+        This reduces the risk that the extracted first-number is an hours number or
+        part of a range which yields incorrect minute values.'
+      sources:
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 97
+        end_line: 97
+        file: ''
+      uid: add610bf-af5d-4f14-ab32-d546010c0e75
+  '["Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'',''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f6533ca7-49ce-4c3d-8c71-6d97401ca6e6
+      source_assumptions:
+      - 8b7c3e27-7e07-4230-89ce-4b42a24a0177
+    - suggestion: '.haveCompleteness([''Series_Title'',''Released_Year''], lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 92048195-a243-471c-8a2c-4bb7f4f6c306
+      source_assumptions:
+      - 6c8f94fc-ac4f-4fe7-9985-01512d9d87f9
+    assumptions:
+    - text: 'The pair of columns (''Series_Title'', ''Released_Year'') must uniquely
+        identify a record used to build the card id/slug. The code generates an id/slug
+        from f"{title}-{year}" and uses it as the HTML element id (cards[].id). If
+        two rows share the same Series_Title and Released_Year the slug/id will collide.
+        Represent this as a composite-uniqueness constraint, e.g. in Deequ: .isUnique(["Series_Title",
+        "Released_Year"]).'
+      sources:
+      - start_line: 44
+        end_line: 55
+        file: ''
+      - start_line: 57
+        end_line: 59
+        file: ''
+      uid: 8b7c3e27-7e07-4230-89ce-4b42a24a0177
+    - text: Both 'Series_Title' and 'Released_Year' should be complete (non-null)
+        for records that will be featured/rendered. The code uses Series_Title and
+        Released_Year to create display text and slugs (e.g. f"{title}-{year}" and
+        "{c['title']} ({c['year']})"); missing values will produce undesirable strings
+        like 'None' or empty slugs. Represent this as a completeness constraint on
+        the pair (or individually) e.g. .isComplete(["Series_Title", "Released_Year"])
+        or .hasCompleteness("Series_Title", 1.0) and .hasCompleteness("Released_Year",
+        1.0).
+      sources:
+      - start_line: 44
+        end_line: 56
+        file: ''
+      - start_line: 91
+        end_line: 96
+        file: ''
+      uid: 6c8f94fc-ac4f-4fe7-9985-01512d9d87f9
+  '["Runtime","runtime_minutes"]':
+    code:
+    - suggestion: '.satisfies("`Runtime` RLIKE ''\\d+''", "Runtime_has_digit", lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Runtime` RLIKE ''\\d+''", "Runtime_has_digit",
+        lambda x: x == 1)'' failed on data sample: Value: 0.0 does not meet the constraint
+        requirement!'
+      level: error
+      uid: d107076f-d636-431b-a040-1e3d91d0bd82
+      source_assumptions:
+      - 37d868b3-cdfc-445c-bdf5-b165847fb603
+    - suggestion: '.satisfies("CASE WHEN `Runtime` RLIKE ''\\d+'' THEN ( `runtime_minutes`
+        IS NOT NULL AND `runtime_minutes` >= 1 AND CAST(regexp_extract(`Runtime`,
+        ''(\\d+)'', 1) AS INT) = `runtime_minutes` ) ELSE TRUE END", "Runtime_matches_runtime_minutes_and_positive",
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `Runtime` RLIKE ''\\d+''
+        THEN ( `runtime_minutes` IS NOT NULL AND `runtime_minutes` >= 1 AND CAST(regexp_extract(`Runtime`,
+        ''(\\d+)'', 1) AS INT) = `runtime_minutes` ) ELSE TRUE END", "Runtime_matches_runtime_minutes_and_positive",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `runtime_minutes` cannot be resolved. Did you mean one of the following? [`Runtime`,
+        `Certificate`, `Series_Title`, `Genre`, `Meta_score`].; line 1 pos 39;
+
+        ''Aggregate [sum(cast(CASE WHEN RLIKE(Runtime#81719, d+) THEN ((isnotnull(''runtime_minutes)
+        AND (''runtime_minutes >= 1)) AND (cast(regexp_extract(Runtime#81719, (d+),
+        1) as int) = ''runtime_minutes)) ELSE true END as int)) AS sum(CAST(CASE WHEN
+        RLIKE(Runtime, d+) THEN (((runtime_minutes IS NOT NULL) AND (runtime_minutes
+        >= 1)) AND (CAST(regexp_extract(Runtime, (d+), 1) AS INT) = runtime_minutes))
+        ELSE true END AS INT))#282716, count(1) AS count(1)#282717L]
+
+        +- LogicalRDD [id#81714L, Poster_Link#81715, Series_Title#81716, Released_Year#81717L,
+        Certificate#81718, Runtime#81719, Genre#81720, IMDB_Rating#81721, Overview#81722,
+        Meta_score#81723, Director#81724, Star1#81725, Star2#81726, Star3#81727, Star4#81728,
+        No_of_Votes#81729L, Gross#81730], false
+
+        '
+      level: error
+      uid: f01c2a45-6c8d-4cd7-bd51-537a2571896e
+      source_assumptions:
+      - 37d868b3-cdfc-445c-bdf5-b165847fb603
+    assumptions:
+    - text: 'The code extracts an integer minute value from the textual ''Runtime''
+        and stores it in ''runtime_minutes''. Therefore: (a) ''Runtime'' must contain
+        at least one ASCII digit substring (regex ''\\d+''); (b) for rows used to
+        build cards/featured items, ''runtime_minutes'' must be complete (non-null),
+        an integer, and positive (>= 1); (c) ''runtime_minutes'' must equal the integer
+        parsed from the first match of ''\\d+'' in ''Runtime''. Examples of actionable
+        checks (Deequ / pseudocode):
+
+        - .hasPattern(''Runtime'', ''.*\\d+.*'')
+
+        - .isComplete([''runtime_minutes''])
+
+        - .satisfies(''runtime_minutes > 0'')
+
+        - Custom row-level check: extract_int(Runtime) == runtime_minutes (where extract_int
+        applies the same ''(\\d+)'' extraction used in the code).'
+      sources:
+      - start_line: 34
+        end_line: 36
+        file: ''
+      - start_line: 43
+        end_line: 49
+        file: ''
+      - start_line: 97
+        end_line: 97
+        file: ''
+      uid: 37d868b3-cdfc-445c-bdf5-b165847fb603
+    - text: 'The featured-selection logic sorts and chooses top records by ''ranking_score'',
+        ''IMDB_Rating'', and ''No_of_Votes''. For this to behave predictably: (a)
+        ''IMDB_Rating'' and ''No_of_Votes'' must be numeric (or coercible to numeric)
+        and not NaN for rows that can appear in the top-N; (b) ''ranking_score'' must
+        be finite (not NaN/Inf) and consistent with the computed formula using those
+        two columns. Actionable checks:
+
+        - .isComplete([''IMDB_Rating'',''No_of_Votes'',''ranking_score'']) for the
+        candidate/top subset
+
+        - .isFinite(''ranking_score'')
+
+        - Row-level consistency check: ranking_score == (No_of_Votes/(No_of_Votes+m))*IMDB_Rating
+        + (m/(No_of_Votes+m))*C (using the same m and C as in code, or check within
+        a small epsilon).'
+      sources:
+      - start_line: 18
+        end_line: 29
+        file: ''
+      - start_line: 34
+        end_line: 34
+        file: ''
+      uid: 802737fd-9b43-4e7b-910f-1ff927453dbf
+    - text: 'The slug generation and rendering combine ''Series_Title'' and ''Released_Year''.
+        The code calls int(Released_Year) when Released_Year is present and always
+        stringifies Series_Title. Therefore: (a) when Released_Year is non-null it
+        must be parseable as an integer (no non-numeric text); (b) Series_Title must
+        be non-empty for meaningful slugs/IDs. Actionable checks:
+
+        - .isComplete([''Series_Title''])
+
+        - .where(''Released_Year IS NOT NULL'').satisfies(''Released_Year.rlike("^\\d+$")'')
+        or equivalent numeric parse check.'
+      sources:
+      - start_line: 43
+        end_line: 55
+        file: ''
+      uid: e0902f5b-a38b-4f2c-99dd-981a6879c1be
+  Series_Title:
+    code:
+    - suggestion: .isComplete('Series_Title')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 573685b4-12d1-43bc-a8a2-c86d502c1b42
+      source_assumptions:
+      - 439ef1ba-6f8f-4d97-a9a4-58dae22ecc2d
+    - suggestion: '.satisfies("CASE WHEN trim(`Series_Title`) != '''' THEN 1 ELSE
+        0 END", "Series_Title not empty", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 02fa6c18-7b0d-416e-b4d2-24b2771daf3d
+      source_assumptions:
+      - 6d75a443-438a-482d-981a-edf908bb2ad5
+    - suggestion: '.satisfies("CASE WHEN regexp_like(`Series_Title`, ''[A-Za-z0-9]'')
+        THEN 1 ELSE 0 END", "Series_Title has alphanumeric", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 236f02f0-b25d-4366-9688-133b7a51b1e0
+      source_assumptions:
+      - 2d93dab8-d863-4e2d-93cd-2a1e9c508407
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: cfec8ba9-1bbd-4cf8-b1b1-51d80c754688
+      source_assumptions:
+      - 673adf5a-da5a-49b9-9662-686b215929bd
+    - suggestion: '.satisfies("CASE WHEN NOT regexp_like(`Series_Title`, ''<[^>]+>'')
+        AND NOT regexp_like(`Series_Title`, ''[\\x00-\\x1F]'') THEN 1 ELSE 0 END",
+        "Series_Title no HTML or control chars", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN NOT regexp_like(`Series_Title`,
+        ''<[^>]+>'') AND NOT regexp_like(`Series_Title`, ''[\\x00-\\x1F]'') THEN 1
+        ELSE 0 END", "Series_Title no HTML or control chars", lambda x: x == 1)''
+        failed on data sample: Value: 0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: 38a98750-c8b3-450e-bc0f-cfa00e9c83d7
+      source_assumptions:
+      - d8734229-d19b-40b9-acf6-23a3a238b2dc
+    assumptions:
+    - text: 'The ''Series_Title'' column contains no NULL values (complete). The code
+        retrieves the title and uses it directly for display and slug generation without
+        null-checks, so input should be fully populated. Example Deequ-style constraint:
+        .satisfies(''CASE WHEN `Series_Title` IS NOT NULL THEN 1 ELSE 0 END'', ''Series_Title
+        non-null'', lambda x: x == 1)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 43
+        end_line: 46
+        file: ''
+      uid: 439ef1ba-6f8f-4d97-a9a4-58dae22ecc2d
+    - text: 'The ''Series_Title'' column should not be empty or only whitespace. The
+        code calls .strip() (via slugify) and uses the title in UI text and IDs, so
+        titles that are empty or whitespace would produce missing or meaningless display/ids.
+        Example Deequ-style constraint: .satisfies(''CASE WHEN trim(`Series_Title`)
+        != "" THEN 1 ELSE 0 END'', ''Series_Title not empty'', lambda x: x == 1)'
+      sources:
+      - start_line: 39
+        end_line: 41
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: 6d75a443-438a-482d-981a-edf908bb2ad5
+    - text: 'Each ''Series_Title'' should include at least one alphanumeric character
+        so slugify produces a meaningful slug segment (i.e., titles not entirely punctuation).
+        The slug is used as the card ''id'' and in HTML attributes; titles without
+        alphanumeric characters may lead to empty or colliding ids. Example Deequ-style
+        constraint: .satisfies(''CASE WHEN regexp_like(`Series_Title`, "[A-Za-z0-9]")
+        THEN 1 ELSE 0 END'', ''Series_Title has alphanumeric'', lambda x: x == 1)'
+      sources:
+      - start_line: 39
+        end_line: 41
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: 2d93dab8-d863-4e2d-93cd-2a1e9c508407
+    - text: 'The tuple (Series_Title, Released_Year) should be unique (at least within
+        the top-N/featured subset) so generated slugs/ids do not collide. The code
+        forms a slug from title and year and uses it as the DOM id; duplicate slugs
+        may produce invalid/non-unique ids. Example Deequ-style check (applied to
+        input rows expected to appear in featured selection): ensure count(distinct
+        concat(coalesce(`Series_Title`,''''), ''||'', coalesce(cast(`Released_Year`
+        as string),''''))) == count(*) or equivalently assert uniqueness on the concatenated
+        key.'
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 54
+        end_line: 59
+        file: ''
+      uid: 673adf5a-da5a-49b9-9662-686b215929bd
+    - text: 'Series_Title should not contain raw HTML tags or control characters that
+        could break rendering, since titles are inserted into HTML attributes and
+        body without escaping. Example Deequ-style constraint: .satisfies(''CASE WHEN
+        NOT regexp_like(`Series_Title`, "<[^>]+>") THEN 1 ELSE 0 END'', ''Series_Title
+        contains no HTML tags'', lambda x: x == 1)'
+      sources:
+      - start_line: 91
+        end_line: 96
+        file: ''
+      - start_line: 92
+        end_line: 93
+        file: ''
+      uid: d8734229-d19b-40b9-acf6-23a3a238b2dc
+column_data_flow_locations:
+  '["IMDB_Rating","No_of_Votes"]': []
+  '["Runtime","runtime_minutes"]':
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 34
+    end_line: 36
+    file: ''
+  - start_line: 43
+    end_line: 69
+    file: ''
+  - start_line: 89
+    end_line: 106
+    file: ''
+  - start_line: 108
+    end_line: 124
+    file: ''
+  - start_line: 126
+    end_line: 130
+    file: ''
+  '["Released_Year","Series_Title"]': []
+  '["Certificate","certificate_display"]': []
+  '["IMDB_Rating","star_fill_pct"]': []
+  IMDB_Rating:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 19
+    file: ''
+  - start_line: 23
+    end_line: 24
+    file: ''
+  - start_line: 29
+    end_line: 30
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 51
+    end_line: 51
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 55
+    end_line: 55
+    file: ''
+  - start_line: 57
+    end_line: 69
+    file: ''
+  - start_line: 100
+    end_line: 101
+    file: ''
+  - start_line: 120
+    end_line: 120
+    file: ''
+  - start_line: 126
+    end_line: 127
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  No_of_Votes:
+  - start_line: 16
+    end_line: 30
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 44
+    end_line: 69
+    file: ''
+  - start_line: 90
+    end_line: 106
+    file: ''
+  - start_line: 129
+    end_line: 129
+    file: ''
+  Runtime:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 34
+    end_line: 36
+    file: ''
+  - start_line: 43
+    end_line: 69
+    file: ''
+  - start_line: 89
+    end_line: 106
+    file: ''
+  - start_line: 108
+    end_line: 124
+    file: ''
+  - start_line: 126
+    end_line: 127
+    file: ''
+  - start_line: 129
+    end_line: 129
+    file: ''
+  Series_Title:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 43
+    end_line: 45
+    file: ''
+  - start_line: 54
+    end_line: 69
+    file: ''
+  - start_line: 89
+    end_line: 106
+    file: ''
+  - start_line: 108
+    end_line: 127
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  Released_Year:
+  - start_line: 46
+    end_line: 46
+    file: ''
+  - start_line: 54
+    end_line: 54
+    file: ''
+  - start_line: 57
+    end_line: 69
+    file: ''
+  - start_line: 91
+    end_line: 106
+    file: ''
+  - start_line: 120
+    end_line: 120
+    file: ''
+  - start_line: 126
+    end_line: 127
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  Poster_Link:
+  - start_line: 47
+    end_line: 69
+    file: ''
+  - start_line: 89
+    end_line: 106
+    file: ''
+  - start_line: 108
+    end_line: 127
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  Certificate:
+  - start_line: 49
+    end_line: 50
+    file: ''
+  - start_line: 57
+    end_line: 63
+    file: ''
+  - start_line: 90
+    end_line: 106
+    file: ''
+  - start_line: 120
+    end_line: 127
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  Genre:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 96
+    end_line: 96
+    file: ''
+  - start_line: 130
+    end_line: 130
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.00183425
+    total_tokens: 4411
+    prompt_tokens: 3993
+    completion_tokens: 418
+  data_flow_inspection:
+    cost: 0.0586001
+    total_tokens: 47587
+    prompt_tokens: 20274
+    completion_tokens: 27313
+  column_correlation_discovery:
+    cost: 0.00486725
+    total_tokens: 4671
+    prompt_tokens: 2557
+    completion_tokens: 2114
+  multi_column_data_flow_inspection:
+    cost: 0.021152499999999998
+    total_tokens: 22135
+    prompt_tokens: 13210
+    completion_tokens: 8925
+  multi_column_assumption_generation:
+    cost: 0.027613250000000006
+    total_tokens: 26306
+    prompt_tokens: 14285
+    completion_tokens: 12021
+  multi_column_code_generation:
+    cost: 0.0240205
+    total_tokens: 32615
+    prompt_tokens: 22314
+    completion_tokens: 10301
+  single_column_assumption_generation:
+    cost: 0.0512245
+    total_tokens: 50135
+    prompt_tokens: 28026
+    completion_tokens: 22109
+  single_column_code_generation:
+    cost: 0.04462175
+    total_tokens: 69748
+    prompt_tokens: 52239
+    completion_tokens: 17509

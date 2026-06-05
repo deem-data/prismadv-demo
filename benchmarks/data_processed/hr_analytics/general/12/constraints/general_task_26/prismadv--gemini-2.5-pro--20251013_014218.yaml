@@ -1,0 +1,1214 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-pro
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  YearsAtCompany:
+    code:
+    - suggestion: '.hasDataType("YearsAtCompany", "Integral", assertion=lambda x:
+        x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("YearsAtCompany",
+        "Integral", assertion=lambda x: x == 1.0)'
+      level: warning
+      uid: ce02b7e3-1b08-41bc-ad0c-5d9a876bbb5b
+      source_assumptions:
+      - 1d94b2f3-6c55-42d3-b33c-c6f9b30e6962
+    - suggestion: .isNonNegative("YearsAtCompany")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 051f6cc0-c301-4374-889f-98f5b4ca8c44
+      source_assumptions:
+      - 1c1cda11-e47f-436f-960c-d326415b3893
+    - suggestion: .isGreaterThanOrEqualTo("YearsAtCompany", "YearsSinceLastPromotion")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 78bb8b73-52ff-44c1-a68c-ec54b739b979
+      source_assumptions:
+      - 2bc0c286-6474-4ecf-9c9d-1e2275c9c1c4
+    assumptions:
+    - text: The 'YearsAtCompany' column is expected to contain values that can be
+        converted to a numeric type. The code explicitly attempts this conversion
+        and will coerce any non-numeric values to nulls, which may affect downstream
+        calculations.
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      uid: 1d94b2f3-6c55-42d3-b33c-c6f9b30e6962
+    - text: The 'YearsAtCompany' column is expected to contain non-negative values.
+        The code uses this column as a denominator in a division after checking if
+        it's positive. Negative values, while handled by the conditional logic, are
+        logically inconsistent for a tenure-based calculation.
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 1c1cda11-e47f-436f-960c-d326415b3893
+    - text: The values in the 'YearsAtCompany' column are expected to be greater than
+        or equal to the corresponding values in the 'YearsSinceLastPromotion' column.
+        This is a logical constraint required for the 'TenureRatio' calculation to
+        be meaningful, as an employee's years since their last promotion cannot exceed
+        their total tenure.
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 2bc0c286-6474-4ecf-9c9d-1e2275c9c1c4
+  EmpID:
+    code:
+    - suggestion: .isComplete("EmpID")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0279d83a-27a4-44a6-8575-2cb5525fd506
+      source_assumptions:
+      - 6dcfcb95-96ed-454b-85da-8605c782bda3
+    - suggestion: .isUnique("EmpID")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3b1e9e5b-f39f-4b5e-93a2-1e180f168349
+      source_assumptions:
+      - c9f116dc-50df-4c44-8cd0-1073324428f2
+    - suggestion: .hasDataType("EmpID", "String")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("EmpID", "String")'
+      level: warning
+      uid: e2e1219e-d2b6-4fb4-b5f2-98e1e6f8a29c
+      source_assumptions:
+      - 2a8ec598-5f2a-4acb-9634-8faf2c659492
+    assumptions:
+    - text: 'The ''EmpID'' column should not contain any null or missing values. The
+        code does not handle nulls for this column, and a null value would defeat
+        its purpose as an identifier in the output file. We could represent this assumption
+        as a deequ constraint like this: .isComplete("EmpID")'
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 116
+        end_line: 137
+        file: ''
+      uid: 6dcfcb95-96ed-454b-85da-8605c782bda3
+    - text: 'The ''EmpID'' column is expected to be a unique identifier for each row.
+        While the code does not explicitly perform operations that require uniqueness
+        (like joins or setting an index), the column''s name and its role as an identifier
+        imply that each value should be distinct. The output data would be ambiguous
+        if multiple rows shared the same EmpID. We could represent this assumption
+        as a deequ constraint like this: .isUnique("EmpID")'
+      sources:
+      - start_line: 116
+        end_line: 137
+        file: ''
+      uid: c9f116dc-50df-4c44-8cd0-1073324428f2
+    - text: 'The ''EmpID'' column should have a string data type. The code does not
+        attempt to convert it to a numeric type, unlike other columns (e.g., ''MonthlyIncome'',
+        ''JobLevel''), implying it should be treated as a string. We could represent
+        this assumption as a deequ constraint like this: .hasDataType("EmpID", ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      uid: 2a8ec598-5f2a-4acb-9634-8faf2c659492
+  '["EmpID","JobLevel","MonthlyIncome","TotalWorkingYears"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `MonthlyIncome` <= 5000 THEN `SalarySlab`
+        = ''Upto 5k'' WHEN `MonthlyIncome` > 5000 AND `MonthlyIncome` <= 10000 THEN
+        `SalarySlab` = ''5k-10k'' WHEN `MonthlyIncome` > 10000 AND `MonthlyIncome`
+        <= 15000 THEN `SalarySlab` = ''10k-15k'' WHEN `MonthlyIncome` > 15000 THEN
+        `SalarySlab` = ''15k+'' ELSE TRUE END", "SalarySlab_Consistency_Check", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b7adeb58-42ad-427f-8cff-d717d0fbe4b7
+      source_assumptions:
+      - b6bddc16-26c8-42e1-bb3f-617f9cbbc4a4
+    - suggestion: '.hasCorrelation("JobLevel", "MonthlyIncome", lambda c: c > 0.5)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fa49a880-66b5-455f-99ca-bc6806ced390
+      source_assumptions:
+      - 34601bac-f4bb-48d0-9a45-247c6c317788
+    - suggestion: '.isLessThanOrEqualTo("YearsAtCompany", "TotalWorkingYears", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 90e14b45-62fd-40e2-9ed2-0430fc54d22a
+      source_assumptions:
+      - 2792c94d-c543-4f77-9974-32d94e0d821c
+    assumptions:
+    - text: 'The ''SalarySlab'' column must be consistent with the ''MonthlyIncome''
+        column, following the bucketing logic defined in the `assign_salary_slab`
+        function. The script relies on this consistency to calculate a meaningful
+        `CompaRatio`. For instance, a `MonthlyIncome` of 4500 should always have a
+        `SalarySlab` of ''Upto 5k''.
+
+        This could be represented as a Deequ constraint:
+
+        `.check(CheckLevel.Error, "SalarySlab consistency", "CASE WHEN MonthlyIncome
+        <= 5000 THEN SalarySlab = ''Upto 5k'' WHEN MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000 THEN SalarySlab = ''5k-10k'' WHEN MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000 THEN SalarySlab = ''10k-15k'' WHEN MonthlyIncome > 15000 THEN SalarySlab
+        = ''15k+'' ELSE TRUE END")`'
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 68
+        end_line: 70
+        file: ''
+      uid: b6bddc16-26c8-42e1-bb3f-617f9cbbc4a4
+    - text: 'A positive monotonic relationship is expected between ''JobLevel'' and
+        ''MonthlyIncome''. The code calculates an income percentile within each job
+        level (`LevelPercentile`) to determine promotion eligibility. This logic assumes
+        that, on average, income increases with job level.
+
+        A constraint could verify this, for example, by checking that `median(MonthlyIncome
+        where JobLevel=N) <= median(MonthlyIncome where JobLevel=N+1)` for all adjacent
+        job levels.'
+      sources:
+      - start_line: 87
+        end_line: 87
+        file: ''
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: 34601bac-f4bb-48d0-9a45-247c6c317788
+    - text: 'For each employee record, the value in ''YearsAtCompany'' must be less
+        than or equal to the value in ''TotalWorkingYears''. This hierarchical relationship
+        is a fundamental business rule that the code''s tenure and experience-based
+        calculations implicitly depend on.
+
+        This can be expressed as a Deequ constraint:
+
+        `.check(CheckLevel.Error, "YearsAtCompany <= TotalWorkingYears", "YearsAtCompany
+        <= TotalWorkingYears")`'
+      sources:
+      - start_line: 81
+        end_line: 84
+        file: ''
+      - start_line: 116
+        end_line: 134
+        file: ''
+      uid: 2792c94d-c543-4f77-9974-32d94e0d821c
+  MonthlyIncome:
+    code:
+    - suggestion: .isComplete("MonthlyIncome")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0ff36b55-f7a8-4350-97fc-76c86bd093f0
+      source_assumptions:
+      - 9c40e118-87c1-4cdd-a9b2-bc4f54b79cea
+    - suggestion: '.hasDataType("MonthlyIncome", "Numeric", assertion=lambda x: x
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("MonthlyIncome",
+        "Numeric", assertion=lambda x: x == 1.0)'
+      level: error
+      uid: 569c4731-65fe-4620-94d1-ed43281a9ced
+      source_assumptions:
+      - 9c40e118-87c1-4cdd-a9b2-bc4f54b79cea
+    - suggestion: .isNonNegative("MonthlyIncome")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: eaa16cde-b715-4a50-ba20-246763597131
+      source_assumptions:
+      - 70fca7d3-7cf2-4520-881f-fb8891a14814
+    - suggestion: '.satisfies("CASE WHEN SalarySlab = ''Upto 5k'' THEN MonthlyIncome
+        <= 5000 WHEN SalarySlab = ''5k-10k'' THEN (MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000) WHEN SalarySlab = ''10k-15k'' THEN (MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000) WHEN SalarySlab = ''15k+'' THEN MonthlyIncome > 15000 ELSE MonthlyIncome
+        IS NULL END", "IncomeSlabConsistency", assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: f9b0c486-be1d-4339-a243-e77e9a275e5f
+      source_assumptions:
+      - bfa58686-8d65-4493-b085-ff7415cb4d52
+    assumptions:
+    - text: The 'MonthlyIncome' column must contain only values that can be converted
+        to a numeric type and must not be null. Although the code on line 65 attempts
+        to handle non-numeric values by coercing them to nulls, a subsequent operation
+        on line 112 requires the data to be free of nulls to cast to a standard integer
+        type, which would cause the script to fail.
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      - start_line: 112
+        end_line: 112
+        file: ''
+      uid: 9c40e118-87c1-4cdd-a9b2-bc4f54b79cea
+    - text: The 'MonthlyIncome' column should contain non-negative values (>= 0).
+        The business context of income and its use in calculations like salary binning
+        (lines 8-19) and raise calculations (line 103) imply that values are expected
+        to be positive.
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 103
+        end_line: 103
+        file: ''
+      uid: 70fca7d3-7cf2-4520-881f-fb8891a14814
+    - text: 'The values in the ''MonthlyIncome'' column are expected to be consistent
+        with the ''SalarySlab'' column from the input data. The script uses both columns
+        to calculate a comparative ratio (line 70), and the logic for binning income
+        into slabs is explicitly defined in the `assign_salary_slab` function (lines
+        8-19). An inconsistency, such as a `MonthlyIncome` of 4000 with a `SalarySlab`
+        of ''5k-10k'', would lead to invalid calculations.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN MonthlyIncome <= 5000 THEN SalarySlab = ''Upto 5k''
+        WHEN MonthlyIncome > 5000 AND MonthlyIncome <= 10000 THEN SalarySlab = ''5k-10k''
+        WHEN MonthlyIncome > 10000 AND MonthlyIncome <= 15000 THEN SalarySlab = ''10k-15k''
+        WHEN MonthlyIncome > 15000 THEN SalarySlab = ''15k+'' ELSE 0 END", "IncomeSlabConsistency",
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: bfa58686-8d65-4493-b085-ff7415cb4d52
+  JobLevel:
+    code:
+    - suggestion: '.hasDataType(''JobLevel'', ''Integral'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''JobLevel'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: 0307645e-7d7a-43c8-b66f-b6de91b49cb5
+      source_assumptions:
+      - 486a76b4-a9e5-4d71-b710-75a20f05709e
+      - 2c01b4df-f7b4-4cae-ac8c-3563e179ddf8
+    - suggestion: .isComplete('JobLevel')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1f97b851-ccd2-459a-ba20-ce627b52b72b
+      source_assumptions:
+      - 51c4377b-69ca-4f5b-b41d-dfc1f43ecc42
+    - suggestion: '.hasNumberOfDistinctValues(''JobLevel'', lambda n: n > 1)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''JobLevel'',
+        lambda n: n > 1)'': Check.hasNumberOfDistinctValues() missing 2 required positional
+        arguments: ''binningUdf'' and ''maxBins'''
+      level: error
+      uid: 42976d54-6153-42c4-b96b-825149d4509a
+      source_assumptions:
+      - cea3baf1-d229-460e-bf32-cab825e64aa0
+    assumptions:
+    - text: The 'JobLevel' column is expected to be numeric or cleanly convertible
+        to a numeric type. The code attempts to convert the column using `pd.to_numeric`
+        with `errors='coerce'`, which would create nulls for any non-numeric values.
+        Subsequent arithmetic operations (`+ 1`), comparisons (`< .max()`), and grouping
+        all depend on the column having valid numeric data.
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      - start_line: 94
+        end_line: 94
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      uid: 486a76b4-a9e5-4d71-b710-75a20f05709e
+    - text: The 'JobLevel' column is assumed to be an ordinal variable where the levels
+        are sequential integers. The code calculates a new job level by adding 1 to
+        the current level (`df["JobLevel"] + 1`), which implies that job levels are
+        consecutive (e.g., 1, 2, 3, 4, 5).
+      sources:
+      - start_line: 114
+        end_line: 114
+        file: ''
+      uid: 2c01b4df-f7b4-4cae-ac8c-3563e179ddf8
+    - text: The 'JobLevel' column must not be nullable. Although `pd.to_numeric` with
+        `errors='coerce'` can introduce nulls, the subsequent comparison (`df["JobLevel"]
+        < df["JobLevel"].max()`) and arithmetic (`df["JobLevel"] + 1`) operations
+        would fail or produce incorrect results for rows with null values.
+      sources:
+      - start_line: 94
+        end_line: 94
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      uid: 51c4377b-69ca-4f5b-b41d-dfc1f43ecc42
+    - text: The 'JobLevel' column must contain more than one distinct value. The promotion
+        logic compares an employee's level to the maximum level in the dataset (`df["JobLevel"]
+        < df["JobLevel"].max()`). If all employees had the same job level, this condition
+        would always be false, and no promotions would ever be recommended.
+      sources:
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: cea3baf1-d229-460e-bf32-cab825e64aa0
+  '["JobLevel","MonthlyIncome"]':
+    code:
+    - suggestion: '.hasCorrelation("JobLevel", "MonthlyIncome", lambda c: c > 0.5)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2c5c74c1-cabf-41cd-9964-8e602e7dd8f4
+      source_assumptions:
+      - 21592ea2-f2cc-4a76-a068-ffa2c15f41a5
+    assumptions:
+    - text: 'The ''MonthlyIncome'' is expected to be positively correlated with the
+        ''JobLevel''. The code assumes that a higher ''JobLevel'' corresponds to a
+        higher ''MonthlyIncome'' range. This is evident from the calculation of ''LevelPercentile'',
+        which ranks ''MonthlyIncome'' within each ''JobLevel'' group to inform promotion
+        decisions. A logical compensation structure would require the average income
+        of a higher job level to be greater than that of a lower job level.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCorrelation("JobLevel", "MonthlyIncome", lambda c: c > 0.5)'
+      sources:
+      - start_line: 87
+        end_line: 87
+        file: ''
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: 21592ea2-f2cc-4a76-a068-ffa2c15f41a5
+  '["JobLevel","MonthlyIncome","PerformanceRating","YearsSinceLastPromotion"]':
+    code:
+    - suggestion: '.isLessThanOrEqualTo(''YearsSinceLastPromotion'', ''YearsAtCompany'',
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0499e796-d343-4105-91a8-eb84d3d4f611
+      source_assumptions:
+      - 5c9cab9a-a901-44c9-827d-645b194cb6cd
+    - suggestion: '.hasCorrelation(''JobLevel'', ''MonthlyIncome'', lambda c: c >=
+        0.5)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4e483355-24b8-44bf-b266-024fe14981a4
+      source_assumptions:
+      - 52b7cfd2-16eb-4619-9670-901717051180
+    - suggestion: '.satisfies("`PerformanceRating` >= 4 AND `YearsSinceLastPromotion`
+        >= 2", "has_promotion_candidates", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 55658bf8-d5ff-4345-ab0d-577568950e39
+      source_assumptions:
+      - b2c3c233-6b0b-4c76-8146-ebdf6632e63f
+    assumptions:
+    - text: 'The value in the ''YearsSinceLastPromotion'' column should be less than
+        or equal to the value in the ''YearsAtCompany'' column for each record. The
+        code calculates a ''TenureRatio'' by dividing these two columns, which implies
+        a hierarchical relationship where time since promotion cannot exceed time
+        at the company. We could represent this assumption as a deequ constraint like
+        this:
+
+        .satisfies("YearsSinceLastPromotion <= YearsAtCompany", "promotion_date_after_hire_date")'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 5c9cab9a-a901-44c9-827d-645b194cb6cd
+    - text: 'The ''MonthlyIncome'' is expected to be positively correlated with the
+        ''JobLevel''. The code calculates an income percentile within each job level
+        (''LevelPercentile'') and uses it as a criterion for promotion. This logic
+        is only effective if, on average, a higher job level corresponds to a higher
+        monthly income. We could represent this assumption as a deequ constraint like
+        this:
+
+        .hasCorrelation("JobLevel", "MonthlyIncome", _ >= 0.5)'
+      sources:
+      - start_line: 87
+        end_line: 87
+        file: ''
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: 52b7cfd2-16eb-4619-9670-901717051180
+    - text: 'For the promotion logic to be effective, there should be a non-zero number
+        of employees who meet the base criteria for promotion consideration, specifically
+        having a ''PerformanceRating'' of 4 or higher and ''YearsSinceLastPromotion''
+        of 2 or more. The code combines these conditions with a logical AND, assuming
+        that such a cohort of employees exists in the data. We could represent this
+        assumption as a deequ constraint like this:
+
+        .satisfies("PerformanceRating >= 4 AND YearsSinceLastPromotion >= 2", "has_promotion_candidates",
+        _ > 0)'
+      sources:
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: b2c3c233-6b0b-4c76-8146-ebdf6632e63f
+  YearsSinceLastPromotion:
+    code:
+    - suggestion: '.hasDataType(''YearsSinceLastPromotion'', ''Integral'', assertion=lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''YearsSinceLastPromotion'',
+        ''Integral'', assertion=lambda x: x == 1.0)'
+      level: error
+      uid: 7723254a-fd0f-4901-bfa2-fbd9be3dc8bd
+      source_assumptions:
+      - 83eabddb-9ade-4e65-8957-cb4f72bb836b
+    - suggestion: '.isNonNegative(''YearsSinceLastPromotion'', assertion=lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2f15ae86-cbd0-4c36-a939-88d4bb28a784
+      source_assumptions:
+      - c42aca07-8804-49d9-abcc-aa1af731ec1c
+    - suggestion: '.isLessThanOrEqualTo(''YearsSinceLastPromotion'', ''YearsAtCompany'',
+        assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c2917f28-47e5-4622-b22e-c20101138bd5
+      source_assumptions:
+      - ad522b71-48bb-4eec-adbc-747f78f2896e
+    assumptions:
+    - text: 'The ''YearsSinceLastPromotion'' column is expected to contain values
+        that can be parsed as numbers. The code explicitly converts the column to
+        a numeric type, and any non-numeric values will be coerced to nulls. These
+        potential nulls are not handled in downstream calculations (e.g., division
+        for ''TenureRatio'', comparison for ''PromotionRecommended''), which would
+        result in errors or incorrect outputs.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isNumeric(''YearsSinceLastPromotion'')'
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      - start_line: 81
+        end_line: 83
+        file: ''
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: 83eabddb-9ade-4e65-8957-cb4f72bb836b
+    - text: 'The ''YearsSinceLastPromotion'' column must contain non-negative values.
+        This is implied by its name (''Years'') and its use in calculations like division
+        and comparisons (e.g., `YearsSinceLastPromotion >= 2`), where negative values
+        would be logically inconsistent.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isNonNegative(''YearsSinceLastPromotion'')'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      - start_line: 90
+        end_line: 95
+        file: ''
+      uid: c42aca07-8804-49d9-abcc-aa1af731ec1c
+    - text: 'For any given record, the value in ''YearsSinceLastPromotion'' should
+        be less than or equal to the value in ''YearsAtCompany''. The code calculates
+        a ''TenureRatio'' by dividing these two columns, which implies a logical business
+        rule that an employee''s last promotion could not have occurred before they
+        joined the company.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies(''`YearsSinceLastPromotion` <= `YearsAtCompany`'', ''PromotionYears_le_YearsAtCompany'',
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: ad522b71-48bb-4eec-adbc-747f78f2896e
+  '["MonthlyIncome","SalarySlab"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `MonthlyIncome` <= 5000 THEN `SalarySlab`
+        = ''Upto 5k'' WHEN `MonthlyIncome` > 5000 AND `MonthlyIncome` <= 10000 THEN
+        `SalarySlab` = ''5k-10k'' WHEN `MonthlyIncome` > 10000 AND `MonthlyIncome`
+        <= 15000 THEN `SalarySlab` = ''10k-15k'' WHEN `MonthlyIncome` > 15000 THEN
+        `SalarySlab` = ''15k+'' ELSE TRUE END", "SalarySlab and MonthlyIncome consistency",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8e39a377-fc10-4bca-bbca-608d1d8056f4
+      source_assumptions:
+      - 137fc7d3-92cf-4f09-82c0-154ab1fcd74b
+    assumptions:
+    - text: 'The value in the ''SalarySlab'' column must be consistent with the value
+        in the ''MonthlyIncome'' column. This relationship is explicitly defined by
+        the binning logic in the `assign_salary_slab` function and is crucial for
+        the correct calculation of ''CompaRatio''.
+
+        Specifically:
+
+        - If `MonthlyIncome` <= 5000, `SalarySlab` must be ''Upto 5k''.
+
+        - If 5000 < `MonthlyIncome` <= 10000, `SalarySlab` must be ''5k-10k''.
+
+        - If 10000 < `MonthlyIncome` <= 15000, `SalarySlab` must be ''10k-15k''.
+
+        - If `MonthlyIncome` > 15000, `SalarySlab` must be ''15k+''.
+
+        This could be enforced with a Deequ constraint like:
+
+        .check(CheckLevel.Error, "SalarySlab and MonthlyIncome consistency", "CASE
+        WHEN MonthlyIncome <= 5000 THEN SalarySlab = ''Upto 5k'' WHEN MonthlyIncome
+        > 5000 AND MonthlyIncome <= 10000 THEN SalarySlab = ''5k-10k'' WHEN MonthlyIncome
+        > 10000 AND MonthlyIncome <= 15000 THEN SalarySlab = ''10k-15k'' WHEN MonthlyIncome
+        > 15000 THEN SalarySlab = ''15k+'' ELSE TRUE END")'
+      sources:
+      - start_line: 8
+        end_line: 19
+        file: ''
+      - start_line: 68
+        end_line: 70
+        file: ''
+      uid: 137fc7d3-92cf-4f09-82c0-154ab1fcd74b
+  PerformanceRating:
+    code:
+    - suggestion: .isContainedIn('PerformanceRating', [3, 4])
+      validity: false
+      reason_if_invalid: "Unable to instantiate constraint '.isContainedIn('PerformanceRating',\
+        \ [3, 4])': An error occurred while calling None.None. Trace:\npy4j.Py4JException:\
+        \ Cannot convert java.lang.Integer to java.lang.String\n\tat py4j.commands.ArrayCommand.convertArgument(ArrayCommand.java:166)\n\
+        \tat py4j.commands.ArrayCommand.setArray(ArrayCommand.java:144)\n\tat py4j.commands.ArrayCommand.execute(ArrayCommand.java:97)\n\
+        \tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:840)\n\n"
+      level: warning
+      uid: 8b852b83-0ad7-464b-a106-80a0e8d1c1d7
+      source_assumptions:
+      - eb09f67a-b8ae-4d40-8abf-2a670f865560
+      - 36587c0d-2512-4076-a094-b3e2eb35bb3a
+    - suggestion: '.hasDataType(''PerformanceRating'', ''Integral'', lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''PerformanceRating'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: warning
+      uid: a399452f-6fa9-4ea0-b475-1aa782af6594
+      source_assumptions:
+      - a9d19fba-9486-4529-89e8-36261f0e99ca
+      - 36587c0d-2512-4076-a094-b3e2eb35bb3a
+    assumptions:
+    - text: The 'PerformanceRating' column should contain only the integer values
+        3 and 4. The code explicitly maps these two values to raise percentages (3
+        to 3%, 4 to 8%). Any other value, whether it's a different number, a non-numeric
+        string (which gets converted to null), or an existing null, will fall back
+        to a 0% base raise. This fallback behavior suggests that values other than
+        3 and 4 are considered unexpected or invalid for the core logic.
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      uid: eb09f67a-b8ae-4d40-8abf-2a670f865560
+    - text: The 'PerformanceRating' column should contain values that can be parsed
+        as numbers. The script explicitly converts the column to a numeric type and
+        coerces any conversion errors into null values. These nulls are then treated
+        as invalid for calculating the base raise, indicating an expectation of numeric
+        data.
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      uid: a9d19fba-9486-4529-89e8-36261f0e99ca
+    - text: The 'PerformanceRating' column is used in a numeric comparison to determine
+        promotion recommendations (>= 4). This reinforces the assumption that the
+        column should contain numeric data where the magnitude is meaningful.
+      sources:
+      - start_line: 90
+        end_line: 91
+        file: ''
+      uid: 36587c0d-2512-4076-a094-b3e2eb35bb3a
+  SalarySlab:
+    code:
+    - suggestion: .isContainedIn("SalarySlab", ["Upto 5k", "5k-10k", "10k-15k", "15k+"])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 808b28e0-fb0f-4ee0-8b1e-db79cd0bfd22
+      source_assumptions:
+      - f90c6104-061a-4659-ad7c-3f6ca23cee4d
+    - suggestion: .isComplete("SalarySlab")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b945a122-8e4d-4c9b-b126-b8ef68b603ca
+      source_assumptions:
+      - 2fd588d3-6262-4c22-9c46-4bd659a40da7
+    assumptions:
+    - text: 'The ''SalarySlab'' column is expected to contain only values from the
+        set: ''Upto 5k'', ''5k-10k'', ''10k-15k'', ''15k+''. The code relies on these
+        specific string values for mapping to numerical values in the ''get_band_midpoints''
+        and ''next_band_lower_bound'' functions. Unrecognized values would result
+        in nulls in derived columns, which are not explicitly handled.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isContainedIn("SalarySlab", Array("Upto 5k", "5k-10k", "10k-15k", "15k+"))'
+      sources:
+      - start_line: 22
+        end_line: 31
+        file: ''
+      - start_line: 34
+        end_line: 41
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: f90c6104-061a-4659-ad7c-3f6ca23cee4d
+    - text: 'The ''SalarySlab'' column should not contain any null values. The code
+        does not include any logic to handle nulls for this column before using it
+        in mapping operations. A null value would propagate into downstream calculations
+        like ''BandMidpoint'' and ''CompaRatio'', potentially leading to incorrect
+        or missing compensation recommendations.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("SalarySlab")'
+      sources:
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 101
+        end_line: 101
+        file: ''
+      uid: 2fd588d3-6262-4c22-9c46-4bd659a40da7
+  TotalWorkingYears:
+    code:
+    - suggestion: '.hasDataType(''TotalWorkingYears'', ''Numeric'', lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''TotalWorkingYears'',
+        ''Numeric'', lambda x: x == 1.0)'
+      level: warning
+      uid: 48c1e9a0-97fc-4a51-80ef-0d96fc479737
+      source_assumptions:
+      - d5fc341d-4ac6-41b4-8167-1f83386385a8
+    assumptions:
+    - text: The 'TotalWorkingYears' column is assumed to contain values that are convertible
+        to a numeric type. The code explicitly attempts this conversion using `pd.to_numeric`
+        with `errors='coerce'`. This setting ensures that any values that cannot be
+        parsed as numbers are replaced with nulls (NaN), preventing the program from
+        crashing. This implies a strong expectation that the column holds numeric
+        data, although some non-numeric values are tolerated.
+      sources:
+      - start_line: 56
+        end_line: 65
+        file: ''
+      uid: d5fc341d-4ac6-41b4-8167-1f83386385a8
+  '["TotalWorkingYears","YearsAtCompany","YearsSinceLastPromotion"]':
+    code:
+    - suggestion: '.satisfies("`TotalWorkingYears` >= `YearsAtCompany` AND `YearsAtCompany`
+        >= `YearsSinceLastPromotion`", "TenureHierarchyCheck", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d61768e9-5499-452e-891e-5da0594a8cb9
+      source_assumptions:
+      - 3e81fe93-9976-408a-9bf6-e7afb2110859
+    assumptions:
+    - text: "The columns 'TotalWorkingYears', 'YearsAtCompany', and 'YearsSinceLastPromotion'\
+        \ are expected to have a hierarchical relationship. For any given employee,\
+        \ the value in 'TotalWorkingYears' should be greater than or equal to 'YearsAtCompany',\
+        \ and 'YearsAtCompany' should be greater than or equal to 'YearsSinceLastPromotion'.\
+        \ This logical constraint is implied by the calculation of 'TenureRatio' (YearsSinceLastPromotion\
+        \ / YearsAtCompany), where the denominator is expected to be the whole and\
+        \ the numerator a part. \nWe could represent this assumption as a deequ constraint\
+        \ like this:\n.satisfies(\"'TotalWorkingYears' >= 'YearsAtCompany' AND 'YearsAtCompany'\
+        \ >= 'YearsSinceLastPromotion'\", \"TenureHierarchyCheck\")"
+      sources:
+      - start_line: 81
+        end_line: 83
+        file: ''
+      uid: 3e81fe93-9976-408a-9bf6-e7afb2110859
+column_data_flow_locations:
+  '["MonthlyIncome","SalarySlab"]':
+  - start_line: 8
+    end_line: 19
+    file: ''
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 34
+    end_line: 41
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 70
+    file: ''
+  - start_line: 75
+    end_line: 78
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 99
+    file: ''
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 113
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  '["TotalWorkingYears","YearsAtCompany","YearsSinceLastPromotion"]':
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 81
+    end_line: 83
+    file: ''
+  - start_line: 84
+    end_line: 84
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 98
+    end_line: 98
+    file: ''
+  - start_line: 99
+    end_line: 99
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 104
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 112
+    file: ''
+  - start_line: 113
+    end_line: 113
+    file: ''
+  - start_line: 114
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 136
+    end_line: 137
+    file: ''
+  '["EmpID","JobLevel","MonthlyIncome","TotalWorkingYears"]':
+  - start_line: 8
+    end_line: 19
+    file: ''
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 68
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 109
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  '["JobLevel","MonthlyIncome"]':
+  - start_line: 8
+    end_line: 19
+    file: ''
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 68
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 109
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  '["JobLevel","MonthlyIncome","PerformanceRating","YearsSinceLastPromotion"]':
+  - start_line: 8
+    end_line: 20
+    file: ''
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 68
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 78
+    file: ''
+  - start_line: 81
+    end_line: 84
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 99
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 136
+    end_line: 137
+    file: ''
+  EmpID:
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  JobLevel:
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 114
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  MonthlyIncome:
+  - start_line: 8
+    end_line: 19
+    file: ''
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 68
+    end_line: 68
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 109
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 113
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  PerformanceRating:
+  - start_line: 8
+    end_line: 20
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 99
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  SalarySlab:
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 34
+    end_line: 41
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 68
+    end_line: 69
+    file: ''
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 119
+    end_line: 119
+    file: ''
+  - start_line: 133
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  TotalWorkingYears:
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  YearsAtCompany:
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 81
+    end_line: 84
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  YearsSinceLastPromotion:
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 56
+    end_line: 65
+    file: ''
+  - start_line: 81
+    end_line: 84
+    file: ''
+  - start_line: 90
+    end_line: 95
+    file: ''
+  - start_line: 97
+    end_line: 99
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 106
+    end_line: 110
+    file: ''
+  - start_line: 112
+    end_line: 114
+    file: ''
+  - start_line: 116
+    end_line: 134
+    file: ''
+  - start_line: 136
+    end_line: 137
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 12726
+    prompt_tokens: 11043
+    completion_tokens: 1683
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 65192
+    prompt_tokens: 23381
+    completion_tokens: 41811
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 6456
+    prompt_tokens: 2811
+    completion_tokens: 3645
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 48166
+    prompt_tokens: 14806
+    completion_tokens: 33360
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 35226
+    prompt_tokens: 17450
+    completion_tokens: 17776
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 33448
+    prompt_tokens: 24720
+    completion_tokens: 8728
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 58885
+    prompt_tokens: 30999
+    completion_tokens: 27886
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 71247
+    prompt_tokens: 54203
+    completion_tokens: 17044

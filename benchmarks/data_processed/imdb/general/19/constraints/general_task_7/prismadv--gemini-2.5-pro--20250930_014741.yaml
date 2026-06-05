@@ -1,0 +1,942 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-pro
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: '.hasDataType(''IMDB_Rating'', ''Fractional'', lambda x: x > 0.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''IMDB_Rating'',
+        ''Fractional'', lambda x: x > 0.0)'
+      level: error
+      uid: 5668c78d-ece3-44a1-bcaf-fcb85dd9c2c1
+      source_assumptions:
+      - c9ea6647-27bc-40ad-a21b-8b6af9fbc537
+    - suggestion: '.satisfies("`IMDB_Rating` >= 7.0", "At least one high rating movie",
+        lambda c: c > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 2606cdef-0e5f-4c08-bd62-8619da93dae1
+      source_assumptions:
+      - 7f319170-743d-4b88-bcb9-c35e89aea6bc
+    assumptions:
+    - text: 'The ''IMDB_Rating'' column must contain values that can be converted
+        to a numeric type. The code at line 39 uses `pd.to_numeric` with `errors=''coerce''`,
+        which will transform any non-convertible values into nulls. For subsequent
+        calculations like `.mean()` (line 46) to be meaningful, the column must contain
+        at least one valid numeric value after this conversion. A high proportion
+        of non-numeric values would indicate a significant data quality issue.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .compliance("IMDB_Rating is convertible to numeric", "try_cast(`IMDB_Rating`
+        as double) IS NOT NULL", lambda p: p > 0.0)'
+      sources:
+      - start_line: 39
+        end_line: 39
+        file: ''
+      - start_line: 46
+        end_line: 46
+        file: ''
+      uid: c9ea6647-27bc-40ad-a21b-8b6af9fbc537
+    - text: 'The ''IMDB_Rating'' column is expected to contain values of 7.0 or higher.
+        The core logic for generating the ''Top Picks'' list relies on filtering for
+        records where `IMDB_Rating >= 7.0` (line 55). If no records meet this criterion,
+        the primary output of the script will be empty, indicating an assumption that
+        the input data will contain entries that meet this quality threshold. This
+        also implies the values exist on a scale where 7.0 is a meaningful cutoff,
+        such as a 0-10 scale.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("`IMDB_Rating` >= 7.0", "has_high_ratings", lambda c: c > 0)'
+      sources:
+      - start_line: 53
+        end_line: 53
+        file: ''
+      - start_line: 55
+        end_line: 55
+        file: ''
+      uid: 7f319170-743d-4b88-bcb9-c35e89aea6bc
+  Certificate:
+    code:
+    - suggestion: '.hasCompleteness(''Certificate'', lambda x: x > 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4c9e875a-8c0f-4ba5-ac3d-7b4e098cf210
+      source_assumptions:
+      - 80ed9876-2f0f-4cd9-ad8c-917c96ec9e69
+    - suggestion: '.hasDataType(''Certificate'', ''String'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Certificate'',
+        ''String'', lambda x: x == 1.0)'
+      level: warning
+      uid: f44f6159-eb2e-4317-9ee3-45379d2b6035
+      source_assumptions:
+      - 1474b42c-139f-4f65-b97b-ff4af17455e8
+    - suggestion: '.hasNumberOfDistinctValues(''Certificate'', lambda x: x < 25)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Certificate'',
+        lambda x: x < 25)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: d09f0e46-bb3f-45e3-ad97-205d35c2e31b
+      source_assumptions:
+      - bad48636-4433-4c16-9fe2-bc10b2fe800c
+    assumptions:
+    - text: The 'Certificate' column is assumed to contain null values. The code does
+        not perform any null-handling operations (like `fillna` or `dropna`) on this
+        column before it is included in the final output. This implies that nulls
+        are acceptable for this field. The data profile also shows a completeness
+        of ~90%, supporting this assumption.
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 72
+        end_line: 72
+        file: ''
+      - start_line: 79
+        end_line: 79
+        file: ''
+      uid: 80ed9876-2f0f-4cd9-ad8c-917c96ec9e69
+    - text: The 'Certificate' column is assumed to be of string type. The code does
+        not perform any type conversions on this column, unlike other columns in the
+        script (e.g., 'Runtime', 'IMDB_Rating'). It is read and written as-is, indicating
+        that its original string format is the expected format.
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 72
+        end_line: 79
+        file: ''
+      uid: 1474b42c-139f-4f65-b97b-ff4af17455e8
+    - text: The 'Certificate' column is assumed to be categorical with a limited number
+        of unique values. The data profile indicates approximately 13 distinct values.
+        The code includes this column in the final 'top_picks' output as a descriptive
+        attribute without performing any transformations, which is typical for categorical
+        features.
+      sources:
+      - start_line: 72
+        end_line: 72
+        file: ''
+      - start_line: 79
+        end_line: 79
+        file: ''
+      uid: bad48636-4433-4c16-9fe2-bc10b2fe800c
+  '["Certificate","Released_Year"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 781c1c97-82cf-482c-8597-c77f9a06094b
+      source_assumptions:
+      - 13c55bb2-a66a-4596-9b1b-f148d7a5717d
+    assumptions:
+    - text: The combination of 'Series_Title' and 'Released_Year' is expected to be
+        unique. The code constructs a 'title_year_key' from these columns to generate
+        a unique 'catalog_id' for each item. The logic for creating 'catalog_id' (lines
+        26-27) relies on this uniqueness to assign distinct IDs correctly. The presence
+        of duplicates is treated as a data quality issue, as they are explicitly removed
+        later in the script (line 56). A suitable constraint would be to check for
+        the uniqueness of this column combination, for example, with a Deequ constraint
+        like `.isUnique(['Series_Title', 'Released_Year'])`.
+      sources:
+      - start_line: 22
+        end_line: 27
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      uid: 13c55bb2-a66a-4596-9b1b-f148d7a5717d
+  Genre:
+    code:
+    - suggestion: '.hasDataType(''Genre'', ''String'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Genre'', ''String'',
+        lambda x: x == 1.0)'
+      level: error
+      uid: 4c7c6fe5-b5ab-4e94-8a20-654ea3a948d9
+      source_assumptions:
+      - 36b5e405-76d9-4896-b33f-465db2f772b2
+    - suggestion: .isComplete('Genre')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 46f40947-5310-40ce-a6ce-cbf29181245c
+      source_assumptions:
+      - df0c0df1-5cbf-46be-87d5-5f19ce4fc51e
+    assumptions:
+    - text: The input data must contain a column named 'Genre'. The code explicitly
+        selects this column to be included in the final output 'top_picks.csv'. A
+        missing column would raise a KeyError.
+      sources:
+      - start_line: 63
+        end_line: 76
+        file: ''
+      - start_line: 79
+        end_line: 79
+        file: ''
+      uid: cbcdb3ea-2484-4784-a00d-8edd540e4af5
+    - text: The 'Genre' column is expected to be of string type. The code reads the
+        data and directly includes the column in the output without any type conversion,
+        implying its existing type is acceptable for the downstream task.
+      sources:
+      - start_line: 18
+        end_line: 18
+        file: ''
+      - start_line: 79
+        end_line: 79
+        file: ''
+      uid: 36b5e405-76d9-4896-b33f-465db2f772b2
+    - text: The 'Genre' column should not contain any null values. The code does not
+        implement any null handling logic (e.g., fillna, dropna) for this column.
+        Null values would be propagated to the final output, which is likely not intended
+        for a descriptive field in a curated 'Top Picks' list.
+      sources:
+      - start_line: 63
+        end_line: 79
+        file: ''
+      uid: df0c0df1-5cbf-46be-87d5-5f19ce4fc51e
+  '["IMDB_Rating","Meta_score","No_of_Votes"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: x >=
+        0.1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c453caaa-f112-4542-b60a-dd19cd43b4c5
+      source_assumptions:
+      - c2e0577f-f4d8-43c5-8c30-dae5659c30ff
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''Meta_score'', lambda x: x >=
+        0.4)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasCorrelation(''IMDB_Rating'', ''Meta_score'',
+        lambda x: x >= 0.4)'' failed on data sample: Value: 0.29918798958274073 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: 32e964bc-cad2-4e40-a749-f82a8d484165
+      source_assumptions:
+      - 65cbccd9-c754-4743-9246-bc33cae5177c
+    assumptions:
+    - text: 'The columns ''IMDB_Rating'' and ''No_of_Votes'' are used together to
+        calculate a Bayesian average, which rewards ratings with more votes. This
+        assumes that a rating''s reliability is related to the number of votes it
+        has received, and therefore the two columns should be positively correlated.
+        This is reinforced by the use of ''No_of_Votes'' as a tie-breaker in sorting.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .addConstraint(Correlation("IMDB_Rating", "No_of_Votes", _ >= 0.1))'
+      sources:
+      - start_line: 43
+        end_line: 47
+        file: ''
+      - start_line: 57
+        end_line: 57
+        file: ''
+      uid: c2e0577f-f4d8-43c5-8c30-dae5659c30ff
+    - text: 'The ''Meta_score'' is scaled by dividing by 10 and combined with ''IMDB_Rating''
+        to create a composite ''quality_score''. Missing scaled ''Meta_score'' values
+        are imputed with the mean of ''IMDB_Rating''. This assumes that both columns
+        measure a similar concept of quality and are positively correlated.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .addConstraint(Correlation("IMDB_Rating", "Meta_score", _ >= 0.4))'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 49
+        end_line: 51
+        file: ''
+      uid: 65cbccd9-c754-4743-9246-bc33cae5177c
+  '["IMDB_Rating","No_of_Votes"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda p: p >
+        0.2)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 6a49c7e6-390c-4277-9e04-f4202c850d49
+      source_assumptions:
+      - b92c526d-39d3-4bf1-b017-2aa3509b0b3d
+    assumptions:
+    - text: 'The ''IMDB_Rating'' and ''No_of_Votes'' columns are expected to be positively
+        correlated. The code calculates a Bayesian quality score (lines 43-47) which
+        treats the number of votes as a measure of confidence for the rating. This
+        formula inherently assumes that a high rating is more reliable when backed
+        by a large number of votes. Furthermore, ''No_of_Votes'' is used as a secondary,
+        positive sorting key for ranking (line 57), reinforcing the idea that more
+        votes are better. A strong negative correlation between these columns would
+        yield counter-intuitive ranking results. We could represent this assumption
+        as a deequ constraint like this: `.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'',
+        lambda p: p > 0.2)`'
+      sources:
+      - start_line: 43
+        end_line: 47
+        file: ''
+      - start_line: 57
+        end_line: 57
+        file: ''
+      uid: b92c526d-39d3-4bf1-b017-2aa3509b0b3d
+  Poster_Link:
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda u:
+        u == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 61a5cf61-1cc7-42f8-b3bc-b915cedd1199
+      source_assumptions:
+      - e0236245-7689-4443-aca1-6870c7b30a4e
+    - suggestion: '.haveCompleteness([''Poster_Link''], lambda c: c == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 41b7db94-267a-4f5f-b311-432d2b2872df
+      source_assumptions:
+      - b81cf2de-d1f5-48c7-a51f-525a0344872b
+    - suggestion: '.hasDistinctness([''Poster_Link''], lambda d: d > 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5536dcc5-7978-434d-a913-1db9644fb510
+      source_assumptions:
+      - b81cf2de-d1f5-48c7-a51f-525a0344872b
+    assumptions:
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' columns should
+        be unique across all records. The code creates a composite key ''title_year_key''
+        from these columns (line 23) and then generates a ''catalog_id'' based on
+        the enumeration of this key (lines 25-27). If the combination is not unique,
+        the generated ''catalog_id'' values may be inconsistent or incorrectly assigned,
+        as the mapping would only consider the last occurrence of each key after sorting.
+        We could represent this assumption as a deequ constraint like this:
+
+        .isUnique([''Series_Title'', ''Released_Year''])'
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      uid: e0236245-7689-4443-aca1-6870c7b30a4e
+    - text: There is a one-to-one functional dependency between the 'Poster_Link'
+        column and the generated 'poster_asset_id' column. The code first generates
+        'poster_asset_id' by enumerating the unique values in 'Poster_Link' (lines
+        31-33), establishing this relationship. This is later reinforced by exporting
+        a manifest of unique ('poster_asset_id', 'Poster_Link') pairs (lines 82-83).
+        This implies that each asset ID must correspond to exactly one poster link,
+        and vice-versa, ensuring the asset mapping is unambiguous. A potential check
+        could verify that the number of unique 'poster_asset_id' values is equal to
+        the number of unique 'Poster_Link' values.
+      sources:
+      - start_line: 31
+        end_line: 33
+        file: ''
+      - start_line: 82
+        end_line: 83
+        file: ''
+      uid: b81cf2de-d1f5-48c7-a51f-525a0344872b
+  Meta_score:
+    code:
+    - suggestion: '.hasDataType("Meta_score", "Numeric", lambda x: x > 0.8, "Meta_score
+        should be mostly numeric")'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Meta_score",
+        "Numeric", lambda x: x > 0.8, "Meta_score should be mostly numeric")'
+      level: warning
+      uid: f94f0cca-4f8b-4b2b-b955-5bf303d539f3
+      source_assumptions: []
+    - suggestion: '.hasCompleteness("Meta_score", lambda x: x > 0.8, "Meta_score should
+        not have excessive nulls")'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 139108bd-df06-48cd-8ec6-d817df738277
+      source_assumptions: []
+    - suggestion: '.satisfies("Meta_score IS NULL OR (Meta_score >= 0 AND Meta_score
+        <= 100)", "Meta_score is between 0 and 100", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fc618022-2cc3-41ff-96b9-cc27e106588c
+      source_assumptions: []
+    assumptions:
+    - text: The 'Meta_score' column is expected to contain values that are either
+        numeric or can be converted to a numeric type. The code uses `pd.to_numeric`
+        with `errors='coerce'`, which transforms any non-numeric values into nulls,
+        indicating a tolerance for some non-numeric data that will be treated as missing.
+      sources:
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: eeec0808-536c-4fc6-ac44-48708c38fd45
+    - text: The 'Meta_score' column can contain null values. The code explicitly anticipates
+        and handles nulls (both pre-existing and those from non-numeric coercion)
+        by filling them with the mean of the 'IMDB_Rating' column. The input data's
+        completeness of ~86% aligns with this assumption.
+      sources:
+      - start_line: 50
+        end_line: 50
+        file: ''
+      uid: adcd3521-70bb-49f9-9bdd-7a5e8cc687e0
+    - text: The numeric values in the 'Meta_score' column are assumed to be on a scale
+        of approximately 0 to 100. This is inferred from the code dividing the column
+        by 10.0 to normalize it, likely to align with the 0-10 scale of 'IMDB_Rating'
+        before they are combined into a 'quality_score'.
+      sources:
+      - start_line: 50
+        end_line: 51
+        file: ''
+      uid: 125c4f2b-9647-4cbe-b1fe-e33c48a0c534
+  No_of_Votes:
+    code:
+    - suggestion: '.satisfies("CAST(`No_of_Votes` AS INT) IS NOT NULL", "is_parsable_as_int",
+        lambda p: p >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 96d016a1-f8e9-4043-b27e-f2b3526606ab
+      source_assumptions:
+      - 20f7cb24-f393-438e-a02e-8e85802cb85c
+    - suggestion: '.hasMin("No_of_Votes", lambda min_val: min_val >= 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0d8d6bd8-eb82-4b6a-a477-2ea64207e1b0
+      source_assumptions:
+      - d9688899-ae28-477a-94fd-6e94ec402cf0
+    - suggestion: '.hasNumberOfDistinctValues("No_of_Votes", lambda n: n > 1)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("No_of_Votes",
+        lambda n: n > 1)'': Check.hasNumberOfDistinctValues() missing 2 required positional
+        arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 9f44b324-0163-43dc-a896-6a25b59726bc
+      source_assumptions:
+      - f64607c1-9788-4b1c-a105-35017708d59c
+    assumptions:
+    - text: 'The ''No_of_Votes'' column is expected to contain values that can be
+        converted to integers. The code uses `pd.to_numeric` with `errors=''coerce''`,
+        which handles non-numeric values by turning them into nulls, and then fills
+        these nulls with 0. This implies the column may contain non-numeric or null
+        values in the input, but a high proportion of them would indicate a data quality
+        problem as they would all be treated as 0 votes.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CAST(`No_of_Votes` AS INT) IS NOT NULL", "is_parsable_as_int",
+        lambda p: p >= 0.95)'
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: 20f7cb24-f393-438e-a02e-8e85802cb85c
+    - text: 'The ''No_of_Votes'' column must contain non-negative values. The number
+        of votes is a count and cannot be less than zero. The downstream quality score
+        calculation and sorting logic implicitly assume non-negative vote counts.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasMin("No_of_Votes", lambda min_val: min_val >= 0)'
+      sources:
+      - start_line: 44
+        end_line: 47
+        file: ''
+      - start_line: 57
+        end_line: 57
+        file: ''
+      uid: d9688899-ae28-477a-94fd-6e94ec402cf0
+    - text: 'The ''No_of_Votes'' column should have a distribution of values (i.e.,
+        more than one distinct value). The calculation of a quantile to determine
+        a vote threshold for the ranking algorithm requires a distribution of values
+        to be meaningful.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasNumberOfDistinctValues("No_of_Votes", lambda n: n > 1)'
+      sources:
+      - start_line: 45
+        end_line: 45
+        file: ''
+      uid: f64607c1-9788-4b1c-a105-35017708d59c
+  Released_Year:
+    code:
+    - suggestion: .isComplete('Released_Year')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d9d71f32-cc4e-46c1-a621-f41873b1c1f2
+      source_assumptions:
+      - 5476a9b5-6286-4957-b8e8-67280ec42d0b
+    - suggestion: '.hasPattern(''Released_Year'', r''^\d{4}$'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasPattern(''Released_Year'', r''^\d{4}$'',
+        lambda x: x == 1.0)'' failed on data sample: Expected type of column Released_Year
+        to be StringType, but found LongType instead!'
+      level: error
+      uid: ad7b2441-673e-4d81-ad3e-7e992f0e31d4
+      source_assumptions:
+      - a190f15b-5232-4ce7-86fb-6ecbbd4c51f3
+      - 6ddf40f6-cfa6-4f27-a8cf-2065ecb66268
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3da81efc-1a8a-460e-85eb-1f8e9927cf00
+      source_assumptions:
+      - bf98ea44-b929-4a7e-bc51-17593fb74171
+    assumptions:
+    - text: The 'Released_Year' column is assumed to be 100% complete with no null
+        values. This is because the column is directly converted to a string and used
+        in a string concatenation to create a key ('title_year_key') without any prior
+        null handling.
+      sources:
+      - start_line: 22
+        end_line: 23
+        file: ''
+      uid: 5476a9b5-6286-4957-b8e8-67280ec42d0b
+    - text: The 'Released_Year' column must contain values that are convertible to
+        a string. The data is explicitly cast to string type before being used for
+        concatenation and sorting.
+      sources:
+      - start_line: 22
+        end_line: 22
+        file: ''
+      uid: a190f15b-5232-4ce7-86fb-6ecbbd4c51f3
+    - text: The combination of 'Series_Title' and 'Released_Year' is assumed to be
+        unique across all rows. This composite key is used to generate a unique 'catalog_id'
+        and to deduplicate records.
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 26
+        end_line: 27
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      uid: bf98ea44-b929-4a7e-bc51-17593fb74171
+    - text: The 'Released_Year' column is expected to have a consistent format (e.g.,
+        four-digit years) that allows for correct lexicographical sorting after being
+        converted to a string. The code relies on this for stable sorting to generate
+        IDs.
+      sources:
+      - start_line: 22
+        end_line: 22
+        file: ''
+      - start_line: 25
+        end_line: 25
+        file: ''
+      uid: 6ddf40f6-cfa6-4f27-a8cf-2065ecb66268
+  Runtime:
+    code: []
+    assumptions:
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' is assumed
+        to be a unique identifier for each movie. The code creates a composite key
+        `title_year_key` from these two columns (line 23) which is then used to generate
+        a unique `catalog_id`. The code also explicitly drops duplicates based on
+        this key (line 56), reinforcing the expectation of uniqueness for correct
+        cataloging.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isUnique(["Series_Title", "Released_Year"])'
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      uid: fc5c65bb-1a1d-4e35-808e-7bb93e3b966c
+    - text: 'The `poster_asset_id` is assumed to be functionally dependent on the
+        `Poster_Link`. The code creates a unique `poster_asset_id` for each unique
+        `Poster_Link` (lines 31-33). This implies that all records sharing the same
+        `Poster_Link` must also have the same `poster_asset_id`.
+
+        This could be verified with a constraint that checks if the number of distinct
+        `poster_asset_id` values for any given `Poster_Link` is never greater than
+        one.'
+      sources:
+      - start_line: 31
+        end_line: 33
+        file: ''
+      uid: 5acda469-cc8d-4bfb-bd3b-fe680199bf16
+    - text: The ranking of movies is determined by sorting first on `quality_score`
+        and then on `No_of_Votes` as a tie-breaker. This assumes that both columns
+        are numeric and populated for the records being ranked, allowing for a stable
+        and deterministic ordering.
+      sources:
+      - start_line: 57
+        end_line: 57
+        file: ''
+      uid: 91617437-773e-4596-9308-1cc753a922e8
+  '["Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda u:
+        u == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8fff880b-8b9c-4ad4-96de-69fa23ce59f3
+      source_assumptions:
+      - 06b6846b-c8d0-406d-af9d-71e9edcd68db
+    assumptions:
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' columns should
+        be unique across all records. The code creates a composite key ''title_year_key''
+        from these columns to generate a unique ''catalog_id'' for each movie. The
+        logic explicitly relies on this uniqueness, as stated in the code comment
+        ''relies on unique title-year''. Duplicates are later dropped based on this
+        key, which confirms that a unique title-year combination is the expected state
+        for a single, distinct movie entry.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isUnique([''Series_Title'', ''Released_Year''])'
+      sources:
+      - start_line: 23
+        end_line: 27
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      - start_line: 87
+        end_line: 87
+        file: ''
+      uid: 06b6846b-c8d0-406d-af9d-71e9edcd68db
+  Series_Title:
+    code:
+    - suggestion: .isComplete("Series_Title")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 425a3af2-b986-41f4-9c0b-423ac581a83e
+      source_assumptions:
+      - a7138fc1-afd3-4496-a9b2-6c52056029af
+    - suggestion: '.hasDataType("Series_Title", "String", assertion=lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Series_Title",
+        "String", assertion=lambda x: x == 1.0)'
+      level: warning
+      uid: 8f0fe2eb-040c-4a96-b1c3-5f54e7db19dd
+      source_assumptions:
+      - 3a344bcb-4deb-4bcf-abfb-97396b475daa
+    - suggestion: '.satisfies("`Series_Title` = trim(`Series_Title`) ", "is_trimmed",
+        assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b10e74b0-45ff-4600-b427-c2287ce62100
+      source_assumptions:
+      - 32202906-8719-45bf-82f0-443a137db9bb
+    - suggestion: '.hasUniqueness(["Series_Title", "Released_Year"], lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c9e7b0e3-7327-4db3-b263-1834c2727c01
+      source_assumptions:
+      - 691e2db3-364a-4e95-9172-9d388625eae2
+    assumptions:
+    - text: 'The ''Series_Title'' column must not contain any null values. It is a
+        critical component for generating a unique identifier (''title_year_key'')
+        by concatenating it with ''Released_Year''. The code does not handle nulls
+        before this operation, implicitly assuming the column is complete.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("Series_Title")'
+      sources:
+      - start_line: 21
+        end_line: 23
+        file: ''
+      uid: a7138fc1-afd3-4496-a9b2-6c52056029af
+    - text: 'The ''Series_Title'' column is expected to contain string values. The
+        code explicitly converts the column to a string type, indicating that all
+        values must be strings or be convertible to strings for downstream processing.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("Series_Title", ConstrainableDataTypes.String)'
+      sources:
+      - start_line: 21
+        end_line: 21
+        file: ''
+      uid: 3a344bcb-4deb-4bcf-abfb-97396b475daa
+    - text: 'The ''Series_Title'' column should not contain values with leading or
+        trailing whitespace. The code explicitly calls `.str.strip()` to clean the
+        data, which implies an assumption that the input data may not be properly
+        trimmed.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("`Series_Title` = trim(`Series_Title`)", "is_trimmed")'
+      sources:
+      - start_line: 21
+        end_line: 21
+        file: ''
+      uid: 32202906-8719-45bf-82f0-443a137db9bb
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' should be unique.
+        The code uses this combination to create a unique key (''title_year_key'')
+        and later removes duplicates based on it. This indicates that a unique title-year
+        pair is fundamental to the logic of identifying and ranking movies.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .addConstraint(Uniqueness(Seq("Series_Title", "Released_Year")))'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      uid: 691e2db3-364a-4e95-9172-9d388625eae2
+column_data_flow_locations:
+  Series_Title:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 21
+    end_line: 21
+    file: ''
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 25
+    end_line: 27
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 63
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 79
+    file: ''
+  - start_line: 85
+    end_line: 93
+    file: ''
+  Released_Year:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 22
+    end_line: 23
+    file: ''
+  - start_line: 25
+    end_line: 27
+    file: ''
+  - start_line: 55
+    end_line: 58
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 79
+    file: ''
+  - start_line: 87
+    end_line: 87
+    file: ''
+  Poster_Link:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 30
+    end_line: 33
+    file: ''
+  - start_line: 74
+    end_line: 74
+    file: ''
+  - start_line: 79
+    end_line: 79
+    file: ''
+  - start_line: 82
+    end_line: 83
+    file: ''
+  - start_line: 88
+    end_line: 89
+    file: ''
+  Runtime:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 37
+    end_line: 37
+    file: ''
+  IMDB_Rating:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 39
+    end_line: 39
+    file: ''
+  - start_line: 43
+    end_line: 43
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 50
+    end_line: 51
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 55
+    end_line: 58
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 79
+    file: ''
+  - start_line: 85
+    end_line: 96
+    file: ''
+  No_of_Votes:
+  - start_line: 40
+    end_line: 40
+    file: ''
+  - start_line: 44
+    end_line: 45
+    file: ''
+  - start_line: 47
+    end_line: 47
+    file: ''
+  - start_line: 51
+    end_line: 51
+    file: ''
+  - start_line: 57
+    end_line: 58
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 79
+    file: ''
+  - start_line: 85
+    end_line: 93
+    file: ''
+  - start_line: 95
+    end_line: 96
+    file: ''
+  Meta_score:
+  - start_line: 49
+    end_line: 51
+    file: ''
+  - start_line: 57
+    end_line: 57
+    file: ''
+  - start_line: 63
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 79
+    file: ''
+  Genre:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 63
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 79
+    file: ''
+  Certificate:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 25
+    end_line: 25
+    file: ''
+  - start_line: 56
+    end_line: 58
+    file: ''
+  - start_line: 72
+    end_line: 72
+    file: ''
+  - start_line: 79
+    end_line: 79
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0

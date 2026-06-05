@@ -1,0 +1,3647 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-flash
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: '.hasDataType(''IMDB_Rating'', ''Fractional'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''IMDB_Rating'',
+        ''Fractional'', lambda x: x == 1.0)'
+      level: error
+      uid: ecc02e93-93fb-49d8-b052-f37a3e8125f4
+      source_assumptions:
+      - 959ebf01-f2ba-4ea9-8c43-0a961b29ddf7
+    - suggestion: '.hasCompleteness(''IMDB_Rating'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b073e20c-a00f-42bb-b23c-ec1944e5e072
+      source_assumptions:
+      - 959ebf01-f2ba-4ea9-8c43-0a961b29ddf7
+    - suggestion: '.satisfies("CASE WHEN `IMDB_Rating` IS NOT NULL AND `IMDB_Rating`
+        != ''Infinity'' AND `IMDB_Rating` != ''-Infinity'' THEN 1 ELSE 0 END", "At
+        Least One Valid Finite IMDB_Rating Value", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 661c470a-2f09-40c5-8c3a-8ca4375961c7
+      source_assumptions:
+      - 41329d50-19f7-496b-9a82-81d0c4a663e0
+    - suggestion: '.satisfies("CASE WHEN `IMDB_Rating` IS NOT NULL AND (`IMDB_Rating`
+        * 10) % 1 != 0 THEN 1 ELSE 0 END", "IMDB_Rating 0.1 Granularity", lambda x:
+        x == 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e6d36e47-9364-4df5-ad66-d71be478ac54
+      source_assumptions:
+      - c9875fa1-654d-43a2-aec1-53a30acc5f06
+    - suggestion: '.satisfies("CASE WHEN `IMDB_Rating` < 1.0 OR `IMDB_Rating` > 10.0
+        THEN 1 ELSE 0 END", "IMDB_Rating Range 1.0-10.0", lambda x: x == 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4dd755b9-eeeb-43c6-90ea-b4038bbd23c1
+      source_assumptions:
+      - c60099bb-038e-440a-be77-81eeb2100f53
+    assumptions:
+    - text: 'The ''IMDB_Rating'' column is assumed to contain only values that can
+        be successfully converted to numeric types (e.g., integers or floats) without
+        generating nulls. The presence of non-numeric values would lead to NaN values
+        after coercion (line 34), which would subsequently cause an error when attempting
+        to cast to an integer type for ''rating_tenth'' (line 44). We could represent
+        this assumption as a deequ constraint like this:
+
+        .isConvertibleTo("IMDB_Rating", "Double")
+
+        .hasCompleteness("IMDB_Rating", 1.0)'
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 44
+        end_line: 44
+        file: ''
+      uid: 959ebf01-f2ba-4ea9-8c43-0a961b29ddf7
+    - text: 'The ''IMDB_Rating'' column is assumed to contain a sufficient number
+        of valid, finite numeric values to allow for statistical calculations (like
+        the mean) and min-max normalization. Specifically, it must have at least one
+        non-null, non-infinite value. If all values were null or infinite, the mean
+        calculation (line 48) would fail or result in NaN, and the min-max normalization
+        function (lines 11-19, applied in line 66) would either fail or return a trivial
+        result. We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN `IMDB_Rating` IS NOT NULL AND `IMDB_Rating` != ''Infinity''
+        AND `IMDB_Rating` != ''-Infinity'' THEN 1 ELSE 0 END", "At Least One Valid
+        Finite IMDB_Rating Value", lambda x: x > 0)'
+      sources:
+      - start_line: 11
+        end_line: 14
+        file: ''
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 66
+        end_line: 66
+        file: ''
+      uid: 41329d50-19f7-496b-9a82-81d0c4a663e0
+    - text: 'The ''IMDB_Rating'' values are assumed to have a granularity that, when
+        multiplied by 10, results in an integer. This is implied by the creation of
+        ''rating_tenth'' (line 44) by multiplying by 10 and then casting to an integer,
+        suggesting a design for bucketing ratings at a 0.1 precision. We could represent
+        this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN `IMDB_Rating` IS NOT NULL AND (`IMDB_Rating` * 10) %
+        1 != 0 THEN 1 ELSE 0 END", "IMDB_Rating 0.1 Granularity", lambda x: x == 0)'
+      sources:
+      - start_line: 44
+        end_line: 44
+        file: ''
+      uid: c9875fa1-654d-43a2-aec1-53a30acc5f06
+    - text: 'The ''IMDB_Rating'' column is expected to contain values within a typical
+        rating range, such as 1.0 to 10.0. While not strictly enforced by `minmax_norm`,
+        the calculation of `rating_tenth` (line 44) by multiplying by 10 and casting
+        to an integer suggests that values outside this range would produce ''rating_tenth''
+        values that might be unexpectedly large or small for a rating bucket. We could
+        represent this assumption as a deequ constraint like this:
+
+        .satisfies("CASE WHEN `IMDB_Rating` < 1.0 OR `IMDB_Rating` > 10.0 THEN 1 ELSE
+        0 END", "IMDB_Rating Range 1.0-10.0", lambda x: x == 0)'
+      sources:
+      - start_line: 44
+        end_line: 44
+        file: ''
+      uid: c60099bb-038e-440a-be77-81eeb2100f53
+  Certificate:
+    code:
+    - suggestion: '.hasDataType(''Certificate'', ''String'', lambda x: x >= 0.85)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Certificate'',
+        ''String'', lambda x: x >= 0.85)'
+      level: warning
+      uid: 440ec1f3-2b8a-4c8c-aa53-1f21af442434
+      source_assumptions:
+      - 4c6af047-555b-4aad-ba86-0507c69d3a9a
+    - suggestion: '.isContainedIn(''Certificate'', [''U'', ''G'', ''PG'', ''TV-PG'',
+        ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'', ''NC-17'', ''A'', ''Not Rated'',
+        ''Unrated'', ''Approved'', ''Passed'', ''U/A'', ''GP''], assertion=lambda
+        x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7d1ebb97-1b84-4cf9-b10d-ee9bb352c316
+      source_assumptions:
+      - fadc697a-0413-4d20-8562-c293a16622d5
+    assumptions:
+    - text: The 'Certificate' column is expected to contain string values. This is
+        indicated by its explicit cast to `object` type (which is suitable for strings)
+        and its values being used as keys for a dictionary mapping and converted to
+        `str` for output.
+      sources:
+      - start_line: 39
+        end_line: 39
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      - start_line: 136
+        end_line: 136
+        file: ''
+      uid: 4c6af047-555b-4aad-ba86-0507c69d3a9a
+    - text: The 'Certificate' column can contain null values. The code explicitly
+        handles nulls (and values not found in the `maturity_map`) by assigning a
+        default maturity level of `3` to them in the derived `maturity_level` column.
+        For output purposes, null values are explicitly converted to `None`.
+      sources:
+      - start_line: 84
+        end_line: 84
+        file: ''
+      - start_line: 114
+        end_line: 114
+        file: ''
+      - start_line: 136
+        end_line: 136
+        file: ''
+      uid: 4d3c804a-7a51-4b09-b3ef-950dd0c78c02
+    - text: 'The ''Certificate'' column is expected to predominantly contain values
+        from the following predefined set of maturity ratings: ''U'', ''G'', ''PG'',
+        ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'', ''NC-17'', ''A'',
+        ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'', ''GP''. A significant
+        portion of values (e.g., at least 95%) are expected to be within this set
+        for the `maturity_level` derivation to be effective, as values outside this
+        set (or nulls) are assigned a default high maturity level (3).'
+      sources:
+      - start_line: 77
+        end_line: 82
+        file: ''
+      - start_line: 84
+        end_line: 84
+        file: ''
+      uid: fadc697a-0413-4d20-8562-c293a16622d5
+  '["Certificate","Genre","Poster_Link","Released_Year","Series_Title","is_kids_safe","qa_pop_score"]':
+    code:
+    - suggestion: '.satisfies("`is_kids_safe` = ((`Certificate` IS NOT NULL AND (`Certificate`
+        = ''U'' OR `Certificate` = ''G'' OR `Certificate` = ''PG'' OR `Certificate`
+        = ''TV-PG'' OR `Certificate` = ''Approved'' OR `Certificate` = ''Passed''))
+        AND (NOT (`Genre` LIKE ''%Horror%'' OR `Genre` LIKE ''%Thriller%'')))", "is_kids_safe_derivation",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`is_kids_safe` = ((`Certificate`
+        IS NOT NULL AND (`Certificate` = ''U'' OR `Certificate` = ''G'' OR `Certificate`
+        = ''PG'' OR `Certificate` = ''TV-PG'' OR `Certificate` = ''Approved'' OR `Certificate`
+        = ''Passed'')) AND (NOT (`Genre` LIKE ''%Horror%'' OR `Genre` LIKE ''%Thriller%'')))",
+        "is_kids_safe_derivation", lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `is_kids_safe` cannot be resolved. Did you mean one of the following? [`Gross`,
+        `Series_Title`, `id`, `Certificate`, `Director`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''is_kids_safe = ((isnotnull(Certificate#692954) AND
+        ((((Certificate#692954 = U) OR (Certificate#692954 = G)) OR (Certificate#692954
+        = PG)) OR (((Certificate#692954 = TV-PG) OR (Certificate#692954 = Approved))
+        OR (Certificate#692954 = Passed)))) AND NOT (Genre#692956 LIKE %Horror% OR
+        Genre#692956 LIKE %Thriller%))) as int)) AS sum(CAST((is_kids_safe = (((Certificate
+        IS NOT NULL) AND ((((Certificate = U) OR (Certificate = G)) OR (Certificate
+        = PG)) OR (((Certificate = TV-PG) OR (Certificate = Approved)) OR (Certificate
+        = Passed)))) AND (NOT (Genre LIKE %Horror% OR Genre LIKE %Thriller%)))) AS
+        INT))#772836, count(1) AS count(1)#772837L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: 81c7f9c3-4ea7-4a8e-bd03-d27a963b75d6
+      source_assumptions:
+      - 69fb0950-49c4-4b2d-a943-a9c94a6a26ff
+    - suggestion: '.satisfies("`No_of_Votes` >= 0", "no_of_votes_non_negative", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6ea471e8-c1aa-458a-ad71-a8b8ea956b1c
+      source_assumptions:
+      - edfff70b-deb5-429a-9138-a5e1e4b44c2b
+    - suggestion: '.satisfies("`IMDB_Rating` >= 0 AND `IMDB_Rating` <= 10", "imdb_rating_range",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 574a7f19-d288-4e77-8d83-5e16557df4fe
+      source_assumptions:
+      - edfff70b-deb5-429a-9138-a5e1e4b44c2b
+    - suggestion: '.satisfies("`Meta_score` IS NULL OR (`Meta_score` >= 0 AND `Meta_score`
+        <= 100)", "meta_score_range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f615fcc0-da09-4091-b633-f2657bfc2b14
+      source_assumptions:
+      - edfff70b-deb5-429a-9138-a5e1e4b44c2b
+    - suggestion: '.hasCorrelation("IMDB_Rating", "Meta_score", lambda x: x >= 0.25)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c90e33b0-feef-4b57-b413-ede4173487fc
+      source_assumptions:
+      - edfff70b-deb5-429a-9138-a5e1e4b44c2b
+    - suggestion: '.hasUniqueness(["Series_Title", "Released_Year"], lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fadf4946-8755-438a-b288-716021c1584a
+      source_assumptions:
+      - 80b7a14d-8e78-4698-af3c-ea99c20da0b1
+    assumptions:
+    - text: The 'is_kids_safe' flag is functionally dependent on the 'Certificate'
+        and 'Genre' columns. Specifically, for a record to be classified as kids-safe,
+        its 'Certificate' (after mapping to 'maturity_level' using the provided `maturity_map`
+        and defaulting nulls to level 3) must result in a maturity level less than
+        or equal to 1, AND its 'Genre' must not contain 'Horror' or 'Thriller' genres
+        after being tokenized. This implies that 'Certificate' values should largely
+        conform to the keys defined in the `maturity_map` for accurate classification,
+        and 'Genre' should be a string of comma-separated genre tokens.
+      sources:
+      - start_line: 77
+        end_line: 85
+        file: ''
+      uid: 69fb0950-49c4-4b2d-a943-a9c94a6a26ff
+    - text: The 'quality_component' calculation assumes that 'IMDB_Rating' and 'Meta_score'
+        are interchangeable to some extent, as 'IMDB_Rating' is used as a fallback
+        for missing 'Meta_score' values. This implies that their scales are comparable
+        after 'Meta_score' is divided by 10. Additionally, the 'bayes_rating' calculation
+        assumes 'IMDB_Rating' and 'No_of_Votes' are numeric and 'No_of_Votes' is non-negative,
+        as they are combined in a weighted average formula.
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: edfff70b-deb5-429a-9138-a5e1e4b44c2b
+    - text: The combination of 'Series_Title' and 'Released_Year' is implicitly assumed
+        to be a unique identifier for each movie in the dataset, particularly when
+        'Series_Title' is used as the primary 'title' in various outputs. This is
+        suggested by the fact that 'Series_Title' alone is not unique (587 distinct
+        values for 599 records) and both columns are consistently output together
+        to identify items in carousels and ranked lists.
+      sources:
+      - start_line: 99
+        end_line: 103
+        file: ''
+      - start_line: 108
+        end_line: 117
+        file: ''
+      - start_line: 133
+        end_line: 138
+        file: ''
+      - start_line: 155
+        end_line: 158
+        file: ''
+      uid: 80b7a14d-8e78-4698-af3c-ea99c20da0b1
+  '["Certificate","Genre","Poster_Link","Released_Year","Series_Title","qa_pop_score"]':
+    code:
+    - suggestion: '.satisfies("IMDB_Rating IS NULL OR (IMDB_Rating >= 1.0 AND IMDB_Rating
+        <= 10.0)", "IMDB_Rating_Range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 72c47cae-b49d-42e7-8646-2ba8bf3fa1d0
+      source_assumptions:
+      - 5d9d9cb1-41ad-4832-b33a-60376729b834
+    - suggestion: '.satisfies("No_of_Votes IS NULL OR No_of_Votes >= 0", "No_of_Votes_NonNegative",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 388f412f-bbe8-4e21-989c-6f79af1dc354
+      source_assumptions:
+      - 5d9d9cb1-41ad-4832-b33a-60376729b834
+    - suggestion: '.satisfies("Meta_score IS NULL OR (Meta_score >= 0 AND Meta_score
+        <= 100)", "Meta_score_Range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 88c1ac33-7cb0-4857-98e2-dcde7934f20c
+      source_assumptions:
+      - 23629644-02ef-4ec8-99e8-006161a4f632
+    - suggestion: '.satisfies("Meta_score IS NOT NULL OR IMDB_Rating IS NOT NULL",
+        "IMDB_Rating_Fallback_For_Meta_score", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6f399ccc-59ce-403c-9f1f-9ce945ae3c3f
+      source_assumptions:
+      - 23629644-02ef-4ec8-99e8-006161a4f632
+    - suggestion: '.satisfies("qa_pop_score IS NULL OR (qa_pop_score >= 0.0 AND qa_pop_score
+        <= 1.05)", "qa_pop_score_Range", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("qa_pop_score IS NULL OR (qa_pop_score
+        >= 0.0 AND qa_pop_score <= 1.05)", "qa_pop_score_Range", lambda x: x == 1.0)''
+        failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `qa_pop_score` cannot be resolved.
+        Did you mean one of the following? [`Meta_score`, `Director`, `Gross`, `No_of_Votes`,
+        `Certificate`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((isnull(''qa_pop_score) OR ((''qa_pop_score >= 0.0)
+        AND (''qa_pop_score <= 1.05))) as int)) AS sum(CAST(((qa_pop_score IS NULL)
+        OR ((qa_pop_score >= 0.0) AND (qa_pop_score <= 1.05))) AS INT))#773826, count(1)
+        AS count(1)#773827L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: 19aa63ab-140e-4b3f-935e-7737381c822e
+      source_assumptions:
+      - ea277272-4ba8-496c-b361-139b95b0d677
+    - suggestion: '.satisfies("is_kids_safe = ( (CASE WHEN Certificate IS NULL THEN
+        FALSE ELSE (Certificate IN (''U'', ''G'', ''PG'', ''TV-PG'', ''Approved'',
+        ''Passed'')) END) AND (NOT (Genre LIKE ''%Horror%'' OR Genre LIKE ''%Thriller%''))
+        )", "Kids_Safe_Logic_Check", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("is_kids_safe = ( (CASE WHEN Certificate
+        IS NULL THEN FALSE ELSE (Certificate IN (''U'', ''G'', ''PG'', ''TV-PG'',
+        ''Approved'', ''Passed'')) END) AND (NOT (Genre LIKE ''%Horror%'' OR Genre
+        LIKE ''%Thriller%'')) )", "Kids_Safe_Logic_Check", lambda x: x == 1.0)'' failed
+        on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `is_kids_safe` cannot be resolved.
+        Did you mean one of the following? [`Gross`, `Series_Title`, `id`, `Certificate`,
+        `Director`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''is_kids_safe = (CASE WHEN isnull(Certificate#692954)
+        THEN false ELSE Certificate#692954 IN (U,G,PG,TV-PG,Approved,Passed) END AND
+        NOT (Genre#692956 LIKE %Horror% OR Genre#692956 LIKE %Thriller%))) as int))
+        AS sum(CAST((is_kids_safe = (CASE WHEN (Certificate IS NULL) THEN false ELSE
+        (Certificate IN (U, G, PG, TV-PG, Approved, Passed)) END AND (NOT (Genre LIKE
+        %Horror% OR Genre LIKE %Thriller%)))) AS INT))#773901, count(1) AS count(1)#773902L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: d7784a46-b407-403e-9923-ff665b9b89c0
+      source_assumptions:
+      - 9173fb9d-ab1b-4342-a088-b62f6bb417ee
+    - suggestion: '.satisfies("CAST(regexp_replace(Gross, ''[^0-9-]'', '''') AS BIGINT)
+        IS NULL OR CAST(regexp_replace(Gross, ''[^0-9-]'', '''') AS BIGINT) >= 0",
+        "Gross_int_NonNegative", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 85c0d065-a8a9-4676-bc4f-21ad27d79aa1
+      source_assumptions:
+      - 8a2a4f4a-319f-4148-b48f-21bdb629006d
+    - suggestion: '.satisfies("box_office_score IS NULL OR (box_office_score >= 0.0
+        AND box_office_score <= 1.0)", "box_office_score_Range", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("box_office_score IS NULL OR (box_office_score
+        >= 0.0 AND box_office_score <= 1.0)", "box_office_score_Range", lambda x:
+        x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `box_office_score` cannot be resolved. Did you mean one of the following?
+        [`Meta_score`, `Director`, `No_of_Votes`, `Certificate`, `Genre`].; line 1
+        pos 0;
+
+        ''Aggregate [sum(cast((isnull(''box_office_score) OR ((''box_office_score
+        >= 0.0) AND (''box_office_score <= 1.0))) as int)) AS sum(CAST(((box_office_score
+        IS NULL) OR ((box_office_score >= 0.0) AND (box_office_score <= 1.0))) AS
+        INT))#773980, count(1) AS count(1)#773981L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: 45965a4f-488d-4354-8d2b-e46b46b048fd
+      source_assumptions:
+      - 8a2a4f4a-319f-4148-b48f-21bdb629006d
+    assumptions:
+    - text: For the Bayesian rating calculation, it is assumed that 'IMDB_Rating'
+        values are numerical and typically range between 1.0 and 10.0, while 'No_of_Votes'
+        values are numerical, non-negative, and represent actual vote counts. The
+        meaningfulness of 'bayes_rating' relies on the accurate representation and
+        numerical validity of both columns.
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      uid: 5d9d9cb1-41ad-4832-b33a-60376729b834
+    - text: The 'Meta_score' column is assumed to be on a 0-100 scale, and 'IMDB_Rating'
+        on a 0-10 scale, with 'Meta_score' being consistently 10 times the 'IMDB_Rating'
+        in terms of scale. Crucially, 'IMDB_Rating' is assumed to be a consistently
+        available and semantically equivalent fallback for 'Meta_score' when the latter
+        is missing. Therefore, if 'Meta_score' is null, 'IMDB_Rating' is expected
+        to be non-null to ensure 'quality_component' can be calculated.
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 23629644-02ef-4ec8-99e8-006161a4f632
+    - text: The 'quality_component', 'pop_component', and 'runtime_factor' columns
+        are assumed to be numerical and scaled such that their weighted sum and multiplication
+        consistently produce a 'qa_pop_score' that falls within the range of 0.0 to
+        1.05. This ensures the final score is meaningful and comparable.
+      sources:
+      - start_line: 66
+        end_line: 67
+        file: ''
+      uid: ea277272-4ba8-496c-b361-139b95b0d677
+    - text: The 'is_kids_safe' flag is determined by a logical combination of 'Certificate'
+        and 'Genre'. It is assumed that if a film's 'Certificate' is one of ['U',
+        'G', 'PG', 'TV-PG', 'Approved', 'Passed'] AND its 'Genre' does NOT contain
+        'Horror' or 'Thriller', then 'is_kids_safe' must be true. Conversely, if 'Genre'
+        contains 'Horror' or 'Thriller', 'is_kids_safe' must be false, irrespective
+        of the 'Certificate'.
+      sources:
+      - start_line: 82
+        end_line: 85
+        file: ''
+      uid: 9173fb9d-ab1b-4342-a088-b62f6bb417ee
+    - text: The 'Gross_int' column (parsed integer gross revenue) and 'qa_pop_score'
+        are both expected to be non-negative numerical values, suitable for normalization
+        and weighted combination into a 'box_office_score'. The 'box_office_score'
+        is expected to be within the range [0.0, 1.0]. The ranking of box office items
+        relies on the consistent numerical ordering provided by both 'box_office_score'
+        and 'qa_pop_score'.
+      sources:
+      - start_line: 127
+        end_line: 129
+        file: ''
+      uid: 8a2a4f4a-319f-4148-b48f-21bdb629006d
+  '["Certificate","Genre","Released_Year","Series_Title","is_kids_safe","qa_pop_score"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3e2e1870-e028-49d9-8bfc-3d5dfacf82ca
+      source_assumptions:
+      - f0b86eb7-1939-405a-8af9-d5747cc092cb
+    - suggestion: '.satisfies("`is_kids_safe` = ( (CASE WHEN `Certificate` IN (''U'',
+        ''G'', ''PG'', ''TV-PG'', ''Approved'', ''Passed'') THEN TRUE ELSE FALSE END)
+        AND (NOT (`Genre` LIKE ''%Horror%'' OR `Genre` LIKE ''%Thriller%'')) )", "is_kids_safe_logic_check",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`is_kids_safe` = ( (CASE WHEN `Certificate`
+        IN (''U'', ''G'', ''PG'', ''TV-PG'', ''Approved'', ''Passed'') THEN TRUE ELSE
+        FALSE END) AND (NOT (`Genre` LIKE ''%Horror%'' OR `Genre` LIKE ''%Thriller%''))
+        )", "is_kids_safe_logic_check", lambda x: x == 1.0)'' failed on data sample:
+        org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `is_kids_safe` cannot be resolved.
+        Did you mean one of the following? [`Gross`, `Series_Title`, `id`, `Certificate`,
+        `Director`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''is_kids_safe = (CASE WHEN Certificate#692954 IN (U,G,PG,TV-PG,Approved,Passed)
+        THEN true ELSE false END AND NOT (Genre#692956 LIKE %Horror% OR Genre#692956
+        LIKE %Thriller%))) as int)) AS sum(CAST((is_kids_safe = (CASE WHEN (Certificate
+        IN (U, G, PG, TV-PG, Approved, Passed)) THEN true ELSE false END AND (NOT
+        (Genre LIKE %Horror% OR Genre LIKE %Thriller%)))) AS INT))#772163, count(1)
+        AS count(1)#772164L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: 91e1852b-5dc6-4b4f-a745-055d10a52e7e
+      source_assumptions:
+      - 2ce98418-bf01-4ced-aba7-00d74b23e7a4
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'', ''Meta_score'',
+        ''Gross_int''], lambda x: x >= 0.9)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'',
+        ''Meta_score'', ''Gross_int''], lambda x: x >= 0.9)'' failed on data sample:
+        Input data does not include column Gross_int!'
+      level: warning
+      uid: da4b1816-ebbd-42cc-a65e-bc6c610ccd2e
+      source_assumptions:
+      - b05ee54b-b90d-4c42-a121-73361ca53923
+    assumptions:
+    - text: The combination of 'Series_Title' and 'Released_Year' columns should be
+        unique across all records. This uniqueness is essential to ensure that each
+        entry in the ranked lists, carousels, and search index refers to a distinct
+        movie or series, preventing ambiguous or duplicate representations of the
+        same entity.
+      sources:
+      - start_line: 99
+        end_line: 103
+        file: ''
+      - start_line: 107
+        end_line: 120
+        file: ''
+      - start_line: 155
+        end_line: 160
+        file: ''
+      uid: f0b86eb7-1939-405a-8af9-d5747cc092cb
+    - text: The 'is_kids_safe' column's value is directly determined by the combination
+        of the 'Certificate' and 'Genre' columns. It is assumed that if a record has
+        a 'Certificate' indicating a maturity level of 0 or 1 (e.g., 'U', 'G', 'PG')
+        AND its 'Genre' does not contain 'Horror' or 'Thriller', then 'is_kids_safe'
+        should be TRUE. Otherwise, it should be FALSE.
+      sources:
+      - start_line: 77
+        end_line: 85
+        file: ''
+      uid: 2ce98418-bf01-4ced-aba7-00d74b23e7a4
+    - text: The columns 'IMDB_Rating', 'No_of_Votes', 'Meta_score', and 'Gross_int'
+        are expected to contain a high proportion of valid numeric values. While the
+        code employs `pd.to_numeric(errors='coerce')` and `fillna` strategies, a significant
+        number of non-numeric or null values in these columns would lead to degraded
+        or unrepresentative 'bayes_rating', 'quality_component', 'pop_component',
+        'qa_pop_score', and 'box_office_score' values, thereby impacting the accuracy
+        and relevance of the overall ranking and carousel logic.
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      - start_line: 54
+        end_line: 56
+        file: ''
+      - start_line: 63
+        end_line: 63
+        file: ''
+      - start_line: 66
+        end_line: 67
+        file: ''
+      - start_line: 128
+        end_line: 128
+        file: ''
+      uid: b05ee54b-b90d-4c42-a121-73361ca53923
+  '["Certificate","Genre","is_kids_safe"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN is_kids_safe = TRUE THEN (Certificate IN
+        (''U'', ''G'', ''PG'', ''TV-PG'', ''Approved'', ''Passed'') AND NOT (array_contains(split(Genre,
+        '', ''), ''Horror'') OR array_contains(split(Genre, '', ''), ''Thriller'')))
+        ELSE TRUE END", "is_kids_safe_derivation_check", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN is_kids_safe = TRUE THEN
+        (Certificate IN (''U'', ''G'', ''PG'', ''TV-PG'', ''Approved'', ''Passed'')
+        AND NOT (array_contains(split(Genre, '', ''), ''Horror'') OR array_contains(split(Genre,
+        '', ''), ''Thriller''))) ELSE TRUE END", "is_kids_safe_derivation_check",
+        lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `is_kids_safe` cannot be resolved. Did you mean one of the following? [`Gross`,
+        `Series_Title`, `id`, `Certificate`, `Director`].; line 1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN (''is_kids_safe = true) THEN (Certificate#692954
+        IN (U,G,PG,TV-PG,Approved,Passed) AND NOT (array_contains(split(Genre#692956,
+        , , -1), Horror) OR array_contains(split(Genre#692956, , , -1), Thriller)))
+        ELSE true END as int)) AS sum(CAST(CASE WHEN (is_kids_safe = true) THEN ((Certificate
+        IN (U, G, PG, TV-PG, Approved, Passed)) AND (NOT (array_contains(split(Genre,
+        , ), Horror) OR array_contains(split(Genre, , ), Thriller)))) ELSE true END
+        AS INT))#771912, count(1) AS count(1)#771913L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: b569bf6f-a809-4842-b64d-69c1c0ac3de0
+      source_assumptions:
+      - 9c4bfa97-bdd1-432d-816f-9e2f0152922a
+    assumptions:
+    - text: 'The `is_kids_safe` column is consistently derived from the `Certificate`
+        and `Genre` columns. For any record, the value of `is_kids_safe` is assumed
+        to accurately reflect whether the `Certificate` maps to a maturity level of
+        0 or 1 (i.e., `Certificate` is one of ''U'', ''G'', ''PG'', ''TV-PG'', ''Approved'',
+        ''Passed'') AND the `Genre` does not contain ''Horror'' or ''Thriller''.
+
+        We could represent this assumption as a deequ constraint that verifies that
+        for every row where `is_kids_safe` is `True`, the `Certificate` value belongs
+        to the set of low-maturity ratings and the `Genre` does not include ''Horror''
+        or ''Thriller''.'
+      sources:
+      - start_line: 77
+        end_line: 85
+        file: ''
+      uid: 9c4bfa97-bdd1-432d-816f-9e2f0152922a
+  '["Certificate","Gross_int","Poster_Link","Released_Year","Series_Title","qa_pop_score"]':
+    code:
+    - suggestion: '.satisfies("`No_of_Votes` > 0", "No_of_Votes must be strictly positive",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 86846cf7-09b6-41ca-8003-87cea0abf19e
+      source_assumptions:
+      - 3d1696e6-5574-487d-90ec-ff928c6afd0e
+    - suggestion: '.satisfies("NOT (`Meta_score` IS NULL AND `IMDB_Rating` IS NULL)",
+        "IMDB Rating fallback for Meta_score", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5dbe327f-5968-45a8-86b9-b632f0a991ed
+      source_assumptions:
+      - 8b5e40ca-b44e-4a90-9376-79df82b5b8dc
+    - suggestion: '.satisfies("`Certificate` IS NULL OR `Certificate` IN (''U'', ''G'',
+        ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'', ''NC-17'',
+        ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'', ''GP'')",
+        "Valid Certificate values", lambda x: x >= 0.995)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 8cd196c9-5916-4b0b-9aa7-7a104e1358e6
+      source_assumptions:
+      - 649cf120-46f8-4a9c-bd56-120306709dcb
+    - suggestion: '.satisfies("(`Released_Year` IS NULL) OR (`Released_Year` = FLOOR(`Released_Year`))",
+        "Released_Year values are integers or null", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0b392fd7-3a9c-4a8b-88a0-1cbe08151c25
+      source_assumptions:
+      - 64150791-f4e3-4cf8-892f-67e174b37ae0
+    assumptions:
+    - text: The 'No_of_Votes' column is expected to contain non-negative numerical
+        values. For the Bayesian rating calculation (lines 48-52) to produce valid
+        results, it is assumed that the combination of individual 'No_of_Votes' values
+        and the global 60th percentile of 'No_of_Votes' (M) always results in a positive
+        sum (i.e., 'No_of_Votes' + M > 0), thereby preventing division by zero.
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      uid: 3d1696e6-5574-487d-90ec-ff928c6afd0e
+    - text: The 'IMDB_Rating' column is assumed to be sufficiently complete to serve
+        as a fallback for 'Meta_score'. Specifically, it is expected that 'IMDB_Rating'
+        values are non-null for records where 'Meta_score' is null, ensuring that
+        the 'quality_component' (lines 54-56) is maximally complete.
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 8b5e40ca-b44e-4a90-9376-79df82b5b8dc
+    - text: For a movie to be correctly classified as 'kids-safe' (lines 83-85), it
+        is assumed that its 'Certificate' maps to a maturity level of 1 or less (i.e.,
+        'U', 'G', 'PG', 'TV-PG', 'Approved', 'Passed') AND its 'Genre' does not contain
+        'Horror' or 'Thriller'. This implies a consistent adherence to this policy
+        across both 'Certificate' and 'Genre' values.
+      sources:
+      - start_line: 77
+        end_line: 85
+        file: ''
+      uid: 649cf120-46f8-4a9c-bd56-120306709dcb
+    - text: For the correct and complete population of structured carousel items (lines
+        107-120, 125-141), it is assumed that 'Released_Year' values, when not null,
+        are consistently convertible to integers, 'Certificate' values, when not null,
+        are consistently convertible to strings, and 'Gross_int' values, when not
+        null, are consistently convertible to integers. This ensures that 'None' values
+        are minimized in the final JSON output for these critical fields.
+      sources:
+      - start_line: 107
+        end_line: 120
+        file: ''
+      - start_line: 125
+        end_line: 141
+        file: ''
+      uid: 64150791-f4e3-4cf8-892f-67e174b37ae0
+  '["Certificate","maturity_level"]':
+    code:
+    - suggestion: '.satisfies("`Certificate` IS NULL OR `Certificate` IN (''U'', ''G'',
+        ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'', ''NC-17'',
+        ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'', ''GP'')",
+        "Valid Certificate Keys", lambda x: x >= 0.998)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1519280e-18d3-4b20-ac8f-caf82ac82ebf
+      source_assumptions:
+      - 482dac04-5ae1-49bd-9ec7-25483f3f7380
+    - suggestion: '.satisfies("NOT (`Certificate` IN (''U'', ''G'', ''PG'', ''TV-PG'',
+        ''Approved'', ''Passed'') AND (`Genre` LIKE ''%Horror%'' OR `Genre` LIKE ''%Thriller%''))",
+        "Kids Safe Content Consistency", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("NOT (`Certificate` IN (''U'', ''G'',
+        ''PG'', ''TV-PG'', ''Approved'', ''Passed'') AND (`Genre` LIKE ''%Horror%''
+        OR `Genre` LIKE ''%Thriller%''))", "Kids Safe Content Consistency", lambda
+        x: x == 1.0)'' failed on data sample: Value: 0.9582637729549248 does not meet
+        the constraint requirement!'
+      level: error
+      uid: a248eb26-38b9-4be1-aad9-c782ce71e289
+      source_assumptions:
+      - e5eef867-ae05-4d4e-9953-967aa7e89e54
+    assumptions:
+    - text: All non-null values in the 'Certificate' column are expected to be valid
+        keys in the `maturity_map` dictionary.
+      sources:
+      - start_line: 77
+        end_line: 82
+        file: ''
+      uid: 482dac04-5ae1-49bd-9ec7-25483f3f7380
+    - text: There should be no records where the 'Certificate' indicates a low maturity
+        level (0 or 1, after mapping and null handling) AND the 'Genre' column contains
+        'Horror' or 'Thriller'. This ensures consistency between content rating and
+        genre classification for 'kids-safe' content.
+      sources:
+      - start_line: 71
+        end_line: 85
+        file: ''
+      uid: e5eef867-ae05-4d4e-9953-967aa7e89e54
+  Genre:
+    code:
+    - suggestion: '.hasDataType("Genre", "String", assertion=lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Genre", "String",
+        assertion=lambda x: x == 1.0)'
+      level: error
+      uid: 2062c9e0-4c50-4f2b-8999-62bd214ef175
+      source_assumptions:
+      - 87884a4e-f986-42ff-86bf-72bfdad99a62
+    - suggestion: .isComplete("Genre")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 38f388d6-458a-4b52-af17-ae8af023a6da
+      source_assumptions:
+      - eedf33d4-1926-4918-bbb1-30ce3c5fcb18
+    - suggestion: .satisfies("NOT array_contains(split(`Genre`, ', '), '')", "No empty
+        genre tokens after splitting by ', '")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2f8b6825-52e9-4722-a712-4b880ecb5694
+      source_assumptions:
+      - 38629fcd-4ace-47fe-a414-a12dbc2f05b1
+    - suggestion: .satisfies("NOT (INSTR(`Genre`, 'Animation') > 0) OR array_contains(split(`Genre`,
+        ', '), 'Animation')", "If 'Animation' is present, it should be a distinct
+        token")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2bc9b39d-e6e9-4128-8736-8462a433e8f7
+      source_assumptions:
+      - 1cca98bd-743e-46ca-a6dc-faf71f150d15
+    - suggestion: .satisfies("NOT (INSTR(`Genre`, 'Family') > 0) OR array_contains(split(`Genre`,
+        ', '), 'Family')", "If 'Family' is present, it should be a distinct token")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: aaf44968-3c0c-4f31-b125-81570b91f410
+      source_assumptions:
+      - 1cca98bd-743e-46ca-a6dc-faf71f150d15
+    - suggestion: .satisfies("NOT (INSTR(`Genre`, 'Horror') > 0) OR array_contains(split(`Genre`,
+        ', '), 'Horror')", "If 'Horror' is present, it should be a distinct token")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 00a3ad27-c31e-4311-bdb8-70dbd9673d34
+      source_assumptions:
+      - 1cca98bd-743e-46ca-a6dc-faf71f150d15
+    - suggestion: .satisfies("NOT (INSTR(`Genre`, 'Thriller') > 0) OR array_contains(split(`Genre`,
+        ', '), 'Thriller')", "If 'Thriller' is present, it should be a distinct token")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 61d609a1-959c-4547-b00a-97bf70be1ec4
+      source_assumptions:
+      - 1cca98bd-743e-46ca-a6dc-faf71f150d15
+    assumptions:
+    - text: 'The ''Genre'' column is expected to contain string values. The code explicitly
+        casts the column to string type, and all subsequent operations treat its values
+        as strings. We could represent this assumption as a deequ constraint like
+        this: `.hasDataType("String", "Genre")`'
+      sources:
+      - start_line: 40
+        end_line: 40
+        file: ''
+      uid: 87884a4e-f986-42ff-86bf-72bfdad99a62
+    - text: 'The ''Genre'' column is expected to be complete, meaning it should not
+        contain null or missing values. Although pandas'' `astype(str)` would convert
+        nulls to the string ''nan'', this would lead to ''nan'' being treated as a
+        genre token, which is likely unintended and would affect the logic for identifying
+        specific genres. We could represent this assumption as a deequ constraint
+        like this: `.isComplete("Genre")`'
+      sources:
+      - start_line: 71
+        end_line: 73
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: eedf33d4-1926-4918-bbb1-30ce3c5fcb18
+    - text: 'If a cell in the ''Genre'' column contains multiple genres, they are
+        expected to be separated by a comma followed by a single space (`, `). The
+        code relies on this specific delimiter to correctly split the genre string
+        into individual tokens for further processing. For example, ''Action, Comedy''
+        is expected, while ''Action,Comedy'' or ''Action , Comedy'' are not. We could
+        represent this assumption as a deequ constraint like this: `.satisfies("NOT
+        array_contains(split(`Genre`, '', ''), '''')", "No empty genre tokens after
+        splitting by '', ''")`'
+      sources:
+      - start_line: 71
+        end_line: 71
+        file: ''
+      uid: 38629fcd-4ace-47fe-a414-a12dbc2f05b1
+    - text: 'The ''Genre'' column is expected to contain ''Animation'', ''Family'',
+        ''Horror'', and ''Thriller'' as potential distinct genre tokens. The downstream
+        logic specifically checks for the presence or absence of these *exact* tokens
+        (after splitting by `, `) to derive ''has_animation'', ''has_family'', and
+        ''is_kids_safe'' flags. Therefore, if these genres are present, they should
+        precisely match these token strings. We could represent this assumption as
+        a deequ constraint like this: `.satisfies("NOT (INSTR(`Genre`, ''Animation'')
+        > 0) OR array_contains(split(`Genre`, '', ''), ''Animation'')", "If ''Animation''
+        is present, it should be a distinct token")` and similarly for ''Family'',
+        ''Horror'', and ''Thriller''.'
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      - start_line: 85
+        end_line: 85
+        file: ''
+      uid: 1cca98bd-743e-46ca-a6dc-faf71f150d15
+  Gross:
+    code:
+    - suggestion: '.satisfies("CAST(REPLACE(Gross, '','', '''') AS BIGINT) IS NOT
+        NULL", "Gross is predominantly integer monetary amount", assertion=lambda
+        x: x >= 0.8280467445742905)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2595305c-40f6-4908-b584-b45c57a950c8
+      source_assumptions:
+      - 80392aa0-5f2b-4b3b-b043-353c754d7822
+      - 67fa199c-e905-41bc-9e53-fbc1d3eb27af
+    assumptions:
+    - text: The 'Gross' column is expected to contain string values that represent
+        numerical monetary amounts. These strings may contain comma separators (e.g.,
+        "1,234,567") which the code explicitly removes before attempting to convert
+        them to numeric types. While some values might not be perfectly parseable
+        into numbers (and are coerced to nulls), the predominant format should be
+        numeric strings.
+      sources:
+      - start_line: 91
+        end_line: 93
+        file: ''
+      uid: 80392aa0-5f2b-4b3b-b043-353c754d7822
+    - text: The 'Gross' column is expected to contain null values. The code explicitly
+        handles these by dropping them before parsing and by checking for the presence
+        of non-null values before proceeding with calculations. It is acceptable for
+        the column to be entirely null, in which case the derived 'Gross_int' column
+        will also be entirely null, and the box office carousel will not be generated.
+      sources:
+      - start_line: 90
+        end_line: 91
+        file: ''
+      - start_line: 125
+        end_line: 126
+        file: ''
+      - start_line: 142
+        end_line: 143
+        file: ''
+      uid: 012372bf-590c-4226-acb0-5b6997ed14a3
+    - text: Non-null, parseable values in the 'Gross' column are expected to represent
+        integer monetary amounts. The code converts these to nullable 64-bit integers.
+        Furthermore, the code explicitly handles potential infinite numeric values
+        (which might arise from parsing or other operations) by replacing them with
+        nulls before normalization, implying that such values are not expected to
+        be present in the input or should be treated as invalid.
+      sources:
+      - start_line: 11
+        end_line: 11
+        file: ''
+      - start_line: 94
+        end_line: 94
+        file: ''
+      uid: 67fa199c-e905-41bc-9e53-fbc1d3eb27af
+  '["Genre","has_animation"]':
+    code:
+    - suggestion: .satisfies("has_animation == array_contains(split(Genre, ', '),
+        'Animation')", "has_animation_derivation_check")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("has_animation == array_contains(split(Genre,
+        '', ''), ''Animation'')", "has_animation_derivation_check")'' failed on data
+        sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `has_animation` cannot be resolved.
+        Did you mean one of the following? [`Certificate`, `IMDB_Rating`, `No_of_Votes`,
+        `Runtime`, `Director`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''has_animation = array_contains(split(Genre#692956,
+        , , -1), Animation)) as int)) AS sum(CAST((has_animation = array_contains(split(Genre,
+        , ), Animation)) AS INT))#772509, count(1) AS count(1)#772510L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: b72d9919-93e1-4851-8ed5-e2f2f25b6f80
+      source_assumptions:
+      - d6b113b2-1ded-4a89-b299-77b762257578
+    - suggestion: .satisfies("has_family == array_contains(split(Genre, ', '), 'Family')",
+        "has_family_derivation_check")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("has_family == array_contains(split(Genre,
+        '', ''), ''Family'')", "has_family_derivation_check")'' failed on data sample:
+        org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `has_family` cannot be resolved.
+        Did you mean one of the following? [`Runtime`, `Star1`, `Star2`, `Star3`,
+        `Star4`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''has_family = array_contains(split(Genre#692956, ,
+        , -1), Family)) as int)) AS sum(CAST((has_family = array_contains(split(Genre,
+        , ), Family)) AS INT))#772478, count(1) AS count(1)#772479L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: 1a196914-0671-4608-8b50-4fc2cc5bb573
+      source_assumptions:
+      - 013ef89c-c6c5-4427-985b-622913a90fda
+    - suggestion: .satisfies("is_kids_safe == ((CASE WHEN Certificate = 'U' OR Certificate
+        = 'G' THEN 0 WHEN Certificate = 'PG' OR Certificate = 'TV-PG' OR Certificate
+        = 'Approved' OR Certificate = 'Passed' THEN 1 WHEN Certificate = 'UA' OR Certificate
+        = 'PG-13' OR Certificate = 'TV-14' OR Certificate = 'Not Rated' OR Certificate
+        = 'Unrated' OR Certificate = 'U/A' OR Certificate = 'GP' THEN 2 WHEN Certificate
+        = 'R' OR Certificate = 'TV-MA' OR Certificate = 'NC-17' OR Certificate = 'A'
+        THEN 3 ELSE 3 END) <= 1 AND NOT (array_contains(split(Genre, ', '), 'Horror')
+        OR array_contains(split(Genre, ', '), 'Thriller')))", "is_kids_safe_derivation_check")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("is_kids_safe == ((CASE WHEN Certificate
+        = ''U'' OR Certificate = ''G'' THEN 0 WHEN Certificate = ''PG'' OR Certificate
+        = ''TV-PG'' OR Certificate = ''Approved'' OR Certificate = ''Passed'' THEN
+        1 WHEN Certificate = ''UA'' OR Certificate = ''PG-13'' OR Certificate = ''TV-14''
+        OR Certificate = ''Not Rated'' OR Certificate = ''Unrated'' OR Certificate
+        = ''U/A'' OR Certificate = ''GP'' THEN 2 WHEN Certificate = ''R'' OR Certificate
+        = ''TV-MA'' OR Certificate = ''NC-17'' OR Certificate = ''A'' THEN 3 ELSE
+        3 END) <= 1 AND NOT (array_contains(split(Genre, '', ''), ''Horror'') OR array_contains(split(Genre,
+        '', ''), ''Thriller'')))", "is_kids_safe_derivation_check")'' failed on data
+        sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `is_kids_safe` cannot be resolved.
+        Did you mean one of the following? [`Gross`, `Series_Title`, `id`, `Certificate`,
+        `Director`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''is_kids_safe = ((CASE WHEN ((Certificate#692954 =
+        U) OR (Certificate#692954 = G)) THEN 0 WHEN (((Certificate#692954 = PG) OR
+        (Certificate#692954 = TV-PG)) OR ((Certificate#692954 = Approved) OR (Certificate#692954
+        = Passed))) THEN 1 WHEN ((((Certificate#692954 = UA) OR (Certificate#692954
+        = PG-13)) OR ((Certificate#692954 = TV-14) OR (Certificate#692954 = Not Rated)))
+        OR (((Certificate#692954 = Unrated) OR (Certificate#692954 = U/A)) OR (Certificate#692954
+        = GP))) THEN 2 WHEN (((Certificate#692954 = R) OR (Certificate#692954 = TV-MA))
+        OR ((Certificate#692954 = NC-17) OR (Certificate#692954 = A))) THEN 3 ELSE
+        3 END <= 1) AND NOT (array_contains(split(Genre#692956, , , -1), Horror) OR
+        array_contains(split(Genre#692956, , , -1), Thriller)))) as int)) AS sum(CAST((is_kids_safe
+        = ((CASE WHEN ((Certificate = U) OR (Certificate = G)) THEN 0 WHEN (((Certificate
+        = PG) OR (Certificate = TV-PG)) OR ((Certificate = Approved) OR (Certificate
+        = Passed))) THEN 1 WHEN ((((Certificate = UA) OR (Certificate = PG-13)) OR
+        ((Certificate = TV-14) OR (Certificate = Not Rated))) OR (((Certificate =
+        Unrated) OR (Certificate = U/A)) OR (Certificate = GP))) THEN 2 WHEN (((Certificate
+        = R) OR (Certificate = TV-MA)) OR ((Certificate = NC-17) OR (Certificate =
+        A))) THEN 3 ELSE 3 END <= 1) AND (NOT (array_contains(split(Genre, , ), Horror)
+        OR array_contains(split(Genre, , ), Thriller))))) AS INT))#772577, count(1)
+        AS count(1)#772578L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: 73feaaf0-ef19-414a-9081-408aa04cc43d
+      source_assumptions:
+      - 4088de27-ad86-4612-ba78-fe1142ff5f43
+    assumptions:
+    - text: 'The ''has_animation'' column should be True if the ''Genre'' column contains
+        ''Animation'' (case-sensitive) when split by a comma and space ('', ''), and
+        False otherwise. This implies a functional dependency of ''has_animation''
+        on ''Genre''.
+
+        We could represent this assumption as a Deequ constraint like this:
+
+        .satisfies("has_animation == array_contains(split(Genre, '', ''), ''Animation'')",
+        Some("has_animation_derivation_check"))'
+      sources:
+      - start_line: 71
+        end_line: 72
+        file: ''
+      uid: d6b113b2-1ded-4a89-b299-77b762257578
+    - text: 'The ''has_family'' column should be True if the ''Genre'' column contains
+        ''Family'' (case-sensitive) when split by a comma and space ('', ''), and
+        False otherwise. This implies a functional dependency of ''has_family'' on
+        ''Genre''.
+
+        We could represent this assumption as a Deequ constraint like this:
+
+        .satisfies("has_family == array_contains(split(Genre, '', ''), ''Family'')",
+        Some("has_family_derivation_check"))'
+      sources:
+      - start_line: 71
+        end_line: 73
+        file: ''
+      uid: 013ef89c-c6c5-4427-985b-622913a90fda
+    - text: 'The ''is_kids_safe'' column''s value is functionally dependent on ''Certificate''
+        and ''Genre''. Specifically, ''is_kids_safe'' should be True if and only if
+        ''Certificate'' maps to a maturity level of 0 or 1 (e.g., ''U'', ''G'', ''PG'',
+        ''TV-PG'', ''Approved'', ''Passed'' based on the `maturity_map` defined in
+        the code) AND ''Genre'' (when split by '', '') does not contain ''Horror''
+        or ''Thriller''.
+
+        We could represent this assumption as a Deequ constraint by first deriving
+        an `expected_maturity_level` from `Certificate` and then asserting:
+
+        .satisfies("is_kids_safe == ((expected_maturity_level <= 1) AND NOT (array_contains(split(Genre,
+        '', ''), ''Horror'') OR array_contains(split(Genre, '', ''), ''Thriller'')))",
+        Some("is_kids_safe_derivation_check"))'
+      sources:
+      - start_line: 71
+        end_line: 85
+        file: ''
+      uid: 4088de27-ad86-4612-ba78-fe1142ff5f43
+  '["Genre","has_family"]':
+    code:
+    - suggestion: '.satisfies("(`Genre` LIKE ''%Family%'' AND (`Certificate` = ''U''
+        OR `Certificate` = ''G'' OR `Certificate` = ''PG'' OR `Certificate` = ''TV-PG''
+        OR `Certificate` = ''Approved'' OR `Certificate` = ''Passed'')) AND (`Genre`
+        LIKE ''%Horror%'' OR `Genre` LIKE ''%Thriller%'')", "FamilyGenreConsistency",
+        lambda x: x == 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 23879bd6-8460-4608-9039-ae8ee0d28c63
+      source_assumptions:
+      - 274aa319-3ed4-439a-9b86-49017e510873
+    assumptions:
+    - text: It is assumed that for records where the 'Genre' column contains 'Family'
+        (which would result in 'has_family' being true) and the 'Certificate' column
+        indicates a low maturity level (e.g., 'U', 'G', 'PG', 'TV-PG', 'Approved',
+        'Passed', which map to a `maturity_level` of 0 or 1), the 'Genre' column should
+        not simultaneously contain 'Horror' or 'Thriller' tokens. This consistency
+        is crucial to ensure that content explicitly marked as 'Family' with a low
+        maturity rating is correctly classified as 'is_kids_safe' and included in
+        the 'family picks' carousel, aligning with user expectations for family-friendly
+        content. If such a combination exists, it implies a conflicting data entry
+        that would lead to 'is_kids_safe' being false, potentially excluding a seemingly
+        family-friendly movie.
+      sources:
+      - start_line: 71
+        end_line: 73
+        file: ''
+      - start_line: 83
+        end_line: 85
+        file: ''
+      - start_line: 123
+        end_line: 123
+        file: ''
+      - start_line: 145
+        end_line: 147
+        file: ''
+      uid: 274aa319-3ed4-439a-9b86-49017e510873
+  '["Gross","Gross_int"]':
+    code:
+    - suggestion: '.haveCompleteness(columns=[''Gross''], assertion=lambda x: x >=
+        0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 68f7f035-d2e0-4725-b0f7-efd954965810
+      source_assumptions:
+      - 579a0a61-f1ca-4ca7-a6ee-15bbbc965b2d
+    - suggestion: '.satisfies("Gross_int IS NULL OR Gross_int >= 0", "Gross_int_non_negative",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("Gross_int IS NULL OR Gross_int
+        >= 0", "Gross_int_non_negative", lambda x: x == 1.0)'' failed on data sample:
+        org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Gross_int` cannot be resolved. Did
+        you mean one of the following? [`Gross`, `Poster_Link`, `id`, `Genre`, `Overview`].;
+        line 1 pos 0;
+
+        ''Aggregate [sum(cast((isnull(''Gross_int) OR (''Gross_int >= 0)) as int))
+        AS sum(CAST(((Gross_int IS NULL) OR (Gross_int >= 0)) AS INT))#773349, count(1)
+        AS count(1)#773350L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: f0863baa-a755-4d4e-b4b3-056e75cb15db
+      source_assumptions:
+      - 579a0a61-f1ca-4ca7-a6ee-15bbbc965b2d
+    - suggestion: '.satisfies("Certificate IS NULL OR Certificate IN (''U'', ''G'',
+        ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'', ''NC-17'',
+        ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'', ''GP'')",
+        "Valid Certificate Values", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("Certificate IS NULL OR Certificate
+        IN (''U'', ''G'', ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'',
+        ''TV-MA'', ''NC-17'', ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'',
+        ''U/A'', ''GP'')", "Valid Certificate Values", lambda x: x == 1.0)'' failed
+        on data sample: Value: 0.998330550918197 does not meet the constraint requirement!'
+      level: error
+      uid: e0cc40a1-b62e-425e-a827-8e8f50c38e1d
+      source_assumptions:
+      - 6c3466c4-b26e-42a8-ad58-0668372ca5b4
+    - suggestion: '.haveCompleteness(columns=[''Genre''], assertion=lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 409b7102-f0df-4e77-852b-aa826e33e4b6
+      source_assumptions:
+      - 6c3466c4-b26e-42a8-ad58-0668372ca5b4
+    - suggestion: '.haveCompleteness(columns=[''IMDB_Rating''], assertion=lambda x:
+        x >= 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a1137517-443c-439b-af85-11375024fc9a
+      source_assumptions:
+      - 22395d52-1d8d-476c-9632-e8ae4ec0eea6
+    - suggestion: '.haveCompleteness(columns=[''Meta_score''], assertion=lambda x:
+        x >= 0.7)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fba8fee8-bc3c-4a52-a187-161ff4f3a1a8
+      source_assumptions:
+      - 22395d52-1d8d-476c-9632-e8ae4ec0eea6
+    - suggestion: '.haveCompleteness(columns=[''No_of_Votes''], assertion=lambda x:
+        x >= 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: cf448b79-ba06-47c8-8bb4-f4e25414612c
+      source_assumptions:
+      - 22395d52-1d8d-476c-9632-e8ae4ec0eea6
+    - suggestion: '.satisfies("Runtime IS NULL OR Runtime RLIKE ''.*([0-9]{2,3}).*''",
+        "Runtime_parsable_duration", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3e163d7c-65c0-46a3-9b50-30bdbcf3c0fa
+      source_assumptions:
+      - 22395d52-1d8d-476c-9632-e8ae4ec0eea6
+    assumptions:
+    - text: The 'Gross' column is assumed to contain string representations of non-negative
+        integer values (possibly with commas) that can be successfully parsed into
+        the 'Gross_int' column. This conversion is essential because 'Gross_int' is
+        combined with 'qa_pop_score' to calculate 'box_office_score'. For the 'box_office'
+        carousel to be generated, a significant portion of 'Gross' values must be
+        successfully convertible to 'Gross_int', and both 'Gross_int' and 'qa_pop_score'
+        must contain valid numerical data for meaningful normalization and weighted
+        averaging.
+      sources:
+      - start_line: 89
+        end_line: 94
+        file: ''
+      - start_line: 125
+        end_line: 128
+        file: ''
+      - start_line: 134
+        end_line: 134
+        file: ''
+      uid: 579a0a61-f1ca-4ca7-a6ee-15bbbc965b2d
+    - text: The 'is_kids_safe' flag is derived from a logical combination of the 'Certificate'
+        and 'Genre' columns. It is assumed that 'Certificate' values can be reliably
+        mapped to a numerical 'maturity_level' (0-3), and 'Genre' values are comma-separated
+        strings that can be tokenized. The code expects that for a title to be 'kids
+        safe', its 'maturity_level' (derived from 'Certificate') must be 0 or 1, AND
+        its 'Genre' (after tokenization) must not contain 'Horror' or 'Thriller'.
+        This implies that the data in both 'Certificate' and 'Genre' must be structured
+        and consistent for this policy check to function as intended.
+      sources:
+      - start_line: 71
+        end_line: 73
+        file: ''
+      - start_line: 77
+        end_line: 82
+        file: ''
+      - start_line: 83
+        end_line: 85
+        file: ''
+      uid: 6c3466c4-b26e-42a8-ad58-0668372ca5b4
+    - text: 'The final ''qa_pop_score'' is a composite metric derived from several
+        columns: ''IMDB_Rating'', ''Meta_score'', ''No_of_Votes'', and ''Runtime''.
+        It is assumed that these input columns contain values that are consistently
+        numerical (or convertible to numerical) to allow for the calculation of ''bayes_rating'',
+        ''quality_component'', ''pop_component'', and ''runtime_factor''. Specifically,
+        ''IMDB_Rating'', ''Meta_score'', and ''No_of_Votes'' are expected to be numerical
+        for rating and vote calculations, and ''Runtime'' is expected to contain a
+        parsable numerical duration for ''runtime_factor'' calculation. All these
+        intermediate components are then combined to produce a meaningful ''qa_pop_score''.'
+      sources:
+      - start_line: 34
+        end_line: 36
+        file: ''
+      - start_line: 48
+        end_line: 52
+        file: ''
+      - start_line: 54
+        end_line: 56
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      - start_line: 63
+        end_line: 63
+        file: ''
+      - start_line: 66
+        end_line: 67
+        file: ''
+      uid: 22395d52-1d8d-476c-9632-e8ae4ec0eea6
+  '["Gross_int","box_office_score","qa_pop_score"]':
+    code:
+    - suggestion: '.hasCorrelation("IMDB_Rating", "Meta_score", lambda x: x > 0.5)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasCorrelation("IMDB_Rating", "Meta_score",
+        lambda x: x > 0.5)'' failed on data sample: Value: 0.29918798958274045 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: ea0232c8-fd12-4eec-a72a-bcbf9fd92310
+      source_assumptions:
+      - 0fc4b69d-358c-450b-ac8e-c7e3e15264ef
+    assumptions:
+    - text: "For the Bayesian rating calculation, the 'No_of_Votes' column is assumed\
+        \ to contain non-negative numerical values. This ensures that the denominator\
+        \ `(No_of_Votes + M)` in the Bayesian formula (where `M` is the 60th percentile\
+        \ of 'No_of_Votes') remains positive, preventing potential division by zero\
+        \ or negative results. If 'No_of_Votes' could be negative or zero in a way\
+        \ that makes the denominator zero or negative, the calculation would be invalid.\
+        \ \nWe could represent this assumption as a deequ constraint like this:\n\
+        .isNonNegative(\"No_of_Votes\")"
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      uid: f7b9fdbf-c536-49d3-8bcf-cdd8da5bb8f7
+    - text: "The 'IMDB_Rating' column is assumed to be a valid and comparable substitute\
+        \ for 'Meta_score' when 'Meta_score' is missing. Both columns are expected\
+        \ to represent movie quality, and 'Meta_score' is implicitly assumed to be\
+        \ on a 0-100 scale (as it's divided by 10 to match 'IMDB_Rating's 0-10 scale),\
+        \ making them directly comparable after scaling for the 'quality_component'\
+        \ blend. \nWe could represent this assumption as a deequ constraint like this:\n\
+        .isContainedIn(\"IMDB_Rating\", [0, 10])\n.isContainedIn(\"Meta_score\", [0,\
+        \ 100])\n.hasCorrelation(\"IMDB_Rating\", \"Meta_score\", Constraint.Correlation.GreaterThan(0.5))\
+        \ // Assuming a positive correlation"
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 0fc4b69d-358c-450b-ac8e-c7e3e15264ef
+    - text: "The 'Certificate' column is assumed to contain values that are either\
+        \ present as keys in the predefined 'maturity_map' or, if missing/unmapped,\
+        \ can be safely defaulted to a high maturity level (3) for the purpose of\
+        \ 'is_kids_safe' classification. Additionally, the 'Genre' column is assumed\
+        \ to provide comma-separated genre tokens, where the presence of 'Horror'\
+        \ or 'Thriller' genres is an overriding factor that categorizes a movie as\
+        \ *not* kids-safe, irrespective of its 'Certificate'-derived maturity level.\
+        \ \nWe could represent this assumption as a deequ constraint like this:\n\
+        .isContainedIn(\"Certificate\", ['U', 'G', 'PG', 'TV-PG', 'UA', 'PG-13', 'TV-14',\
+        \ 'R', 'TV-MA', 'NC-17', 'A', 'Not Rated', 'Unrated', 'Approved', 'Passed',\
+        \ 'U/A', 'GP'])\n.hasPattern(\"Genre\", \"([^,]+(,\\s*[^,]+)*)?\") // Basic\
+        \ check for comma-separated list structure"
+      sources:
+      - start_line: 77
+        end_line: 85
+        file: ''
+      uid: 24a67b73-e20b-4c54-a23b-b2fa7dc7ba28
+    - text: "The 'Gross_int' (after normalization) and 'qa_pop_score' columns are\
+        \ assumed to be equally weighted and additive components contributing to a\
+        \ movie's 'box_office_score'. Furthermore, 'qa_pop_score' is assumed to be\
+        \ a meaningful and consistent secondary sorting key for 'box_office_score',\
+        \ implying its continued relevance as a quality/popularity metric for tie-breaking.\
+        \ This implies both normalized scores should be on a comparable scale (e.g.,\
+        \ 0-1). \nWe could represent this assumption as a deequ constraint like this:\n\
+        .hasMin(\"gross_norm\", 0.0)\n.hasMax(\"gross_norm\", 1.0)\n.hasMin(\"qa_pop_score\"\
+        , 0.0)\n.hasMax(\"qa_pop_score\", 1.0)"
+      sources:
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: 5f8cb877-7378-4af4-b664-ee7d6fdeeeeb
+  '["IMDB_Rating","Meta_score"]':
+    code:
+    - suggestion: '.hasCorrelation("IMDB_Rating", "`Meta_score` / 10.0", lambda x:
+        x > 0.7)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasCorrelation("IMDB_Rating", "`Meta_score`
+        / 10.0", lambda x: x > 0.7)'' failed on data sample: Input data does not include
+        column `Meta_score` / 10.0!'
+      level: error
+      uid: 0f14c8c8-caca-4c7c-beb9-849fff4431a3
+      source_assumptions:
+      - 511eee3d-cc5d-422e-8b22-99639ea815b8
+    assumptions:
+    - text: The 'IMDB_Rating' column is used as a fallback to fill missing values
+        in the scaled 'Meta_score' column ('Meta_score' divided by 10). This implies
+        a crucial assumption that 'IMDB_Rating' and ('Meta_score' / 10.0) are statistically
+        comparable and highly correlated when both are present, making 'IMDB_Rating'
+        a meaningful substitute for 'Meta_score' in the absence of the latter. For
+        example, we could represent this assumption as a Deequ constraint that checks
+        for a strong positive correlation (e.g., > 0.7) between 'IMDB_Rating' and
+        a temporary column representing 'Meta_score' / 10.0 for records where 'Meta_score'
+        is not null.
+      sources:
+      - start_line: 54
+        end_line: 55
+        file: ''
+      uid: 511eee3d-cc5d-422e-8b22-99639ea815b8
+  '["IMDB_Rating","Meta_score","No_of_Votes","Runtime","qa_pop_score"]':
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 151dece1-fa45-4dba-b13b-bbe6a74b7cf8
+      source_assumptions:
+      - ac42f01c-f8b5-4fe7-b0c6-2db690edbcdc
+      - 35baf476-0bb0-47aa-8904-941636e0c2c9
+    - suggestion: '.satisfies("`No_of_Votes` >= 0", "No_of_Votes non-negative", lambda
+        x: x == _total_rows_)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"`No_of_Votes` >= 0\", \"No_of_Votes\
+        \ non-negative\", lambda x: x == _total_rows_)' failed on data sample: Can't\
+        \ execute the assertion: An exception was raised by the Python Proxy. Return\
+        \ Message: Traceback (most recent call last):\n  File \"/home/haochen/.cache/pypoetry/virtualenvs/prismadv-VYWdk6Ho-py3.12/lib/python3.12/site-packages/py4j/clientserver.py\"\
+        , line 617, in _call_proxy\n    return_value = getattr(self.pool[obj_id],\
+        \ method)(*params)\n                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"/home/haochen/.cache/pypoetry/virtualenvs/prismadv-VYWdk6Ho-py3.12/lib/python3.12/site-packages/pydeequ/scala_utils.py\"\
+        , line 38, in apply\n    return self.lambda_function(arg)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^\n\
+        \  File \"<string>\", line 1, in <lambda>\nNameError: name '_total_rows_'\
+        \ is not defined\n!"
+      level: error
+      uid: b1b7e052-1dc9-4811-983b-3130100d696e
+      source_assumptions:
+      - ac42f01c-f8b5-4fe7-b0c6-2db690edbcdc
+    - suggestion: '.haveCompleteness([''Runtime''], lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d0c5f0d0-cbc8-42c4-ac18-16330da84c0a
+      source_assumptions:
+      - 28ef8024-3090-4437-9af9-4507d740538b
+    - suggestion: '.satisfies("`Gross_int` >= 0", "Gross_int non-negative", lambda
+        x: x == _total_rows_)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Gross_int` >= 0", "Gross_int non-negative",
+        lambda x: x == _total_rows_)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Gross_int` cannot be resolved. Did you mean one of the following? [`Gross`,
+        `Poster_Link`, `id`, `Genre`, `Overview`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''Gross_int >= 0) as int)) AS sum(CAST((Gross_int >=
+        0) AS INT))#775278, count(1) AS count(1)#775283L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: c9565096-e63e-4e91-b70f-7098f12c51c9
+      source_assumptions:
+      - 48821142-b629-48c7-b101-2af055e062f3
+    - suggestion: '.haveCompleteness([''Gross_int''], lambda x: x >= 0.1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''Gross_int''], lambda x:
+        x >= 0.1)'' failed on data sample: Input data does not include column Gross_int!'
+      level: warning
+      uid: 45775698-a1f6-452c-a878-edf3b46de65a
+      source_assumptions:
+      - 48821142-b629-48c7-b101-2af055e062f3
+    - suggestion: '.hasDistinctness([''qa_pop_score''], lambda x: x > 0.01)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasDistinctness([''qa_pop_score''], lambda
+        x: x > 0.01)'' failed on data sample: Input data does not include column qa_pop_score!'
+      level: warning
+      uid: 4141499c-f102-4d49-8871-abce626bb5a4
+      source_assumptions:
+      - 28ef8024-3090-4437-9af9-4507d740538b
+      - 48821142-b629-48c7-b101-2af055e062f3
+    assumptions:
+    - text: The Bayesian rating calculation (lines 48-52) assumes that both 'IMDB_Rating'
+        and 'No_of_Votes' columns are numeric. Furthermore, it assumes 'No_of_Votes'
+        contains non-negative integer values, representing counts, which are critical
+        for the statistical aggregations (mean, quantile) and arithmetic operations
+        used to derive 'bayes_rating'. The 100% completeness of both columns indicates
+        they are always expected to be present for this calculation.
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      uid: ac42f01c-f8b5-4fe7-b0c6-2db690edbcdc
+    - text: For the 'quality_component' calculation (lines 54-56), 'IMDB_Rating' is
+        explicitly used as a fallback value when 'Meta_score' is null or non-numeric
+        after coercion. This assumes that 'IMDB_Rating' is consistently present (completeness
+        1.0) and numeric, making it a reliable and always-available substitute for
+        missing 'Meta_score' values to ensure the 'quality_component' can always be
+        computed.
+      sources:
+      - start_line: 54
+        end_line: 56
+        file: ''
+      uid: 35baf476-0bb0-47aa-8904-941636e0c2c9
+    - text: The final 'qa_pop_score' is computed by a weighted combination and multiplication
+        of normalized 'quality_component', 'pop_component', and 'runtime_factor' (lines
+        66-67). This assumes that all underlying values contributing to these components
+        (derived from 'IMDB_Rating', 'No_of_Votes', 'Meta_score', and 'Runtime') are
+        convertible to numeric types and have distributions suitable for min-max normalization,
+        ensuring meaningful aggregation and a valid final score.
+      sources:
+      - start_line: 66
+        end_line: 67
+        file: ''
+      uid: 28ef8024-3090-4437-9af9-4507d740538b
+    - text: The 'box_office_score' (lines 128-129) is calculated as a weighted average
+        of normalized 'Gross_int' and normalized 'qa_pop_score'. This assumes that
+        both 'Gross_int' and 'qa_pop_score' are numeric and suitable for min-max normalization.
+        Additionally, 'Gross_int' is assumed to contain non-negative values, representing
+        monetary amounts, which is crucial for its meaningful combination with 'qa_pop_score'
+        and subsequent sorting.
+      sources:
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: 48821142-b629-48c7-b101-2af055e062f3
+  '["IMDB_Rating","rating_tenth"]':
+    code:
+    - suggestion: '.satisfies("IMDB_Rating IS NULL OR (IMDB_Rating * 10 = CAST(IMDB_Rating
+        * 10 AS INT))", "RatingTenthDerivation", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 28c7fd5d-25e0-4b1d-8406-b2a95e3745fd
+      source_assumptions:
+      - 67c95d0c-e8e8-438a-a4c8-f8c2fdb612a3
+    - suggestion: '.satisfies("No_of_Votes IS NOT NULL AND No_of_Votes >= 0", "NonNegativeAndNonNullNoOfVotes",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: da09ab76-b21d-4afd-9d83-444b3ea889bb
+      source_assumptions:
+      - 31d10b17-24ed-4cd2-bb91-5967c9f4db39
+    - suggestion: '.satisfies("Meta_score IS NOT NULL OR (IMDB_Rating IS NOT NULL
+        AND IMDB_Rating >= 0 AND IMDB_Rating <= 10)", "IMDBRatingFallbackValidity",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 68b4c6fc-fdf8-472a-8672-239b6c9411ae
+      source_assumptions:
+      - 5033fd60-10cb-47e7-9d6a-692750a9c5b4
+    assumptions:
+    - text: The `rating_tenth` column is derived from `IMDB_Rating` by multiplying
+        by 10 and truncating the decimal part. Therefore, for every non-null record,
+        `rating_tenth` must be equal to `floor(IMDB_Rating * 10)`.
+      sources:
+      - start_line: 44
+        end_line: 44
+        file: ''
+      uid: 67c95d0c-e8e8-438a-a4c8-f8c2fdb612a3
+    - text: The `No_of_Votes` column is assumed to contain non-negative numerical
+        values. To prevent division by zero in the `bayes_rating` calculation, the
+        sum of `No_of_Votes` for any given record and the pre-computed 60th percentile
+        of `No_of_Votes` (M) must be strictly positive.
+      sources:
+      - start_line: 48
+        end_line: 52
+        file: ''
+      uid: 31d10b17-24ed-4cd2-bb91-5967c9f4db39
+    - text: When `Meta_score` is missing, `IMDB_Rating` is used as a fallback. This
+        implies that `IMDB_Rating` must contain non-null values for all records where
+        `Meta_score` is null, and its values are expected to be on a numerically comparable
+        scale to `Meta_score / 10.0` to ensure a meaningful substitution.
+      sources:
+      - start_line: 54
+        end_line: 55
+        file: ''
+      uid: 5033fd60-10cb-47e7-9d6a-692750a9c5b4
+    - text: The `quality_component` and `pop_component` columns are assumed to contain
+        numerical values that, once min-max normalized by the `minmax_norm` function,
+        are on a comparable scale (0-1) and suitable for a meaningful weighted combination
+        into `qa_pop_score`. This implies that both columns should yield non-null,
+        finite, and sufficiently varying values after normalization for the weighted
+        average to be effective.
+      sources:
+      - start_line: 56
+        end_line: 66
+        file: ''
+      uid: b6a1d207-9839-45ed-8888-babac9b2ef4f
+  Poster_Link:
+    code:
+    - suggestion: .hasDataType("Poster_Link", "String")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Poster_Link",
+        "String")'
+      level: error
+      uid: 397e3530-2141-4599-936a-3d1a73f2ef5b
+      source_assumptions:
+      - 20679506-c2a0-4bf7-a634-31fd6ff1f374
+    - suggestion: .containsURL("Poster_Link")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 626351bd-1127-4835-a290-85921d8521ea
+      source_assumptions:
+      - 07fd6ba9-59c6-4359-9aaf-17fcbd58e37d
+    assumptions:
+    - text: 'The ''Poster_Link'' column should not contain null values, as its values
+        are directly accessed and included in the output without explicit null handling,
+        unlike other columns such as ''Certificate'' and ''Released_Year''.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isComplete("Poster_Link")'
+      sources:
+      - start_line: 100
+        end_line: 101
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      - start_line: 114
+        end_line: 116
+        file: ''
+      - start_line: 117
+        end_line: 117
+        file: ''
+      - start_line: 134
+        end_line: 136
+        file: ''
+      - start_line: 138
+        end_line: 138
+        file: ''
+      uid: ef8fa23c-cf17-457b-8942-2c6028210710
+    - text: 'The ''Poster_Link'' column should contain string values, as it is directly
+        used without type conversion when constructing the output CSV and JSON structures.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasDataType("Poster_Link", "String")'
+      sources:
+      - start_line: 100
+        end_line: 101
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      - start_line: 117
+        end_line: 117
+        file: ''
+      - start_line: 138
+        end_line: 138
+        file: ''
+      uid: 20679506-c2a0-4bf7-a634-31fd6ff1f374
+    - text: 'The ''Poster_Link'' column should contain values that are valid URL strings,
+        as the column name and its usage in the output (e.g., as ''poster'' in JSON
+        objects) imply it represents a web link to a poster.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .containsURL("Poster_Link")'
+      sources:
+      - start_line: 100
+        end_line: 101
+        file: ''
+      - start_line: 108
+        end_line: 108
+        file: ''
+      - start_line: 117
+        end_line: 117
+        file: ''
+      - start_line: 138
+        end_line: 138
+        file: ''
+      uid: 07fd6ba9-59c6-4359-9aaf-17fcbd58e37d
+  Meta_score:
+    code:
+    - suggestion: '.hasDataType(''Meta_score'', ''Fractional'', assertion=lambda x:
+        x >= 0.9)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Meta_score'',
+        ''Fractional'', assertion=lambda x: x >= 0.9)'
+      level: error
+      uid: 478f91e2-00ee-48f1-bc9a-8e357fc5889b
+      source_assumptions:
+      - 18ca3500-5b38-4442-b57b-28a5c6331ba0
+    - suggestion: '.satisfies("(Meta_score IS NULL OR NOT (`Meta_score` = ''Infinity''
+        OR `Meta_score` = ''-Infinity''))", "No Infinity Values", assertion=lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9e1a3a7f-1af0-47fd-aef6-8b9171c54400
+      source_assumptions:
+      - 18ca3500-5b38-4442-b57b-28a5c6331ba0
+    - suggestion: '.hasCompleteness(''Meta_score'', assertion=lambda x: x >= 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0c6f3f55-cd74-41f6-b70b-59b02dbd9625
+      source_assumptions:
+      - ecd3f986-3180-4ebe-9025-2fdfc3e410eb
+    - suggestion: '.isNonNegative(''Meta_score'', assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b8cf2571-7b70-481c-8250-051145b246b8
+      source_assumptions:
+      - fa28543f-6c2d-4ac1-8867-550913240ecf
+    - suggestion: '.isLessThanOrEqualTo(''Meta_score'', 100.0, assertion=lambda x:
+        x == 1.0)'
+      validity: false
+      reason_if_invalid: "Unable to instantiate constraint '.isLessThanOrEqualTo('Meta_score',\
+        \ 100.0, assertion=lambda x: x == 1.0)': An error occurred while calling o26765.isLessThanOrEqualTo.\
+        \ Trace:\npy4j.Py4JException: Method isLessThanOrEqualTo([class java.lang.String,\
+        \ class java.lang.Double, class com.sun.proxy.$Proxy35, class scala.None$])\
+        \ does not exist\n\tat py4j.reflection.ReflectionEngine.getMethod(ReflectionEngine.java:321)\n\
+        \tat py4j.reflection.ReflectionEngine.getMethod(ReflectionEngine.java:329)\n\
+        \tat py4j.Gateway.invoke(Gateway.java:274)\n\tat py4j.commands.AbstractCommand.invokeMethod(AbstractCommand.java:132)\n\
+        \tat py4j.commands.CallCommand.execute(CallCommand.java:79)\n\tat py4j.ClientServerConnection.waitForCommands(ClientServerConnection.java:182)\n\
+        \tat py4j.ClientServerConnection.run(ClientServerConnection.java:106)\n\t\
+        at java.base/java.lang.Thread.run(Thread.java:829)\n\n"
+      level: error
+      uid: 8b16eed3-9958-43ac-adca-03c2ea6b486e
+      source_assumptions:
+      - fa28543f-6c2d-4ac1-8867-550913240ecf
+    assumptions:
+    - text: 'The ''Meta_score'' column is expected to contain numeric values. The
+        code explicitly attempts to convert it to a numeric type (`pd.to_numeric`),
+        coercing non-numeric values to null. Additionally, the `minmax_norm` function
+        (which processes a column derived from ''Meta_score'') explicitly handles
+        and replaces infinite values (positive or negative) with nulls. Therefore,
+        the input ''Meta_score'' should primarily consist of finite numeric values.
+        We could represent this assumption as a deequ constraint like this: `.isConvertibleTo(''Meta_score'',
+        DoubleType, assertion=lambda x: x >= 0.9)` (e.g., at least 90% of values are
+        convertible to numeric) and `.satisfies("CASE WHEN `Meta_score` = ''Infinity''
+        OR `Meta_score` = ''-Infinity'' THEN 0 ELSE 1 END", "No Infinity Values",
+        lambda x: x == 1.0)`.'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      - start_line: 9
+        end_line: 19
+        file: ''
+      uid: 18ca3500-5b38-4442-b57b-28a5c6331ba0
+    - text: 'The ''Meta_score'' column is expected to contain null values, as the
+        code explicitly handles them by coercing non-numeric values to null (line
+        35) and then filling these nulls with ''IMDB_Rating'' values (line 55). The
+        dataset characteristics also show a completeness of approximately 85.6%, confirming
+        the presence of nulls in the input data. While nulls are allowed, a significant
+        portion of the column should still be non-null for the quality blend calculation
+        to be meaningful. We could represent this assumption as a deequ constraint
+        like this: `.isComplete(''Meta_score'', assertion=lambda x: x >= 0.8)` (to
+        ensure at least 80% completeness, reflecting the current data and the code''s
+        tolerance for nulls).'
+      sources:
+      - start_line: 35
+        end_line: 35
+        file: ''
+      - start_line: 55
+        end_line: 55
+        file: ''
+      uid: ecd3f986-3180-4ebe-9025-2fdfc3e410eb
+    - text: 'The ''Meta_score'' column is expected to contain values representing
+        a rating, typically on a scale from 0 to 100. This is inferred from the operation
+        where ''Meta_score'' is divided by 10 (line 54), suggesting it''s being scaled
+        to a 0-10 range (consistent with ''IMDB_Rating''), before being combined into
+        a ''quality_component'' (line 56). We could represent this assumption as a
+        deequ constraint like this: `.isNonNegative(''Meta_score'')` and `.isLessThanOrEqualTo(''Meta_score'',
+        100.0, assertion=lambda x: x == 1.0)` (these checks implicitly allow for nulls,
+        which are handled by the code).'
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      - start_line: 56
+        end_line: 56
+        file: ''
+      uid: fa28543f-6c2d-4ac1-8867-550913240ecf
+  No_of_Votes:
+    code:
+    - suggestion: '.hasDataType(''No_of_Votes'', ''Integral'', assertion=lambda x:
+        x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''No_of_Votes'',
+        ''Integral'', assertion=lambda x: x == 1.0)'
+      level: error
+      uid: 9b038495-3943-4335-bc46-540a37e174d0
+      source_assumptions:
+      - 8d2163f7-27fd-419c-932a-3c6f22313a00
+    - suggestion: '.isNonNegative(''No_of_Votes'', assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e02c643b-005b-4565-939e-d2b1d3efd690
+      source_assumptions:
+      - 8d2163f7-27fd-419c-932a-3c6f22313a00
+    assumptions:
+    - text: The 'No_of_Votes' column must be present in the input data. This is a
+        fundamental requirement for the code to access and process the column.
+      sources:
+      - start_line: 31
+        end_line: 36
+        file: ''
+      uid: d7ba7bd1-3459-4d78-ae17-e9defdfb6def
+    - text: 'The ''No_of_Votes'' column is expected to contain non-negative integer
+        values with no missing entries. This is inferred from the dataset description
+        (which states ''dataType: Integral'' and ''completeness: 1.0'') and the various
+        mathematical operations performed on it, such as calculating quantiles, Bayesian
+        averages, and applying `np.log1p`. These operations rely on valid, non-negative
+        numeric input to produce meaningful results. Although `pd.to_numeric(errors=''coerce'')`
+        is used for robustness against non-numeric entries, and `minmax_norm` handles
+        `NaN`s, the overall logic implies that the input data should be largely clean
+        and conform to these expectations for the derived scores to be significant.'
+      sources:
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      - start_line: 63
+        end_line: 63
+        file: ''
+      - start_line: 66
+        end_line: 66
+        file: ''
+      uid: 8d2163f7-27fd-419c-932a-3c6f22313a00
+  Released_Year:
+    code:
+    - suggestion: '.hasCompleteness(''Released_Year'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3ff804f9-de28-4515-9957-b338ac5b08b7
+      source_assumptions:
+      - a818b1c5-83e1-446d-8c7e-c136cc2707ba
+    - suggestion: '.hasDataType(''Released_Year'', ''Integral'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Released_Year'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: warning
+      uid: e5690641-b51e-4d63-9937-a7296abf1437
+      source_assumptions:
+      - a818b1c5-83e1-446d-8c7e-c136cc2707ba
+    assumptions:
+    - text: The 'Released_Year' column is expected to contain only non-null, integral
+        numeric values. The code attempts to convert the column to a numeric type
+        (line 37) and explicitly casts non-null values to `int` for JSON serialization
+        (lines 115, 137). Any values that are non-numeric or null in the input will
+        be coerced to `NaN` and subsequently represented as `None` in the final JSON
+        output, indicating a data quality issue for a 'Released Year' field.
+      sources:
+      - start_line: 37
+        end_line: 37
+        file: ''
+      - start_line: 115
+        end_line: 115
+        file: ''
+      - start_line: 137
+        end_line: 137
+        file: ''
+      uid: a818b1c5-83e1-446d-8c7e-c136cc2707ba
+  Runtime:
+    code:
+    - suggestion: '.satisfies("regexp_extract(`Runtime`, ''([0-9]{2,3})'', 1) IS NOT
+        NULL", "Runtime format check", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 453fd319-f139-41ae-92cc-da9ca566e329
+      source_assumptions:
+      - d58de34a-4cb1-4e39-a5c8-eef8488af4bc
+    assumptions:
+    - text: 'The ''Runtime'' column is expected to contain string values that include
+        a sequence of 2 or 3 digits. This sequence is extracted using a regular expression
+        `([0-9]{2,3})` and converted to an integer for further numerical processing.
+        If a ''Runtime'' value does not contain such a digit sequence, the extraction
+        will result in a null value for ''Runtime_minutes'', which will propagate
+        through subsequent calculations, leading to a null ''qa_pop_score''. This
+        would cause the corresponding movie to be excluded from ranking and carousels
+        or ranked incorrectly. We could represent this assumption as a deequ constraint
+        like this: .satisfies("regexp_extract(`Runtime`, ''([0-9]{2,3})'', 1) IS NOT
+        NULL", "Runtime format check", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 38
+        end_line: 38
+        file: ''
+      - start_line: 57
+        end_line: 57
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: d58de34a-4cb1-4e39-a5c8-eef8488af4bc
+    - text: 'The ''Runtime'' column is assumed to be complete, meaning it should not
+        contain any null or missing values. Although the provided dataset has 100%
+        completeness, the code does not explicitly handle potential nulls in the ''Runtime''
+        column before attempting string extraction and conversion to numeric types.
+        If nulls were present, they would propagate through the ''Runtime_minutes'',
+        ''runtime_factor'', and ''qa_pop_score'' calculations, causing rows with null
+        ''Runtime'' to be excluded or incorrectly processed in downstream ranking
+        and carousels. We could represent this assumption as a deequ constraint like
+        this: .isComplete("Runtime")'
+      sources:
+      - start_line: 57
+        end_line: 57
+        file: ''
+      - start_line: 58
+        end_line: 60
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 01856375-ba9a-40b6-8e2c-b7ff31598f64
+  '["Runtime","Runtime_minutes"]':
+    code:
+    - suggestion: '.satisfies("Runtime IS NOT NULL AND REGEXP_EXTRACT(Runtime, ''([0-9]{2,3})'',
+        0) IS NOT NULL", "Runtime_minutes valid extraction and completeness", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 10775dcb-955b-4f2b-a3a8-9a3da3f32f28
+      source_assumptions:
+      - 70ec4c3b-7bc5-495b-9652-ab71981ddba4
+    - suggestion: '.haveCompleteness([''qa_pop_score'', ''runtime_factor''], lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''qa_pop_score'', ''runtime_factor''],
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        qa_pop_score!'
+      level: error
+      uid: 21b55419-f81a-42b2-8117-5097551f10cb
+      source_assumptions:
+      - 3bf702f3-6484-4b4c-8485-b802ec7fce8c
+    - suggestion: '.haveCompleteness([''gross_norm'', ''qa_pop_score'', ''box_office_score''],
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''gross_norm'', ''qa_pop_score'',
+        ''box_office_score''], lambda x: x == 1.0)'' failed on data sample: Input
+        data does not include column gross_norm!'
+      level: error
+      uid: 6e91707b-b67a-43b9-975c-50a4fe8fd329
+      source_assumptions:
+      - 83697eba-a2a4-43cd-9485-11106b2dba8d
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ff3c6d54-6451-4083-8a89-c36d27e9ea7a
+      source_assumptions:
+      - bedb2790-f178-4468-97fa-dbd7def6a8e0
+    assumptions:
+    - text: 'The ''Runtime'' column must contain string values from which a 2 or 3-digit
+        number can be extracted using the regex `r''([0-9]{2,3})''` and successfully
+        converted to an integer to populate the ''Runtime_minutes'' column without
+        nulls or errors. This ensures ''Runtime_minutes'' is valid for subsequent
+        calculations. We could represent this assumption with Deequ constraints like:
+        `.hasPattern(''Runtime'', ''.*([0-9]{2,3}).*'')` and `.isComplete(''Runtime_minutes'')`
+        after the extraction and conversion.'
+      sources:
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 70ec4c3b-7bc5-495b-9652-ab71981ddba4
+    - text: 'Both ''qa_pop_score'' and ''runtime_factor'' columns must contain non-null
+        numeric values to ensure their multiplication results in a valid ''qa_pop_score''
+        without introducing nulls. We could represent this assumption with Deequ constraints
+        like: `.isComplete(''qa_pop_score'')` and `.isComplete(''runtime_factor'')`.'
+      sources:
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 3bf702f3-6484-4b4c-8485-b802ec7fce8c
+    - text: 'For the calculation of ''box_office_score'', the ''gross_norm'' column
+        (derived from ''Gross_int'') and the ''qa_pop_score'' column must contain
+        non-null numeric values. Furthermore, for stable and meaningful sorting, both
+        ''box_office_score'' and ''qa_pop_score'' must be numeric and sortable, with
+        ''qa_pop_score'' serving as a tie-breaker for ''box_office_score''. We could
+        represent this assumption with Deequ constraints like: `.isComplete(''gross_norm'')`,
+        `.isComplete(''qa_pop_score'')`, and `.isComplete(''box_office_score'')`.'
+      sources:
+      - start_line: 128
+        end_line: 129
+        file: ''
+      uid: 83697eba-a2a4-43cd-9485-11106b2dba8d
+    - text: 'The combination of ''Series_Title'' and ''Released_Year'' columns should
+        be unique across all records in the dataset. This ensures that each movie
+        can be uniquely identified when displayed in ranked lists, carousels, or the
+        search index, particularly when ''Series_Title'' alone might not be sufficient
+        to distinguish entries. We could represent this assumption with a Deequ constraint
+        like: `.isUnique([''Series_Title'', ''Released_Year''])`.'
+      sources:
+      - start_line: 100
+        end_line: 104
+        file: ''
+      - start_line: 108
+        end_line: 119
+        file: ''
+      - start_line: 155
+        end_line: 160
+        file: ''
+      uid: bedb2790-f178-4468-97fa-dbd7def6a8e0
+  '["Runtime_minutes","runtime_factor"]':
+    code:
+    - suggestion: '.haveCompleteness([''Runtime_minutes'', ''runtime_factor''], lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''Runtime_minutes'', ''runtime_factor''],
+        lambda x: x == 1.0)'' failed on data sample: Input data does not include column
+        Runtime_minutes!'
+      level: error
+      uid: 47e0ec95-ccee-4937-891d-99968664fc31
+      source_assumptions:
+      - 57a1d3c6-0968-4279-9aab-321f2987a668
+    assumptions:
+    - text: 'The ''Runtime'' column is assumed to consistently contain a 2-3 digit
+        number that can be extracted and converted to an integer. This ensures that
+        ''Runtime_minutes'' is always numeric and non-null, which is crucial for calculating
+        ''runtime_factor''. The ''runtime_factor'' then multiplies with the intermediate
+        ''qa_pop_score'' (derived from ''quality_component'' and ''pop_component''),
+        implying that all these contributing columns must ultimately resolve to numeric,
+        non-null values for a complete and meaningful final ''qa_pop_score''.
+
+        We could represent this assumption by ensuring ''Runtime_minutes'' is always
+        present and numeric, and that the final ''qa_pop_score'' is also always present
+        and numeric:
+
+        `.hasNoNulls("Runtime_minutes")`
+
+        `.isType("Runtime_minutes", IntegerType)`
+
+        `.hasNoNulls("qa_pop_score")`
+
+        `.isType("qa_pop_score", DoubleType)`'
+      sources:
+      - start_line: 57
+        end_line: 60
+        file: ''
+      - start_line: 66
+        end_line: 67
+        file: ''
+      uid: 57a1d3c6-0968-4279-9aab-321f2987a668
+    - text: 'For records where ''Gross_int'' is not null, it is assumed to contain
+        numeric values that can be normalized. This is critical for its combination
+        with ''qa_pop_score'' to compute a meaningful ''box_office_score'' through
+        a weighted average. While `pd.to_numeric(errors=''coerce'')` and `minmax_norm`
+        handle potential non-numeric values or nulls in ''Gross_int'' by coercing
+        to numeric and filling NaNs, the expectation is that ''Gross_int'' predominantly
+        provides valid numeric data in these records.
+
+        We could represent this assumption by checking that ''Gross_int'' is numeric
+        where present, and that ''box_office_score'' is also numeric:
+
+        `.hasDataType("Gross_int", IntegerType)` (for non-null values)
+
+        `.hasDataType("qa_pop_score", DoubleType)`
+
+        `.hasDataType("box_office_score", DoubleType)`'
+      sources:
+      - start_line: 125
+        end_line: 128
+        file: ''
+      uid: 02ac7e64-07a0-4c5f-b4da-9b6ab50fec16
+  Series_Title:
+    code:
+    - suggestion: .isComplete("Series_Title")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 309c669d-bf8b-4f5f-b0de-17e0df86a141
+      source_assumptions:
+      - 8b656f13-4c8d-476c-9bd7-88d4ebfb783b
+    - suggestion: '.hasDataType("Series_Title", "String", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Series_Title",
+        "String", lambda x: x == 1.0)'
+      level: error
+      uid: c6bc14f9-d9de-41ff-a236-d220e1fa7fb9
+      source_assumptions:
+      - 5a5bb5de-46d3-42f3-9d63-499c231f47f6
+    - suggestion: '.hasUniqueness(["Series_Title"], lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fbc980ac-3ae1-4243-841b-f5ce9031e13a
+      source_assumptions:
+      - 47bd23db-517d-46a8-9550-def026bd158c
+    assumptions:
+    - text: 'The ''Series_Title'' column is assumed to contain no null or missing
+        values in the input data. The code directly uses this column as a title for
+        display and output in various formats (CSV, JSON) without explicitly handling
+        potential nulls (e.g., by filling them or checking `pd.isna()` as it does
+        for other fields like `Certificate` or `Released_Year`), implying that non-null
+        values are always expected. We could represent this assumption as a deequ
+        constraint like this:
+
+        .isComplete("Series_Title")'
+      sources:
+      - start_line: 31
+        end_line: 31
+        file: ''
+      - start_line: 99
+        end_line: 103
+        file: ''
+      - start_line: 107
+        end_line: 120
+        file: ''
+      - start_line: 126
+        end_line: 141
+        file: ''
+      - start_line: 155
+        end_line: 160
+        file: ''
+      uid: 8b656f13-4c8d-476c-9bd7-88d4ebfb783b
+    - text: 'The ''Series_Title'' column is assumed to contain string values in the
+        input data. This is consistent with its use as a display title, its inclusion
+        in JSON output as a string, and its direct output to CSV files without any
+        numeric or other type conversions. The presence of a few integral values in
+        `typeCounts` suggests these are read as strings, which is compatible with
+        this assumption. We could represent this assumption as a deequ constraint
+        like this:
+
+        .hasDataType("Series_Title", "String")'
+      sources:
+      - start_line: 31
+        end_line: 31
+        file: ''
+      - start_line: 99
+        end_line: 103
+        file: ''
+      - start_line: 107
+        end_line: 120
+        file: ''
+      - start_line: 126
+        end_line: 141
+        file: ''
+      - start_line: 155
+        end_line: 160
+        file: ''
+      uid: 5a5bb5de-46d3-42f3-9d63-499c231f47f6
+    - text: 'The ''Series_Title'' column is expected to have a high degree of uniqueness
+        in the input data. It functions as a primary identifier and display title
+        across multiple outputs (ranked lists, carousels, search index), where distinct
+        titles are implicitly desired for meaningful content representation. Based
+        on the provided data characteristics, it has `approximateNumDistinctValues`
+        587 out of 597 total entries, indicating near uniqueness. We could represent
+        this assumption as a deequ constraint like this:
+
+        .hasUniqueness("Series_Title", lambda x: x >= 0.95)'
+      sources:
+      - start_line: 99
+        end_line: 103
+        file: ''
+      - start_line: 107
+        end_line: 120
+        file: ''
+      - start_line: 126
+        end_line: 141
+        file: ''
+      - start_line: 155
+        end_line: 160
+        file: ''
+      uid: 47bd23db-517d-46a8-9550-def026bd158c
+  '["qa_pop_score","rank"]':
+    code:
+    - suggestion: '.haveCompleteness([''IMDB_Rating''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 543b3a59-6d06-47b6-8bcc-613bc16b61c7
+      source_assumptions:
+      - b47cdc1c-e554-45dc-b797-85761825be03
+    - suggestion: '.satisfies("`IMDB_Rating` >= 0 AND `IMDB_Rating` <= 10", "IMDB_Rating_Valid_Range",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c80b0446-4c4e-42bf-9fcf-11dcb7979793
+      source_assumptions:
+      - b47cdc1c-e554-45dc-b797-85761825be03
+    - suggestion: '.satisfies("`Meta_score` IS NULL OR (`Meta_score` >= 0 AND `Meta_score`
+        <= 100)", "Meta_score_Valid_Range", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3e69b12b-8c96-4a61-9f39-60b2d94318d3
+      source_assumptions:
+      - b47cdc1c-e554-45dc-b797-85761825be03
+    - suggestion: '.haveCompleteness([''No_of_Votes''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ef6d85e9-f82c-4006-b437-4d9725a2e5e9
+      source_assumptions:
+      - b47cdc1c-e554-45dc-b797-85761825be03
+    - suggestion: '.satisfies("`No_of_Votes` >= 0", "No_of_Votes_NonNegative", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3a8c000b-b8e3-4c35-86ed-ed6781f07d57
+      source_assumptions:
+      - b47cdc1c-e554-45dc-b797-85761825be03
+    - suggestion: '.satisfies("(`Certificate` IS NULL) OR (`Certificate` IN (''U'',
+        ''G'', ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'',
+        ''NC-17'', ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'',
+        ''GP''))", "Certificate_Valid_Values", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 34204be9-41a0-4c6b-a324-4449e7fa30ce
+      source_assumptions:
+      - 721968c5-5565-4652-bb1d-26a7cd8695be
+    - suggestion: '.satisfies("NOT ((`Certificate` IN (''U'', ''G'', ''PG'', ''TV-PG'',
+        ''Approved'', ''Passed'')) AND (`Genre` LIKE ''%Horror%'' OR `Genre` LIKE
+        ''%Thriller%''))", "Kids_Safe_Genre_Certificate_Consistency", lambda x: x
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("NOT ((`Certificate` IN (''U'',
+        ''G'', ''PG'', ''TV-PG'', ''Approved'', ''Passed'')) AND (`Genre` LIKE ''%Horror%''
+        OR `Genre` LIKE ''%Thriller%''))", "Kids_Safe_Genre_Certificate_Consistency",
+        lambda x: x == 1.0)'' failed on data sample: Value: 0.9582637729549248 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: 8ff6e874-32ad-458e-90d1-83f17d607d99
+      source_assumptions:
+      - 721968c5-5565-4652-bb1d-26a7cd8695be
+    - suggestion: '.satisfies("`Gross_int` IS NULL OR `Gross_int` >= 0", "Gross_int_NonNegative",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Gross_int` IS NULL OR `Gross_int`
+        >= 0", "Gross_int_NonNegative", lambda x: x == 1.0)'' failed on data sample:
+        org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `Gross_int` cannot be resolved. Did
+        you mean one of the following? [`Gross`, `Poster_Link`, `id`, `Genre`, `Overview`].;
+        line 1 pos 0;
+
+        ''Aggregate [sum(cast((isnull(''Gross_int) OR (''Gross_int >= 0)) as int))
+        AS sum(CAST(((Gross_int IS NULL) OR (Gross_int >= 0)) AS INT))#774655, count(1)
+        AS count(1)#774656L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: b6ba4597-1e4d-44f0-8775-c7d7608489b1
+      source_assumptions:
+      - 8b8567d2-10be-446b-9bed-6e5634a4784b
+    - suggestion: '.satisfies("`qa_pop_score` >= 0", "qa_pop_score_NonNegative", lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`qa_pop_score` >= 0", "qa_pop_score_NonNegative",
+        lambda x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `qa_pop_score` cannot be resolved. Did you mean one of the following? [`Meta_score`,
+        `Director`, `Gross`, `No_of_Votes`, `Certificate`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''qa_pop_score >= 0) as int)) AS sum(CAST((qa_pop_score
+        >= 0) AS INT))#774567, count(1) AS count(1)#774568L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: fe4d9bcc-fa0d-4263-a49a-cdee8bd4ad74
+      source_assumptions:
+      - 8b8567d2-10be-446b-9bed-6e5634a4784b
+    - suggestion: '.satisfies("`qa_pop_score` >= 0 AND `qa_pop_score` <= 1.05", "qa_pop_score_Range",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`qa_pop_score` >= 0 AND `qa_pop_score`
+        <= 1.05", "qa_pop_score_Range", lambda x: x == 1.0)'' failed on data sample:
+        org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `qa_pop_score` cannot be resolved.
+        Did you mean one of the following? [`Meta_score`, `Director`, `Gross`, `No_of_Votes`,
+        `Certificate`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast(((''qa_pop_score >= 0) AND (''qa_pop_score <= 1.05))
+        as int)) AS sum(CAST(((qa_pop_score >= 0) AND (qa_pop_score <= 1.05)) AS INT))#774446,
+        count(1) AS count(1)#774447L]
+
+        +- LogicalRDD [id#692950L, Poster_Link#692951, Series_Title#692952, Released_Year#692953L,
+        Certificate#692954, Runtime#692955, Genre#692956, IMDB_Rating#692957, Overview#692958,
+        Meta_score#692959, Director#692960, Star1#692961, Star2#692962, Star3#692963,
+        Star4#692964, No_of_Votes#692965L, Gross#692966], false
+
+        '
+      level: error
+      uid: 489447c6-7c02-41a3-be1e-f3b3af690a54
+      source_assumptions:
+      - 8b8567d2-10be-446b-9bed-6e5634a4784b
+    assumptions:
+    - text: The 'IMDB_Rating' and 'Meta_score' columns (after 'Meta_score' is scaled
+        by 10) are assumed to be on a comparable numerical scale (e.g., 0-10), and
+        'IMDB_Rating' is considered a valid substitute for missing 'Meta_score' values
+        when calculating the 'quality_component'. Additionally, 'No_of_Votes' is assumed
+        to be a non-negative numerical value, as it is used in the denominator of
+        a weighted average for 'bayes_rating' and for 'pop_component' via a log transformation.
+        These assumptions are critical for the correct calculation of 'qa_pop_score'.
+      sources:
+      - start_line: 48
+        end_line: 66
+        file: ''
+      uid: b47cdc1c-e554-45dc-b797-85761825be03
+    - text: The 'Certificate' column is assumed to contain values that are either
+        explicitly defined in the 'maturity_map' or can be reasonably defaulted to
+        a high maturity level (3). Furthermore, the 'Genre' column is assumed to accurately
+        identify 'Horror' or 'Thriller' content. The combined logic for 'is_kids_safe'
+        implies that a movie is 'kids-safe' if and only if its 'Certificate'-derived
+        'maturity_level' is 0 or 1 AND its 'Genre' does not include 'Horror' or 'Thriller'.
+        This suggests an expectation of consistency between these two fields regarding
+        content suitability.
+      sources:
+      - start_line: 77
+        end_line: 85
+        file: ''
+      uid: 721968c5-5565-4652-bb1d-26a7cd8695be
+    - text: Both 'Gross_int' and 'qa_pop_score' columns are assumed to contain non-negative
+        numeric values that, after min-max normalization, can be meaningfully combined
+        with equal weighting (50/50) to form a 'box_office_score'. This implies that
+        both metrics contribute positively to a movie's box office appeal and are
+        expected to be on a comparable scale after normalization.
+      sources:
+      - start_line: 127
+        end_line: 129
+        file: ''
+      uid: 8b8567d2-10be-446b-9bed-6e5634a4784b
+column_data_flow_locations:
+  '["IMDB_Rating","rating_tenth"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 146
+    end_line: 148
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 156
+    end_line: 158
+    file: ''
+  - start_line: 159
+    end_line: 160
+    file: ''
+  '["Runtime","Runtime_minutes"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 38
+    end_line: 38
+    file: ''
+  - start_line: 57
+    end_line: 60
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 108
+    end_line: 109
+    file: ''
+  - start_line: 113
+    end_line: 113
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 146
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 157
+    end_line: 158
+    file: ''
+  - start_line: 159
+    end_line: 160
+    file: ''
+  '["Gross","Gross_int"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 89
+    end_line: 91
+    file: ''
+  - start_line: 93
+    end_line: 94
+    file: ''
+  - start_line: 101
+    end_line: 104
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  - start_line: 152
+    end_line: 152
+    file: ''
+  '["qa_pop_score","rank"]':
+  - start_line: 5
+    end_line: 6
+    file: ''
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 22
+    end_line: 26
+    file: ''
+  - start_line: 30
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 36
+    file: ''
+  - start_line: 38
+    end_line: 40
+    file: ''
+  - start_line: 48
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 71
+    end_line: 71
+    file: ''
+  - start_line: 77
+    end_line: 82
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 130
+    file: ''
+  - start_line: 131
+    end_line: 140
+    file: ''
+  - start_line: 143
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 148
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  - start_line: 163
+    end_line: 164
+    file: ''
+  '["Genre","has_animation"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 40
+    end_line: 40
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 108
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 116
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 145
+    end_line: 148
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 158
+    end_line: 159
+    file: ''
+  '["Genre","has_family"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 40
+    end_line: 40
+    file: ''
+  - start_line: 71
+    end_line: 71
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 104
+    end_line: 104
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  - start_line: 109
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 116
+    file: ''
+  - start_line: 122
+    end_line: 122
+    file: ''
+  - start_line: 123
+    end_line: 123
+    file: ''
+  - start_line: 145
+    end_line: 148
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 158
+    end_line: 158
+    file: ''
+  - start_line: 159
+    end_line: 159
+    file: ''
+  '["Certificate","maturity_level"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 39
+    end_line: 40
+    file: ''
+  - start_line: 71
+    end_line: 71
+    file: ''
+  - start_line: 77
+    end_line: 82
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  - start_line: 100
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["IMDB_Rating","Meta_score"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 35
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 100
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 146
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["Runtime_minutes","runtime_factor"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 30
+    end_line: 31
+    file: ''
+  - start_line: 38
+    end_line: 38
+    file: ''
+  - start_line: 57
+    end_line: 57
+    file: ''
+  - start_line: 58
+    end_line: 58
+    file: ''
+  - start_line: 59
+    end_line: 60
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 102
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 148
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 156
+    end_line: 158
+    file: ''
+  - start_line: 159
+    end_line: 160
+    file: ''
+  '["IMDB_Rating","Meta_score","No_of_Votes","Runtime","qa_pop_score"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 36
+    file: ''
+  - start_line: 38
+    end_line: 38
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 100
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 108
+    end_line: 109
+    file: ''
+  - start_line: 113
+    end_line: 113
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 146
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 151
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 157
+    end_line: 157
+    file: ''
+  - start_line: 159
+    end_line: 159
+    file: ''
+  '["Certificate","Genre","is_kids_safe"]':
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 39
+    end_line: 40
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 77
+    end_line: 85
+    file: ''
+  - start_line: 100
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 126
+    end_line: 126
+    file: ''
+  - start_line: 130
+    end_line: 130
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["Gross_int","box_office_score","qa_pop_score"]':
+  - start_line: 1
+    end_line: 3
+    file: ''
+  - start_line: 5
+    end_line: 6
+    file: ''
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 22
+    end_line: 26
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 30
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 36
+    file: ''
+  - start_line: 38
+    end_line: 40
+    file: ''
+  - start_line: 48
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 71
+    end_line: 71
+    file: ''
+  - start_line: 77
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  - start_line: 163
+    end_line: 164
+    file: ''
+  '["Certificate","Genre","Poster_Link","Released_Year","Series_Title","qa_pop_score"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 40
+    file: ''
+  - start_line: 48
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 77
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 141
+    file: ''
+  - start_line: 143
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 160
+    file: ''
+  '["Certificate","Genre","Poster_Link","Released_Year","Series_Title","is_kids_safe","qa_pop_score"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 23
+    end_line: 26
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 30
+    end_line: 30
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 40
+    file: ''
+  - start_line: 48
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 71
+    end_line: 71
+    file: ''
+  - start_line: 77
+    end_line: 81
+    file: ''
+  - start_line: 82
+    end_line: 82
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 102
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  '["Certificate","Gross_int","Poster_Link","Released_Year","Series_Title","qa_pop_score"]':
+  - start_line: 5
+    end_line: 6
+    file: ''
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 22
+    end_line: 26
+    file: ''
+  - start_line: 28
+    end_line: 28
+    file: ''
+  - start_line: 30
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 39
+    file: ''
+  - start_line: 48
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 57
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 77
+    end_line: 82
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 141
+    file: ''
+  - start_line: 143
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  - start_line: 163
+    end_line: 164
+    file: ''
+  '["Certificate","Genre","Released_Year","Series_Title","is_kids_safe","qa_pop_score"]':
+  - start_line: 9
+    end_line: 19
+    file: ''
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 40
+    file: ''
+  - start_line: 48
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 77
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 94
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 125
+    end_line: 141
+    file: ''
+  - start_line: 143
+    end_line: 143
+    file: ''
+  - start_line: 145
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  IMDB_Rating:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 44
+    end_line: 44
+    file: ''
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 55
+    end_line: 56
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 101
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 146
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 151
+    file: ''
+  - start_line: 155
+    end_line: 159
+    file: ''
+  Released_Year:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 37
+    end_line: 37
+    file: ''
+  - start_line: 100
+    end_line: 104
+    file: ''
+  - start_line: 108
+    end_line: 109
+    file: ''
+  - start_line: 115
+    end_line: 115
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  - start_line: 155
+    end_line: 159
+    file: ''
+  No_of_Votes:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 36
+    end_line: 36
+    file: ''
+  - start_line: 49
+    end_line: 50
+    file: ''
+  - start_line: 52
+    end_line: 52
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 102
+    end_line: 104
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 159
+    end_line: 159
+    file: ''
+  Poster_Link:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 100
+    end_line: 103
+    file: ''
+  - start_line: 108
+    end_line: 109
+    file: ''
+  - start_line: 117
+    end_line: 117
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 138
+    end_line: 138
+    file: ''
+  - start_line: 146
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  Gross:
+  - start_line: 89
+    end_line: 91
+    file: ''
+  - start_line: 93
+    end_line: 94
+    file: ''
+  - start_line: 102
+    end_line: 104
+    file: ''
+  - start_line: 125
+    end_line: 141
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  - start_line: 152
+    end_line: 152
+    file: ''
+  Runtime:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 38
+    end_line: 38
+    file: ''
+  - start_line: 57
+    end_line: 60
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 108
+    end_line: 109
+    file: ''
+  - start_line: 113
+    end_line: 113
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 146
+    end_line: 151
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 157
+    end_line: 157
+    file: ''
+  - start_line: 159
+    end_line: 159
+    file: ''
+  Meta_score:
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 54
+    end_line: 56
+    file: ''
+  - start_line: 66
+    end_line: 67
+    file: ''
+  - start_line: 97
+    end_line: 97
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 128
+    end_line: 129
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 157
+    end_line: 158
+    file: ''
+  Series_Title:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 99
+    end_line: 103
+    file: ''
+  - start_line: 107
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 126
+    end_line: 126
+    file: ''
+  - start_line: 129
+    end_line: 130
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 146
+    end_line: 149
+    file: ''
+  - start_line: 151
+    end_line: 152
+    file: ''
+  - start_line: 155
+    end_line: 160
+    file: ''
+  Genre:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 40
+    end_line: 40
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 100
+    end_line: 100
+    file: ''
+  - start_line: 103
+    end_line: 104
+    file: ''
+  - start_line: 108
+    end_line: 109
+    file: ''
+  - start_line: 116
+    end_line: 116
+    file: ''
+  - start_line: 122
+    end_line: 123
+    file: ''
+  - start_line: 126
+    end_line: 130
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  - start_line: 155
+    end_line: 155
+    file: ''
+  - start_line: 158
+    end_line: 159
+    file: ''
+  Certificate:
+  - start_line: 39
+    end_line: 39
+    file: ''
+  - start_line: 77
+    end_line: 82
+    file: ''
+  - start_line: 100
+    end_line: 104
+    file: ''
+  - start_line: 107
+    end_line: 123
+    file: ''
+  - start_line: 131
+    end_line: 141
+    file: ''
+  - start_line: 146
+    end_line: 151
+    file: ''
+  - start_line: 155
+    end_line: 159
+    file: ''
+fixing_results:
+  '["Certificate","Genre","Poster_Link","Released_Year","Series_Title","is_kids_safe","qa_pop_score"]':
+    c90e33b0-feef-4b57-b413-ede4173487fc: '.hasCorrelation("IMDB_Rating", "Meta_score",
+      lambda x: x >= 0.25)'
+  '["Certificate","Genre","Poster_Link","Released_Year","Series_Title","qa_pop_score"]':
+    85c0d065-a8a9-4676-bc4f-21ad27d79aa1: '.satisfies("CAST(regexp_replace(Gross,
+      ''[^0-9-]'', '''') AS BIGINT) IS NULL OR CAST(regexp_replace(Gross, ''[^0-9-]'',
+      '''') AS BIGINT) >= 0", "Gross_int_NonNegative", lambda x: x == 1.0)'
+  '["Certificate","Gross_int","Poster_Link","Released_Year","Series_Title","qa_pop_score"]':
+    8cd196c9-5916-4b0b-9aa7-7a104e1358e6: '.satisfies("`Certificate` IS NULL OR `Certificate`
+      IN (''U'', ''G'', ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'',
+      ''NC-17'', ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'',
+      ''GP'')", "Valid Certificate values", lambda x: x >= 0.995)'
+  '["Certificate","maturity_level"]':
+    1519280e-18d3-4b20-ac8f-caf82ac82ebf: '.satisfies("`Certificate` IS NULL OR `Certificate`
+      IN (''U'', ''G'', ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'',
+      ''NC-17'', ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'',
+      ''GP'')", "Valid Certificate Keys", lambda x: x >= 0.998)'
+    a248eb26-38b9-4be1-aad9-c782ce71e289: '.satisfies("NOT (`Certificate` IN (''U'',
+      ''G'', ''PG'', ''TV-PG'', ''Approved'', ''Passed'') AND (`Genre` LIKE ''%Horror%''
+      OR `Genre` LIKE ''%Thriller%''))", "Kids Safe Content Consistency", lambda x:
+      x >= 0.95)'
+  Gross:
+    2595305c-40f6-4908-b584-b45c57a950c8: '.satisfies("CAST(REPLACE(Gross, '','',
+      '''') AS BIGINT) IS NOT NULL", "Gross is predominantly integer monetary amount",
+      assertion=lambda x: x >= 0.8280467445742905)'
+  '["Gross","Gross_int"]':
+    68f7f035-d2e0-4725-b0f7-efd954965810: '.haveCompleteness(columns=[''Gross''],
+      assertion=lambda x: x >= 0.8)'
+    f0863baa-a755-4d4e-b4b3-056e75cb15db: '.satisfies("Gross IS NULL OR (TRY_CAST(REPLACE(Gross,
+      '','', '''') AS INT) IS NULL OR TRY_CAST(REPLACE(Gross, '','', '''') AS INT)
+      >= 0)", "Gross_int_non_negative", lambda x: x == 1.0)'
+    e0cc40a1-b62e-425e-a827-8e8f50c38e1d: '.satisfies("Certificate IS NULL OR Certificate
+      IN (''U'', ''G'', ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'', ''R'', ''TV-MA'',
+      ''NC-17'', ''A'', ''Not Rated'', ''Unrated'', ''Approved'', ''Passed'', ''U/A'',
+      ''GP'')", "Valid Certificate Values", lambda x: x >= 0.998)'
+  '["IMDB_Rating","Meta_score","No_of_Votes","Runtime","qa_pop_score"]':
+    d0c5f0d0-cbc8-42c4-ac18-16330da84c0a: '.haveCompleteness([''Runtime''], lambda
+      x: x >= 0.95)'
+  '["IMDB_Rating","rating_tenth"]':
+    28c7fd5d-25e0-4b1d-8406-b2a95e3745fd: '.satisfies("IMDB_Rating IS NULL OR (IMDB_Rating
+      * 10 = CAST(IMDB_Rating * 10 AS INT))", "RatingTenthDerivation", lambda x: x
+      == 1.0)'
+  Meta_score:
+    9e1a3a7f-1af0-47fd-aef6-8b9171c54400: '.satisfies("(Meta_score IS NULL OR NOT
+      (`Meta_score` = ''Infinity'' OR `Meta_score` = ''-Infinity''))", "No Infinity
+      Values", assertion=lambda x: x == 1.0)'
+  Series_Title:
+    fbc980ac-3ae1-4243-841b-f5ce9031e13a: '.hasUniqueness(["Series_Title"], lambda
+      x: x >= 0.95)'
+  '["qa_pop_score","rank"]':
+    34204be9-41a0-4c6b-a324-4449e7fa30ce: '.satisfies("(`Certificate` IS NULL) OR
+      (`Certificate` IN (''U'', ''G'', ''PG'', ''TV-PG'', ''UA'', ''PG-13'', ''TV-14'',
+      ''R'', ''TV-MA'', ''NC-17'', ''A'', ''Not Rated'', ''Unrated'', ''Approved'',
+      ''Passed'', ''U/A'', ''GP''))", "Certificate_Valid_Values", lambda x: x >= 0.99)'
+    8ff6e874-32ad-458e-90d1-83f17d607d99: '.satisfies("NOT ((`Certificate` IN (''U'',
+      ''G'', ''PG'', ''TV-PG'', ''Approved'', ''Passed'')) AND (`Genre` LIKE ''%Horror%''
+      OR `Genre` LIKE ''%Thriller%''))", "Kids_Safe_Genre_Certificate_Consistency",
+      lambda x: x >= 0.95)'
+    fe4d9bcc-fa0d-4263-a49a-cdee8bd4ad74: '.satisfies("`No_of_Votes` >= 0", "No_of_Votes_NonNegative",
+      lambda x: x == 1.0)'
+consolidation_results:
+  Certificate:
+  - idx_to_remove: c2b228ac-e5bc-4940-862a-fcb71f8ba64b
+    redundant_with:
+    - 7d1ebb97-1b84-4cf9-b10d-ee9bb352c316
+  Poster_Link:
+  - idx_to_remove: 309295b8-6d1f-464b-8b0c-5edd8ce6fe09
+    redundant_with:
+    - 626351bd-1127-4835-a290-85921d8521ea
+  No_of_Votes:
+  - idx_to_remove: aeec377e-9730-4690-8bcc-6900c3c8b7b6
+    redundant_with:
+    - e02c643b-005b-4565-939e-d2b1d3efd690
+  Runtime:
+  - idx_to_remove: 6eb7adf8-2914-4803-b0c5-0dccd9ec3fd1
+    redundant_with:
+    - 453fd319-f139-41ae-92cc-da9ca566e329
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 8583
+    prompt_tokens: 5151
+    completion_tokens: 3432
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 101549
+    prompt_tokens: 39595
+    completion_tokens: 61954
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 12975
+    prompt_tokens: 3736
+    completion_tokens: 9239
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 204753
+    prompt_tokens: 63111
+    completion_tokens: 141642
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 211503
+    prompt_tokens: 71312
+    completion_tokens: 140191
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 206218
+    prompt_tokens: 95539
+    completion_tokens: 110679
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 116360
+    prompt_tokens: 48786
+    completion_tokens: 67574
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 111985
+    prompt_tokens: 78984
+    completion_tokens: 33001
+  code_fixing:
+    cost: 0.0
+    total_tokens: 228764
+    prompt_tokens: 45083
+    completion_tokens: 183681
+  consolidate_constraints:
+    cost: 0.0
+    total_tokens: 62717
+    prompt_tokens: 21966
+    completion_tokens: 40751

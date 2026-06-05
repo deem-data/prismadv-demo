@@ -1,0 +1,1216 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-4o
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  IMDB_Rating:
+    code:
+    - suggestion: .isComplete('IMDB_Rating')
+      validity: true
+      reason_if_invalid: ''
+      level: undefined
+      uid: 0ef77761-1987-4794-8eba-d68418777eb1
+      source_assumptions:
+      - 1af0877f-d007-49e9-8f0a-f8693e38ecce
+    - suggestion: .hasDataType('IMDB_Rating', 'Fractional')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''IMDB_Rating'',
+        ''Fractional'')'
+      level: undefined
+      uid: e88072b9-a8fc-49a4-af5e-4e477b9d4ddc
+      source_assumptions:
+      - f313135c-83c0-42cf-8f12-4dd88d4f8b44
+    assumptions:
+    - text: The 'IMDB_Rating' column should not contain null values because the code
+        uses `pd.to_numeric` with `errors='coerce'` on it, which will convert non-numeric
+        or null values to NaN, but subsequent operations assume non-null values (e.g.,
+        normalization and correlation computation). The completeness of the column
+        is 1.0, indicating no missing values.
+      sources:
+      - start_line: 25
+        end_line: 26
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      - start_line: 75
+        end_line: 76
+        file: ''
+      uid: 1af0877f-d007-49e9-8f0a-f8693e38ecce
+    - text: The 'IMDB_Rating' column should contain fractional numeric values, as
+        it is normalized by dividing by 10.0, indicating the original ratings are
+        expected to be between 0 and 10.
+      sources:
+      - start_line: 25
+        end_line: 26
+        file: ''
+      - start_line: 75
+        end_line: 76
+        file: ''
+      uid: f313135c-83c0-42cf-8f12-4dd88d4f8b44
+  Certificate:
+    code:
+    - suggestion: '.hasCompleteness(''Certificate'', lambda x: x > 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: f6e6984e-1747-4159-8b11-99b69f7a81b4
+      source_assumptions:
+      - bd2f1523-0350-41bc-bdf8-52419c38e45a
+    - suggestion: '.isContainedIn(''Certificate'', [''U'', ''UA'', ''A'', ''G'', ''PG'',
+        ''PG-13'', ''R'', ''NC-17'', ''NOT RATED'', ''UNRATED''], lambda x: x >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1842e955-0daa-48e4-92eb-561747ab8fa8
+      source_assumptions:
+      - be7d218e-ea33-404c-adf2-a1b74cd4ebfe
+    - suggestion: '.satisfies(''CASE WHEN `Certificate` IN ("U", "G", "PG", "PG-13",
+        "UA") THEN 1 ELSE 0 END'', ''Family Friendly Certificate'', lambda x: x >=
+        0.9)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CASE WHEN `Certificate` IN ("U",
+        "G", "PG", "PG-13", "UA") THEN 1 ELSE 0 END'', ''Family Friendly Certificate'',
+        lambda x: x >= 0.9)'' failed on data sample: Value: 0.4941569282136895 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: 13aca3a8-175c-45a6-a8ab-fe2352340289
+      source_assumptions:
+      - 0f48b218-0fac-422d-8c92-90a7a512e5b8
+    assumptions:
+    - text: 'The ''Certificate'' column could contain null values, as the code fills
+        missing values with an empty string during the data processing. We could represent
+        this assumption as a deequ constraint like this: .satisfies(''CASE WHEN `Certificate`
+        IS NOT NULL THEN 1 ELSE 0 END'', ''Null Certificate Values'', lambda x: x
+        > 0)'
+      sources:
+      - start_line: 46
+        end_line: 47
+        file: ''
+      uid: bd2f1523-0350-41bc-bdf8-52419c38e45a
+    - text: 'The ''Certificate'' column should contain values that belong to the set
+        of known certificate categories: ''U'', ''UA'', ''A'', ''G'', ''PG'', ''PG-13'',
+        ''R'', ''NC-17'', ''NOT RATED'', ''UNRATED''. We could represent this assumption
+        as a deequ constraint like this: .satisfies(''CASE WHEN `Certificate` IN (''U'',
+        ''UA'', ''A'', ''G'', ''PG'', ''PG-13'', ''R'', ''NC-17'', ''NOT RATED'',
+        ''UNRATED'') THEN 1 ELSE 0 END'', ''Valid Certificate Categories'', lambda
+        x: x == 1)'
+      sources:
+      - start_line: 47
+        end_line: 49
+        file: ''
+      uid: be7d218e-ea33-404c-adf2-a1b74cd4ebfe
+    - text: 'For family-friendly eligibility, the ''Certificate'' column should contain
+        values that belong to the family-allowed set: ''U'', ''G'', ''PG'', ''PG-13'',
+        ''UA''. This implies that for a movie to be considered family-friendly, its
+        certificate must be one of these values. We could represent this assumption
+        as a deequ constraint like this: .satisfies(''CASE WHEN `Certificate` IN (''U'',
+        ''G'', ''PG'', ''PG-13'', ''UA'') THEN 1 ELSE 0 END'', ''Family Friendly Certificate'',
+        lambda x: x >= 0.9)'
+      sources:
+      - start_line: 83
+        end_line: 85
+        file: ''
+      uid: 0f48b218-0fac-422d-8c92-90a7a512e5b8
+  '["Certificate","EligibleFamilyFriendly"]':
+    code:
+    - suggestion: '.satisfies(''CASE WHEN `Certificate` IN ("U", "G", "PG", "PG-13",
+        "UA") THEN 1 ELSE 0 END'', ''Family Friendly Certificate'', lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CASE WHEN `Certificate` IN ("U",
+        "G", "PG", "PG-13", "UA") THEN 1 ELSE 0 END'', ''Family Friendly Certificate'',
+        lambda x: x == 1)'' failed on data sample: Value: 0.4941569282136895 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: 7d1622e9-3aca-4523-9d95-952fecb0cf13
+      source_assumptions:
+      - 1710ff93-8487-4bd3-9558-d2c5441e9aa3
+    - suggestion: '.hasUniqueness([''Poster_Link''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b680add8-302e-42eb-a20e-4e5d4a4e5a00
+      source_assumptions:
+      - b606df83-cfdb-4c42-b7c3-cdf9bc7f991d
+    - suggestion: '.satisfies(''EligibleFamilyFriendly IN (0, 1)'', ''EligibleFamilyFriendly
+        Boolean'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''EligibleFamilyFriendly IN (0,
+        1)'', ''EligibleFamilyFriendly Boolean'', lambda x: x == 1)'' failed on data
+        sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `EligibleFamilyFriendly` cannot be
+        resolved. Did you mean one of the following? [`Meta_score`, `Released_Year`,
+        `Series_Title`, `Certificate`, `Director`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast(''EligibleFamilyFriendly IN (0,1) as int)) AS sum(CAST((EligibleFamilyFriendly
+        IN (0, 1)) AS INT))#140615, count(1) AS count(1)#140616L]
+
+        +- LogicalRDD [id#1306L, Poster_Link#1307, Series_Title#1308, Released_Year#1309L,
+        Certificate#1310, Runtime#1311, Genre#1312, IMDB_Rating#1313, Overview#1314,
+        Meta_score#1315, Director#1316, Star1#1317, Star2#1318, Star3#1319, Star4#1320,
+        No_of_Votes#1321L, Gross#1322], false
+
+        '
+      level: warning
+      uid: 25483351-6df1-4b0b-a696-74f9ee83e261
+      source_assumptions:
+      - e17f0376-bafa-44dc-9f33-2b3fb152542d
+    - suggestion: '.satisfies(''CompositeScore >= 0'', ''CompositeScore Non-Negative'',
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CompositeScore >= 0'', ''CompositeScore
+        Non-Negative'', lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `CompositeScore` cannot be resolved. Did you mean one of the following? [`Director`,
+        `Meta_score`, `Certificate`, `Genre`, `Gross`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast((''CompositeScore >= 0) as int)) AS sum(CAST((CompositeScore
+        >= 0) AS INT))#140593, count(1) AS count(1)#140594L]
+
+        +- LogicalRDD [id#1306L, Poster_Link#1307, Series_Title#1308, Released_Year#1309L,
+        Certificate#1310, Runtime#1311, Genre#1312, IMDB_Rating#1313, Overview#1314,
+        Meta_score#1315, Director#1316, Star1#1317, Star2#1318, Star3#1319, Star4#1320,
+        No_of_Votes#1321L, Gross#1322], false
+
+        '
+      level: warning
+      uid: fd5be973-673a-403e-9107-967d7c6414d1
+      source_assumptions:
+      - e17f0376-bafa-44dc-9f33-2b3fb152542d
+    assumptions:
+    - text: 'The ''Certificate'' column values must be one of the predefined set of
+        family-friendly ratings (''U'', ''G'', ''PG'', ''PG-13'', ''UA'') to be considered
+        eligible for ''EligibleFamilyFriendly''. This assumption can be represented
+        as a Deequ constraint: .isContainedIn(''Certificate'', [''U'', ''G'', ''PG'',
+        ''PG-13'', ''UA''])'
+      sources:
+      - start_line: 45
+        end_line: 85
+        file: ''
+      uid: 1710ff93-8487-4bd3-9558-d2c5441e9aa3
+    - text: 'The ''Poster_Link'' column must have unique values to ensure deduplication
+        of display items. This can be represented as a Deequ constraint: .isUnique(''Poster_Link'')'
+      sources:
+      - start_line: 87
+        end_line: 95
+        file: ''
+      uid: b606df83-cfdb-4c42-b7c3-cdf9bc7f991d
+    - text: 'The dataset is sorted by ''EligibleFamilyFriendly'' and ''CompositeScore''
+        in descending order for ranking purposes. This implies that ''EligibleFamilyFriendly''
+        should be a boolean indicating eligibility, and ''CompositeScore'' should
+        be a numerical value. This assumption can be represented as Deequ constraints:
+        .isBoolean(''EligibleFamilyFriendly'') and .isNonNegative(''CompositeScore'')'
+      sources:
+      - start_line: 87
+        end_line: 98
+        file: ''
+      uid: e17f0376-bafa-44dc-9f33-2b3fb152542d
+  '["CompositeScore","Gross"]':
+    code:
+    - suggestion: '.satisfies(''`IMDB_Rating` IS NOT NULL AND `No_of_Votes` IS NOT
+        NULL AND `Released_Year` IS NOT NULL AND `Gross` IS NOT NULL AND `Runtime`
+        IS NOT NULL'', ''CompositeScore Calculation Validity'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''`IMDB_Rating` IS NOT NULL AND
+        `No_of_Votes` IS NOT NULL AND `Released_Year` IS NOT NULL AND `Gross` IS NOT
+        NULL AND `Runtime` IS NOT NULL'', ''CompositeScore Calculation Validity'',
+        lambda x: x == 1)'' failed on data sample: Value: 0.8280467445742905 does
+        not meet the constraint requirement!'
+      level: error
+      uid: 6adfb46b-4d1f-4b8f-a8ab-9df0387092d1
+      source_assumptions:
+      - b8f3baa7-6623-47ad-802d-7426f0608eec
+    - suggestion: '.hasUniqueness([''Poster_Link''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 67afbd99-b87a-4dd9-aafc-0bcc73daf880
+      source_assumptions:
+      - a76af3c0-a711-42be-b99e-1331896fe2b5
+    - suggestion: '.satisfies(''`Certificate` IS NOT NULL'', ''Certificate Parsing
+        Validity'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''`Certificate` IS NOT NULL'', ''Certificate
+        Parsing Validity'', lambda x: x == 1)'' failed on data sample: Value: 0.8981636060100167
+        does not meet the constraint requirement!'
+      level: warning
+      uid: 22d0fd45-2d6b-47e0-8f4b-c6a91485ac8b
+      source_assumptions:
+      - a86e11dd-ebb5-416b-a3cd-a48fe9235705
+    assumptions:
+    - text: The 'CompositeScore' column is computed as a weighted sum of 'IMDB_Rating',
+        'No_of_Votes', 'Released_Year', 'Gross', and 'Runtime'. Each of these columns
+        should be present and correctly parsed to numeric types where applicable for
+        the 'CompositeScore' calculation to be valid. In particular, 'Gross' and 'No_of_Votes'
+        are expected to be numeric after parsing.
+      sources:
+      - start_line: 40
+        end_line: 81
+        file: ''
+      - start_line: 88
+        end_line: 105
+        file: ''
+      uid: b8f3baa7-6623-47ad-802d-7426f0608eec
+    - text: The 'Poster_Link' column is expected to be unique across records after
+        sorting by 'EligibleFamilyFriendly' and 'CompositeScore' to ensure deduplication
+        works as intended. This is critical for the integrity of the deduplication
+        process.
+      sources:
+      - start_line: 88
+        end_line: 95
+        file: ''
+      uid: a76af3c0-a711-42be-b99e-1331896fe2b5
+    - text: The 'EligibleFamilyFriendly' column is derived from the 'Certificate'
+        column, which should be correctly parsed and categorized to determine family-friendly
+        eligibility. This affects the filtering and sorting processes, especially
+        in the final ranked output.
+      sources:
+      - start_line: 83
+        end_line: 105
+        file: ''
+      uid: a86e11dd-ebb5-416b-a3cd-a48fe9235705
+  '["CompositeScore","IMDB_Rating"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: x >=
+        0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ae72ea36-97ec-472a-8184-3d704b2008ef
+      source_assumptions:
+      - c161ba3f-c620-49e7-8f28-326968e85be2
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'', ''Released_Year'',
+        ''Gross'', ''Runtime''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'',
+        ''Released_Year'', ''Gross'', ''Runtime''], lambda x: x == 1.0)'' failed on
+        data sample: Value: 0.8280467445742905 does not meet the constraint requirement!'
+      level: error
+      uid: 76386ca2-f7b8-4c98-a7a9-12e0fdaef9da
+      source_assumptions:
+      - fc0e257d-5881-412f-ac60-26a445476677
+    - suggestion: '.hasUniqueness([''Poster_Link''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1e443fe3-3217-4f43-93ab-f2e7a6c19fd8
+      source_assumptions:
+      - b28f46f0-063a-4332-af1d-4772bc47ce06
+    assumptions:
+    - text: 'The combination of ''IMDB_Rating'' and ''No_of_Votes'' columns is used
+        to compute a correlation coefficient, which is then used to weight the composite
+        score components. This implies that both ''IMDB_Rating'' and ''No_of_Votes''
+        should be numeric and have meaningful values for correlation computation.
+        We could represent this assumption as a deequ constraint like this: .hasCorrelation(''IMDB_Rating'',
+        ''No_of_Votes'', _ >= 0)'
+      sources:
+      - start_line: 25
+        end_line: 33
+        file: ''
+      uid: c161ba3f-c620-49e7-8f28-326968e85be2
+    - text: 'The ''CompositeScore'' is computed using ''IMDB_Rating'', ''No_of_Votes'',
+        ''Released_Year'', ''Gross'', and ''Runtime''. This implies that these columns
+        should have valid numeric values for a meaningful composite score calculation.
+        We could represent this assumption as a deequ constraint like this: .isComplete([''IMDB_Rating'',
+        ''No_of_Votes'', ''Released_Year'', ''Gross'', ''Runtime''])'
+      sources:
+      - start_line: 25
+        end_line: 81
+        file: ''
+      uid: fc0e257d-5881-412f-ac60-26a445476677
+    - text: 'The ''Poster_Link'' column is used to deduplicate the display items,
+        implying that ''Poster_Link'' should have unique values after sorting by ''EligibleFamilyFriendly''
+        and ''CompositeScore''. We could represent this assumption as a deequ constraint
+        like this: .isUnique(''Poster_Link'')'
+      sources:
+      - start_line: 88
+        end_line: 95
+        file: ''
+      uid: b28f46f0-063a-4332-af1d-4772bc47ce06
+  '["CompositeScore","No_of_Votes"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: abs(x)
+        > 0.1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 96582e22-e235-4f08-b614-a08e0ba155a8
+      source_assumptions:
+      - fbf6ebec-8785-4ec7-8bbd-0eef1b5ee0e0
+    assumptions:
+    - text: 'The combination of ''Poster_Link'', ''EligibleFamilyFriendly'', and ''CompositeScore''
+        columns is used to sort and deduplicate records. This implies ''Poster_Link''
+        should be unique within the subset defined by ''EligibleFamilyFriendly'' and
+        ''CompositeScore''. We could represent this assumption as a deequ constraint
+        like this: .isUnique([''Poster_Link''], where=''EligibleFamilyFriendly=True
+        and CompositeScore is not null'')'
+      sources:
+      - start_line: 88
+        end_line: 95
+        file: ''
+      uid: 7544b553-182d-4c87-baa2-0a405d06ad43
+    - text: 'The correlation between ''IMDB_Rating'' and ''No_of_Votes'' is used to
+        dynamically weight the composite score components. This implies that there
+        should be a meaningful correlation between these two columns. We could represent
+        this assumption as a deequ constraint like this: .hasCorrelation(''IMDB_Rating'',
+        ''No_of_Votes'', some_threshold)'
+      sources:
+      - start_line: 32
+        end_line: 33
+        file: ''
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: fbf6ebec-8785-4ec7-8bbd-0eef1b5ee0e0
+  '["CompositeScore","Poster_Link"]':
+    code:
+    - suggestion: '.hasUniqueness([''Poster_Link''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c4ba8887-1240-45e2-8934-d7a3754b2e7c
+      source_assumptions:
+      - 790687ed-1bd2-4b63-b018-77007cb389a9
+    assumptions:
+    - text: The combination of 'EligibleFamilyFriendly' and 'CompositeScore' columns
+        should be used to sort the dataset, with 'EligibleFamilyFriendly' in descending
+        order and 'CompositeScore' also in descending order. This is used to rank
+        the items based on family-friendly eligibility and their composite score.
+      sources:
+      - start_line: 94
+        end_line: 94
+        file: ''
+      uid: 272af15b-4580-4606-9183-09911bad5098
+    - text: The 'Poster_Link' column should have unique values after sorting by 'EligibleFamilyFriendly'
+        and 'CompositeScore'. This implies that 'Poster_Link' is used as a unique
+        identifier to deduplicate records in the dataset.
+      sources:
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: 790687ed-1bd2-4b63-b018-77007cb389a9
+    - text: The dataset should be sorted by the 'CompositeScore' column in descending
+        order to rank the items based on their composite score.
+      sources:
+      - start_line: 98
+        end_line: 98
+        file: ''
+      uid: 929608ed-8b0c-4633-bad8-3356640c8949
+  '["CompositeScore","Released_Year"]':
+    code:
+    - suggestion: '.hasUniqueness([''Poster_Link'', ''EligibleFamilyFriendly''], lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''Poster_Link'', ''EligibleFamilyFriendly''],
+        lambda x: x == 1)'' failed on data sample: Input data does not include column
+        EligibleFamilyFriendly!'
+      level: error
+      uid: 45617a0e-f5df-42c2-b9f4-0091987c6643
+      source_assumptions:
+      - 03bcf0c7-eb6e-4b7b-bb61-27c42ea9ca0c
+    - suggestion: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'', ''Gross'',
+        ''Runtime''], lambda x: x >= 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 99ac3e34-135b-43dd-9d4e-450fdd2b54ad
+      source_assumptions:
+      - 8c930ba6-b197-4869-a662-a68dc15a01d7
+    - suggestion: .satisfies('Released_Year <= ' + str(datetime.now().year), 'No Future
+        Released Year')
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.satisfies(''Released_Year
+        <= '' + str(datetime.now().year), ''No Future Released Year'')'': name ''datetime''
+        is not defined'
+      level: error
+      uid: 037a04c7-dc68-411f-a249-3a472303b6e6
+      source_assumptions:
+      - 7a84cbc3-9076-491e-8093-ae458d035e0c
+    assumptions:
+    - text: The combination of 'Poster_Link' and 'EligibleFamilyFriendly' columns
+        should be used to deduplicate records, with 'CompositeScore' determining the
+        ranking within these groups. This implies that for any given 'Poster_Link',
+        the record with the highest 'CompositeScore' and 'EligibleFamilyFriendly'
+        status should be retained.
+      sources:
+      - start_line: 87
+        end_line: 95
+        file: ''
+      uid: 03bcf0c7-eb6e-4b7b-bb61-27c42ea9ca0c
+    - text: The 'CompositeScore' is calculated using a weighted sum of 'IMDB_Rating',
+        'No_of_Votes', 'Released_Year', 'Gross', and 'Runtime'. The assumption is
+        that these columns are numeric and have been normalized or transformed appropriately
+        before this calculation. Specifically, 'IMDB_Rating' is normalized to a scale
+        of 0 to 1, 'No_of_Votes' is log-transformed and normalized, 'Released_Year'
+        is transformed into a recency score, 'Gross' is log-transformed and normalized,
+        and 'Runtime' is used to calculate a bonus.
+      sources:
+      - start_line: 25
+        end_line: 80
+        file: ''
+      uid: 8c930ba6-b197-4869-a662-a68dc15a01d7
+    - text: The 'Released_Year' column is expected to be an integer representing the
+        year, which is used to compute the 'recency_score'. The assumption is that
+        the 'Released_Year' does not contain future years relative to the current
+        year.
+      sources:
+      - start_line: 21
+        end_line: 55
+        file: ''
+      uid: 7a84cbc3-9076-491e-8093-ae458d035e0c
+  '["CompositeScore","Runtime"]':
+    code:
+    - suggestion: .satisfies('Runtime IS NOT NULL AND CAST(Runtime AS DOUBLE) >= 0',
+        'Runtime should be numeric and non-negative')
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''Runtime IS NOT NULL AND CAST(Runtime
+        AS DOUBLE) >= 0'', ''Runtime should be numeric and non-negative'')'' failed
+        on data sample: Empty state for analyzer Compliance(Runtime should be numeric
+        and non-negative,Runtime IS NOT NULL AND CAST(Runtime AS DOUBLE) >= 0,None,List(),None),
+        all input values were NULL.'
+      level: warning
+      uid: 2b0b170f-ea1b-4e09-8071-582e6bca0d32
+      source_assumptions:
+      - be94115c-f63f-4b2c-9660-21244599a811
+    - suggestion: '.hasUniqueness([''CompositeScore'', ''EligibleFamilyFriendly'',
+        ''Poster_Link''], lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasUniqueness([''CompositeScore'', ''EligibleFamilyFriendly'',
+        ''Poster_Link''], lambda x: x == 1.0)'' failed on data sample: Input data
+        does not include column CompositeScore!'
+      level: warning
+      uid: 09de8536-4d19-4772-9ff2-a7761fecaab3
+      source_assumptions:
+      - b6237423-dee8-4886-b228-79519182c09b
+    assumptions:
+    - text: 'The ''IMDB_Rating'' and ''No_of_Votes'' columns should be numeric and
+        non-negative, as they are used for correlation computation and normalization.
+        Their correlation is used to dynamically weight the composite score components.
+        We could represent this assumption as a deequ constraint like this: .hasDataType(''IMDB_Rating'',
+        ConstrainableDataTypes.Numeric) .isNonNegative(''IMDB_Rating'') .hasDataType(''No_of_Votes'',
+        ConstrainableDataTypes.Numeric) .isNonNegative(''No_of_Votes'')'
+      sources:
+      - start_line: 25
+        end_line: 33
+        file: ''
+      uid: a642611e-b139-4efd-9aed-743764c08d74
+    - text: 'The ''Runtime'' column should be numeric and expressed in minutes, extracted
+        from a string format, to compute a runtime bonus for the composite score.
+        We could represent this assumption as a deequ constraint like this: .hasDataType(''Runtime'',
+        ConstrainableDataTypes.Numeric) .isNonNegative(''Runtime'')'
+      sources:
+      - start_line: 35
+        end_line: 38
+        file: ''
+      uid: be94115c-f63f-4b2c-9660-21244599a811
+    - text: 'The combination of ''CompositeScore'' and ''EligibleFamilyFriendly''
+        columns is used to sort and deduplicate the dataset based on ''Poster_Link''.
+        This implies that ''Poster_Link'' should be unique for records with the same
+        ''CompositeScore'' and ''EligibleFamilyFriendly'' status. We could represent
+        this assumption as a deequ constraint like this: .isUnique([''CompositeScore'',
+        ''EligibleFamilyFriendly'', ''Poster_Link''])'
+      sources:
+      - start_line: 89
+        end_line: 99
+        file: ''
+      uid: b6237423-dee8-4886-b228-79519182c09b
+  Genre:
+    code:
+    - suggestion: .isComplete('Genre')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 156cda8f-f3cf-4a63-acf8-bfdfffb8f3a8
+      source_assumptions:
+      - 4d7ba134-15f3-4130-80b9-e5b86dccb569
+    - suggestion: .hasDataType('Genre', 'String')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Genre'', ''String'')'
+      level: warning
+      uid: 854eb183-d767-4395-bdb5-31e5dc6f0895
+      source_assumptions:
+      - 99a5f4be-467b-4512-8720-a4222086f8ed
+    assumptions:
+    - text: The 'Genre' column should have complete data without any missing values
+        as indicated by the completeness of 1.0 in the dataset description. The code
+        does not perform any fillna or missing value checks on this column, implying
+        that it assumes the column is always fully populated.
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 4d7ba134-15f3-4130-80b9-e5b86dccb569
+    - text: The 'Genre' column is expected to contain only string values, as the code
+        converts it to a string type using astype(str). This implies that any non-string
+        values are not expected in this column.
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 99a5f4be-467b-4512-8720-a4222086f8ed
+  Gross:
+    code:
+    - suggestion: '.satisfies(''`Gross` IS NOT NULL AND `Gross` != ""'', ''Gross column
+        should not be entirely null or empty'', lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e08c1777-6a71-493b-aaa3-9eed5fc35967
+      source_assumptions:
+      - d880a156-2e0e-4e6d-b761-25513c9da038
+    - suggestion: .hasDataType('Gross', 'String')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Gross'', ''String'')'
+      level: warning
+      uid: 7f50c753-75b6-48be-b458-178756bee644
+      source_assumptions:
+      - 8004f658-7d0c-4d5f-b58b-99014ad0f9a1
+    assumptions:
+    - text: The 'Gross' column is expected to contain string representations of numerical
+        values, potentially with commas as thousand separators. The code attempts
+        to convert these values to numeric, replacing non-convertible values with
+        0. This implies that the 'Gross' column might contain invalid numeric strings
+        or missing values.
+      sources:
+      - start_line: 41
+        end_line: 43
+        file: ''
+      uid: 8004f658-7d0c-4d5f-b58b-99014ad0f9a1
+    - text: The 'Gross' column is expected to have non-null values for some rows as
+        the code checks for any positive values before performing a log transformation.
+        This suggests that the column should not be entirely null or zero.
+      sources:
+      - start_line: 58
+        end_line: 63
+        file: ''
+      uid: d880a156-2e0e-4e6d-b761-25513c9da038
+    - text: The 'Gross' column should be represented in the final output even if some
+        values are null or zero, as the column is included in the exported CSV files.
+      sources:
+      - start_line: 102
+        end_line: 108
+        file: ''
+      uid: 5826ab51-e643-43d2-975e-fad96d63d560
+  '["Genre","Released_Year"]':
+    code:
+    - suggestion: '.haveCompleteness([''Released_Year'', ''Genre''], lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fbba9e0a-6ec8-40ca-a4ab-3654249cba2b
+      source_assumptions:
+      - d87385fb-45f7-4641-86dc-49c1281b1f44
+      - ea473841-24bb-4091-b4aa-80f0404fd250
+    - suggestion: .satisfies("Released_Year >= 1888 AND Released_Year <= 2023", "Valid
+        Released Year")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ec31b8bf-460a-4699-b3e8-e957982ec414
+      source_assumptions:
+      - d87385fb-45f7-4641-86dc-49c1281b1f44
+      - ea473841-24bb-4091-b4aa-80f0404fd250
+    assumptions:
+    - text: The combination of 'Released_Year' and 'Genre' columns is used to compute
+        recency scores and filter family-friendly content. It assumes the correctness
+        of 'Released_Year' as a valid integer and 'Genre' as a descriptive string.
+      sources:
+      - start_line: 21
+        end_line: 55
+        file: ''
+      - start_line: 52
+        end_line: 55
+        file: ''
+      uid: d87385fb-45f7-4641-86dc-49c1281b1f44
+    - text: The 'Released_Year' column is used to calculate the 'recency_score', which
+        assumes that 'Released_Year' is always a valid year and not null, as it is
+        transformed into an integer and used in arithmetic operations.
+      sources:
+      - start_line: 21
+        end_line: 55
+        file: ''
+      uid: ea473841-24bb-4091-b4aa-80f0404fd250
+  '["Gross","IMDB_Rating","No_of_Votes","Released_Year","Runtime"]':
+    code:
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda x: x >
+        0.5)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 6052b00d-8a5e-4a89-9ac8-cd5aafb7a5f8
+      source_assumptions:
+      - b9936786-f246-4c6b-baf0-3f1b6f962615
+    - suggestion: '.haveCompleteness([''EligibleFamilyFriendly'', ''CompositeScore''],
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness([''EligibleFamilyFriendly'',
+        ''CompositeScore''], lambda x: x == 1.0)'' failed on data sample: Input data
+        does not include column EligibleFamilyFriendly!'
+      level: error
+      uid: 57c9c9e1-1c4a-45b9-b47c-3c9ca0538850
+      source_assumptions:
+      - 5817bdb4-6069-4fe3-bf71-971fbdd9ac3a
+    - suggestion: '.hasUniqueness([''Poster_Link''], lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 195c23ad-4aa2-4b13-9bf2-192626b4fda5
+      source_assumptions:
+      - e66ae73a-0c7a-4678-a63d-3d028b9eca01
+    - suggestion: .satisfies('Gross IS NOT NULL AND Gross != ""', 'Gross Completeness')
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''Gross IS NOT NULL AND Gross !=
+        ""'', ''Gross Completeness'')'' failed on data sample: Value: 0.8280467445742905
+        does not meet the constraint requirement!'
+      level: error
+      uid: 81b684d2-31b4-4d38-bc48-8b21fb78a77b
+      source_assumptions:
+      - 6b01c33c-6cb9-4974-ad3a-41ee46e1c4cb
+    - suggestion: .satisfies('CompositeScore IS NOT NULL', 'CompositeScore Completeness')
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CompositeScore IS NOT NULL'',
+        ''CompositeScore Completeness'')'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `CompositeScore` cannot be resolved. Did you mean one of the following? [`Director`,
+        `Meta_score`, `Certificate`, `Genre`, `Gross`].; line 1 pos 0;
+
+        ''Aggregate [sum(cast(isnotnull(''CompositeScore) as int)) AS sum(CAST((CompositeScore
+        IS NOT NULL) AS INT))#141469, count(1) AS count(1)#141470L]
+
+        +- LogicalRDD [id#1306L, Poster_Link#1307, Series_Title#1308, Released_Year#1309L,
+        Certificate#1310, Runtime#1311, Genre#1312, IMDB_Rating#1313, Overview#1314,
+        Meta_score#1315, Director#1316, Star1#1317, Star2#1318, Star3#1319, Star4#1320,
+        No_of_Votes#1321L, Gross#1322], false
+
+        '
+      level: error
+      uid: c58e8d8c-4617-411c-89a9-21b127ecb9ba
+      source_assumptions:
+      - 4c9d29a1-6ae9-4f4e-81b3-80d526d11063
+    assumptions:
+    - text: 'The ''IMDB_Rating'' and ''No_of_Votes'' columns should be numerically
+        correlated. The code calculates a correlation between these two columns, implying
+        that they should have some level of linear relationship. This can be represented
+        as a deequ constraint like this: .hasCorrelation(''IMDB_Rating'', ''No_of_Votes'',
+        SomeThreshold)'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: b9936786-f246-4c6b-baf0-3f1b6f962615
+    - text: 'The combination of ''EligibleFamilyFriendly'' and ''CompositeScore''
+        columns is used to sort the dataset, implying that these columns should be
+        used together for ranking purposes. This can be represented as a deequ constraint
+        like this: .isComplete([''EligibleFamilyFriendly'', ''CompositeScore''])'
+      sources:
+      - start_line: 94
+        end_line: 94
+        file: ''
+      uid: 5817bdb4-6069-4fe3-bf71-971fbdd9ac3a
+    - text: 'The ''Poster_Link'' column should be unique after sorting by ''EligibleFamilyFriendly''
+        and ''CompositeScore''. This can be represented as a deequ constraint like
+        this: .isUnique(''Poster_Link'') after sorting by [''EligibleFamilyFriendly'',
+        ''CompositeScore''].'
+      sources:
+      - start_line: 94
+        end_line: 95
+        file: ''
+      uid: e66ae73a-0c7a-4678-a63d-3d028b9eca01
+    - text: 'The ''Gross'' column should be numeric after parsing, as it is used in
+        numerical operations such as log transformations and normalization. This can
+        be represented as a deequ constraint like this: .isComplete(''Gross'') and
+        .isNumeric(''Gross'')'
+      sources:
+      - start_line: 41
+        end_line: 63
+        file: ''
+      uid: 6b01c33c-6cb9-4974-ad3a-41ee46e1c4cb
+    - text: 'The ''CompositeScore'' column, which is derived from ''rating_norm'',
+        ''votes_norm'', ''recency_score'', ''gross_norm'', and ''runtime_bonus'',
+        should be complete and numeric for all entries. This can be represented as
+        a deequ constraint like this: .isComplete(''CompositeScore'') and .isNumeric(''CompositeScore'')'
+      sources:
+      - start_line: 75
+        end_line: 81
+        file: ''
+      uid: 4c9d29a1-6ae9-4f4e-81b3-80d526d11063
+  Poster_Link:
+    code:
+    - suggestion: .isComplete('Poster_Link')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 91e9d38b-3573-48cd-98ff-968ae3eef83f
+      source_assumptions:
+      - c6c33b1f-111b-45a5-a26e-3584b62533fd
+    - suggestion: .isUnique('Poster_Link')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 52567b48-a2a5-459b-8193-51e323c5c4aa
+      source_assumptions:
+      - 1382c358-471d-4140-94c3-fa7834953340
+    assumptions:
+    - text: 'The ''Poster_Link'' column is expected to be complete, with no null values,
+        as it is directly converted to a string without any null handling before being
+        used for deduplication. This implies that every row must have a non-null value
+        in ''Poster_Link''. We could represent this assumption as a deequ constraint
+        like this: .satisfies("CASE WHEN `Poster_Link` IS NOT NULL THEN 1 ELSE 0 END",
+        "Non-null Poster_Link", lambda x: x == 1)'
+      sources:
+      - start_line: 19
+        end_line: 19
+        file: ''
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: c6c33b1f-111b-45a5-a26e-3584b62533fd
+    - text: 'The ''Poster_Link'' column is assumed to have unique values since it
+        is used in the deduplication process. This means that each ''Poster_Link''
+        value is expected to be distinct across the dataset. We could represent this
+        assumption as a deequ constraint like this: .isUnique(''Poster_Link'')'
+      sources:
+      - start_line: 95
+        end_line: 95
+        file: ''
+      uid: 1382c358-471d-4140-94c3-fa7834953340
+  No_of_Votes:
+    code:
+    - suggestion: .satisfies('`No_of_Votes` IS NOT NULL', 'No_of_Votes Completeness')
+      validity: true
+      reason_if_invalid: ''
+      level: undefined
+      uid: 92e76dfe-efa4-4d98-afca-340887a75e26
+      source_assumptions:
+      - 3109c690-4f21-4ab2-9b73-5c684513e025
+    - suggestion: .isPositive('No_of_Votes')
+      validity: true
+      reason_if_invalid: ''
+      level: undefined
+      uid: b3ff95ff-141d-419d-8445-cffd1c9d16ee
+      source_assumptions:
+      - a6ac70d8-5b7e-4b50-8d97-34c726fb7e00
+    assumptions:
+    - text: The 'No_of_Votes' column should be convertible to numeric values. In the
+        code, the column is converted to numeric using 'pd.to_numeric' with 'errors='coerce'',
+        which implies that non-numeric values will be converted to NaN. Therefore,
+        the assumption is that the 'No_of_Votes' column should not contain many non-numeric
+        values, as they would be coerced to NaN and could affect downstream computations
+        like log transformations and correlations.
+      sources:
+      - start_line: 29
+        end_line: 29
+        file: ''
+      uid: e5f8779a-20f7-4282-afbf-2489ee1da680
+    - text: The 'No_of_Votes' column should not contain any null values after conversion
+        to numeric because the data completeness is 1.0, meaning the column is expected
+        to be complete. Additionally, the column is used in log transformations and
+        correlation computations without any null handling after conversion.
+      sources:
+      - start_line: 29
+        end_line: 30
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: 3109c690-4f21-4ab2-9b73-5c684513e025
+    - text: The 'No_of_Votes' column should have positive values because the log transformation
+        in the code uses 'votes.clip(lower=1)', implying that all values should be
+        at least 1 to avoid log of zero or negative numbers.
+      sources:
+      - start_line: 30
+        end_line: 30
+        file: ''
+      uid: a6ac70d8-5b7e-4b50-8d97-34c726fb7e00
+  Released_Year:
+    code:
+    - suggestion: .isComplete('Released_Year')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: cf94f49d-2cca-404a-8312-2aa0ecf5f13b
+      source_assumptions:
+      - 004a1d99-1d5a-48f0-b97a-ae7117610f24
+    - suggestion: .hasDataType('Released_Year', 'Integral')
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Released_Year'',
+        ''Integral'')'
+      level: error
+      uid: fda9cf09-aee8-42b8-a3b9-6fe77eacbe29
+      source_assumptions:
+      - 42e82fb9-c66f-492f-b819-f01ca0cec649
+    - suggestion: .satisfies('Released_Year <= {}'.format(__import__('datetime').datetime.now().year),
+        'Released Year Not in Future')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: cd56d772-92fc-4ad9-b74a-ceda27665465
+      source_assumptions:
+      - b2678670-ff6c-4458-b1cd-8cb76d67011d
+    assumptions:
+    - text: The 'Released_Year' column is expected to be complete with no null values,
+        as indicated by its completeness of 1.0. The code does not perform any fillna
+        operation on this column, suggesting that it assumes no missing values.
+      sources:
+      - start_line: 17
+        end_line: 22
+        file: ''
+      - start_line: 54
+        end_line: 55
+        file: ''
+      uid: 004a1d99-1d5a-48f0-b97a-ae7117610f24
+    - text: The 'Released_Year' column is expected to contain only integral values,
+        as the code converts the column to integers using pd.to_numeric with errors='coerce',
+        which will convert any non-numeric or malformed entries to NaN.
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      uid: 42e82fb9-c66f-492f-b819-f01ca0cec649
+    - text: The 'Released_Year' values are expected to be such that when subtracted
+        from the current year, the result should be non-negative. This is evident
+        from the code that clips the age calculation to a lower bound of 0, implying
+        that the 'Released_Year' should not be in the future.
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: b2678670-ff6c-4458-b1cd-8cb76d67011d
+  Runtime:
+    code:
+    - suggestion: .isComplete('Runtime')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f967d66f-fd79-43f8-9d7a-26caf92016ed
+      source_assumptions:
+      - 609f1c15-6e18-41ac-a575-5ee3dfdfe5ec
+    - suggestion: '.hasDataType(''Runtime'', ''Integral'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Runtime'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: 5ff03d82-93f2-43f7-a2af-b38e0395c1b4
+      source_assumptions:
+      - e3442947-0cfc-48c9-9a3b-8e799b136cfe
+    - suggestion: '.hasMean(''Runtime'', lambda x: abs(x - 100) < 10)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasMean(''Runtime'', lambda x: abs(x - 100)
+        < 10)'' failed on data sample: Expected type of column Runtime to be one of
+        (LongType,IntegerType,DoubleType,org.apache.spark.sql.types.DecimalType$@2a132128,ByteType,FloatType,ShortType),
+        but found StringType instead!'
+      level: warning
+      uid: 55e735af-3cab-4b2c-887f-b3e92078fecb
+      source_assumptions:
+      - f67c8ec0-24d0-4958-a15a-58d3dd1479be
+    assumptions:
+    - text: The 'Runtime' column should not contain any null values, as the code processes
+        it without filling missing values. It is assumed to be complete.
+      sources:
+      - start_line: 35
+        end_line: 38
+        file: ''
+      uid: 609f1c15-6e18-41ac-a575-5ee3dfdfe5ec
+    - text: The 'Runtime' column is expected to contain numeric values representing
+        minutes, as the code extracts numeric values and calculates bonuses based
+        on differences from 100 minutes.
+      sources:
+      - start_line: 35
+        end_line: 38
+        file: ''
+      uid: e3442947-0cfc-48c9-9a3b-8e799b136cfe
+    - text: The 'Runtime' column should have values that are typically around 100
+        minutes, as the code applies a Gaussian function centered around 100 minutes
+        to calculate a runtime bonus.
+      sources:
+      - start_line: 37
+        end_line: 38
+        file: ''
+      uid: f67c8ec0-24d0-4958-a15a-58d3dd1479be
+  '["Released_Year","Year"]':
+    code:
+    - suggestion: .satisfies('CAST(Released_Year AS INT) IS NOT NULL', 'Released_Year
+        Int Conversion')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 284e3fad-e23b-4b3a-9907-c42dec505c31
+      source_assumptions:
+      - 392ba00e-756c-4705-ba34-f613f81852f0
+    - suggestion: .satisfies('CAST(Year AS INT) IS NOT NULL', 'Year Int Conversion')
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CAST(Year AS INT) IS NOT NULL'',
+        ''Year Int Conversion'')'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `Year` cannot be resolved. Did you mean one of the following? [`id`, `Genre`,
+        `Star1`, `Star2`, `Star3`].; line 1 pos 5;
+
+        ''Aggregate [sum(cast(isnotnull(cast(''Year as int)) as int)) AS sum(CAST((CAST(Year
+        AS INT) IS NOT NULL) AS INT))#140418, count(1) AS count(1)#140419L]
+
+        +- LogicalRDD [id#1306L, Poster_Link#1307, Series_Title#1308, Released_Year#1309L,
+        Certificate#1310, Runtime#1311, Genre#1312, IMDB_Rating#1313, Overview#1314,
+        Meta_score#1315, Director#1316, Star1#1317, Star2#1318, Star3#1319, Star4#1320,
+        No_of_Votes#1321L, Gross#1322], false
+
+        '
+      level: warning
+      uid: 970a650b-5983-4ff7-9d3a-b23d54efe659
+      source_assumptions:
+      - c6ecffbf-48d9-409b-95d2-0f2de03b8709
+    assumptions:
+    - text: The 'Released_Year' column should not have any null values, and it should
+        be possible to convert its entries to integers for further calculations. This
+        is necessary for computing the 'age' and 'recency_score'.
+      sources:
+      - start_line: 21
+        end_line: 22
+        file: ''
+      - start_line: 54
+        end_line: 55
+        file: ''
+      uid: 392ba00e-756c-4705-ba34-f613f81852f0
+    - text: The 'Year' column should be derived from 'Released_Year' and should also
+        be integer-typed to ensure proper deduplication and ranking operations.
+      sources:
+      - start_line: 91
+        end_line: 91
+        file: ''
+      - start_line: 101
+        end_line: 108
+        file: ''
+      uid: c6ecffbf-48d9-409b-95d2-0f2de03b8709
+  Series_Title:
+    code:
+    - suggestion: .isComplete('Series_Title')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1b6fc02d-41b1-4b9d-9b15-a03ef5f26458
+      source_assumptions:
+      - 72384187-2674-47ac-8cee-a32ce0e46c5b
+    - suggestion: '.hasNumberOfDistinctValues(''Series_Title'', lambda x: x >= 587)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Series_Title'',
+        lambda x: x >= 587)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 459d69e1-ae53-4449-ab96-458813ecc414
+      source_assumptions:
+      - 29a45fe9-f6d5-4f71-8610-2ce496f7a04a
+    assumptions:
+    - text: The 'Series_Title' column is assumed to be complete with no null values
+        because the completeness is 1.0, meaning all entries are present in the dataset.
+      sources:
+      - start_line: 1
+        end_line: 3
+        file: ''
+      uid: 72384187-2674-47ac-8cee-a32ce0e46c5b
+    - text: The 'Series_Title' column is expected to have a high number of distinct
+        values (approximately 587 distinct values out of 597 total entries), indicating
+        that the titles are mostly unique.
+      sources:
+      - start_line: 1
+        end_line: 3
+        file: ''
+      uid: 29a45fe9-f6d5-4f71-8610-2ce496f7a04a
+column_data_flow_locations:
+  IMDB_Rating:
+  - start_line: 17
+    end_line: 26
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 88
+    end_line: 88
+    file: ''
+  - start_line: 102
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  Released_Year:
+  - start_line: 17
+    end_line: 22
+    file: ''
+  - start_line: 53
+    end_line: 55
+    file: ''
+  - start_line: 91
+    end_line: 91
+    file: ''
+  - start_line: 101
+    end_line: 105
+    file: ''
+  No_of_Votes:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 28
+    end_line: 29
+    file: ''
+  - start_line: 65
+    end_line: 68
+    file: ''
+  - start_line: 75
+    end_line: 80
+    file: ''
+  - start_line: 88
+    end_line: 105
+    file: ''
+  Poster_Link:
+  - start_line: 17
+    end_line: 19
+    file: ''
+  - start_line: 95
+    end_line: 95
+    file: ''
+  Runtime:
+  - start_line: 35
+    end_line: 38
+    file: ''
+  - start_line: 80
+    end_line: 80
+    file: ''
+  Gross:
+  - start_line: 17
+    end_line: 17
+    file: ''
+  - start_line: 40
+    end_line: 43
+    file: ''
+  - start_line: 57
+    end_line: 63
+    file: ''
+  - start_line: 75
+    end_line: 80
+    file: ''
+  - start_line: 88
+    end_line: 95
+    file: ''
+  - start_line: 101
+    end_line: 105
+    file: ''
+  - start_line: 108
+    end_line: 108
+    file: ''
+  Certificate:
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 85
+    end_line: 85
+    file: ''
+  - start_line: 90
+    end_line: 90
+    file: ''
+  - start_line: 94
+    end_line: 97
+    file: ''
+  Genre:
+  - start_line: 52
+    end_line: 52
+    file: ''
+  Series_Title: []
+fixing_results:
+  Certificate:
+    1842e955-0daa-48e4-92eb-561747ab8fa8: '.isContainedIn(''Certificate'', [''U'',
+      ''UA'', ''A'', ''G'', ''PG'', ''PG-13'', ''R'', ''NC-17'', ''NOT RATED'', ''UNRATED''],
+      lambda x: x >= 0.9)'
+    13aca3a8-175c-45a6-a8ab-fe2352340289: '.satisfies(''CASE WHEN `Certificate` IS
+      NULL OR `Certificate` IN ("U", "G", "PG", "PG-13", "UA") THEN 1 ELSE 0 END'',
+      ''Family Friendly Certificate'', lambda x: x >= 0.5)'
+  '["CompositeScore","Released_Year"]':
+    99ac3e34-135b-43dd-9d4e-450fdd2b54ad: '.haveCompleteness([''IMDB_Rating'', ''No_of_Votes'',
+      ''Gross'', ''Runtime''], lambda x: x >= 0.8)'
+  Gross:
+    e08c1777-6a71-493b-aaa3-9eed5fc35967: '.satisfies(''`Gross` IS NOT NULL AND `Gross`
+      != ""'', ''Gross column should not be entirely null or empty'', lambda x: x
+      > 0)'
+  '["Genre","Released_Year"]':
+    ec31b8bf-460a-4699-b3e8-e957982ec414: .satisfies("Released_Year >= 1888 AND Released_Year
+      <= 2023", "Valid Released Year")
+  Released_Year:
+    cd56d772-92fc-4ad9-b74a-ceda27665465: .satisfies('Released_Year <= {}'.format(__import__('datetime').datetime.now().year),
+      'Released Year Not in Future')
+  '["Released_Year","Year"]':
+    2a380092-f17c-47c7-ac26-12912b871774: '.haveCompleteness([''Released_Year''],
+      lambda x: x == 1.0)'
+    970a650b-5983-4ff7-9d3a-b23d54efe659: .satisfies('CAST(Released_Year AS INT) IS
+      NOT NULL', 'Released_Year Int Conversion')
+consolidation_results:
+  '["Released_Year","Year"]':
+  - idx_to_remove: ba102d99-cc39-41bb-b577-7766d0746ddb
+    redundant_with:
+    - 284e3fad-e23b-4b3a-9907-c42dec505c31
+  - idx_to_remove: 2a380092-f17c-47c7-ac26-12912b871774
+    redundant_with:
+    - 284e3fad-e23b-4b3a-9907-c42dec505c31
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 0
+    prompt_tokens: 0
+    completion_tokens: 0
+  code_fixing:
+    cost: 0.07301
+    total_tokens: 22169
+    prompt_tokens: 19824
+    completion_tokens: 2345
+  consolidate_constraints:
+    cost: 0.0179275
+    total_tokens: 6763
+    prompt_tokens: 6627
+    completion_tokens: 136

@@ -1,0 +1,1641 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gemini-2.5-pro
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  Physical Activity Level:
+    code:
+    - suggestion: '.hasDataType(''Physical Activity Level'', ''Numeric'', lambda x:
+        x > 0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Physical Activity
+        Level'', ''Numeric'', lambda x: x > 0)'
+      level: error
+      uid: 534539b2-a693-4885-a013-e0fc74b0e9cd
+      source_assumptions:
+      - fe9406ec-0011-4f43-ae4e-b7f2f13698b9
+    - suggestion: '.hasStandardDeviation(''Physical Activity Level'', lambda x: x
+        > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2796b965-682f-4bd4-8d3e-882ccc04a5fa
+      source_assumptions:
+      - 68a861a8-6638-4d1c-9125-eb1d8f002c15
+    - suggestion: .isNonNegative('Physical Activity Level')
+      validity: false
+      reason_if_invalid: "Constraint '.isNonNegative('Physical Activity Level')' failed\
+        \ on data sample: org.apache.spark.sql.catalyst.parser.ParseException: \n\
+        [PARSE_SYNTAX_ERROR] Syntax error at or near '('.(line 1, pos 13)\n\n== SQL\
+        \ ==\nCOALESCE(CAST(Physical Activity Level AS DECIMAL(20,10)), 0.0) >= 0\n\
+        -------------^^^\n"
+      level: warning
+      uid: 46073a61-6bd7-43ec-b715-436aefdf236f
+      source_assumptions:
+      - 9df06883-ee83-4d31-98f4-f84efea97484
+    assumptions:
+    - text: The 'Physical Activity Level' column is expected to contain values that
+        can be converted to a numeric type. The code uses `pd.to_numeric` with `errors='coerce'`,
+        which will replace any non-numeric values with nulls. If all values are non-numeric,
+        downstream calculations like mean, standard deviation, and correlation will
+        produce nulls, breaking the script's logic.
+      sources:
+      - start_line: 31
+        end_line: 31
+        file: ''
+      uid: fe9406ec-0011-4f43-ae4e-b7f2f13698b9
+    - text: The 'Physical Activity Level' column must not contain only a single unique
+        value after handling non-numeric entries. The code calculates the standard
+        deviation of this column and uses it as a denominator in a subsequent calculation.
+        If the standard deviation is zero, this will result in a division-by-zero
+        error or infinity values, breaking the logic.
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 38
+        end_line: 38
+        file: ''
+      uid: 68a861a8-6638-4d1c-9125-eb1d8f002c15
+    - text: The 'Physical Activity Level' column is expected to have values on a scale
+        where being less than or equal to 40 is a meaningful threshold for defining
+        a sedentary lifestyle. This implies the values are numeric and likely non-negative.
+      sources:
+      - start_line: 61
+        end_line: 61
+        file: ''
+      uid: 9df06883-ee83-4d31-98f4-f84efea97484
+  Quality of Sleep:
+    code:
+    - suggestion: '.hasDataType(''Quality of Sleep'', ''Integral'', lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Quality of
+        Sleep'', ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: 47a2137d-247b-4b7a-9cfa-7637a9d0a9e8
+      source_assumptions:
+      - 0b1f994f-e178-4b4a-9871-63a03181ccd3
+    - suggestion: '.satisfies(''`Quality of Sleep` >= 1 AND `Quality of Sleep` <=
+        10'', ''QoS_in_logical_range'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 76f2b8f0-0575-498d-b118-2ca33a762563
+      source_assumptions:
+      - e6b63d93-50c9-49c9-9d36-a5bad71b940a
+    - suggestion: '.satisfies(''`Quality of Sleep` <= 6'', ''has_low_QoS_records'',
+        lambda num_matching_rows: num_matching_rows > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: faae1c7d-fe9d-41ca-bbe4-4cb414e98e1e
+      source_assumptions:
+      - 34fbc657-166a-48a4-84c5-263b6106871b
+    assumptions:
+    - text: The 'Quality of Sleep' column must not contain any null or non-numeric
+        values. All values must be convertible to integers, as the code uses `pd.to_numeric`
+        with `errors='raise'` and then casts the column to `int`. Any failure in this
+        conversion would halt the script.
+      sources:
+      - start_line: 22
+        end_line: 22
+        file: ''
+      uid: 0b1f994f-e178-4b4a-9871-63a03181ccd3
+    - text: The 'Quality of Sleep' column is expected to be a rating on a scale, likely
+        from 1 to 10. This is inferred from its use in the calculation `qos / 10.0`
+        to determine a sleep quality factor. Values outside a logical 1-10 range would
+        produce nonsensical results for 'restful_hours'.
+      sources:
+      - start_line: 26
+        end_line: 26
+        file: ''
+      uid: e6b63d93-50c9-49c9-9d36-a5bad71b940a
+    - text: The 'Quality of Sleep' column is expected to contain values where a threshold
+        of 6 is meaningful for identifying 'low quality of sleep'. The logic `qos
+        <= 6` is used to calculate the `apnea_risk_score`, implying that a meaningful
+        portion of the data is expected to fall at or below this threshold for the
+        risk scoring to be effective.
+      sources:
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: 34fbc657-166a-48a4-84c5-263b6106871b
+  BMI Category:
+    code:
+    - suggestion: .isComplete("BMI Category")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3314a3dd-a428-4b92-89c9-b32924cf7db6
+      source_assumptions:
+      - 990b9f92-e74f-4f8e-9be2-12b9ed599784
+    - suggestion: .hasDataType("BMI Category", "String")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("BMI Category",
+        "String")'
+      level: error
+      uid: 7b71cfcf-9f16-41ee-b945-f53e7e32ad72
+      source_assumptions:
+      - 990b9f92-e74f-4f8e-9be2-12b9ed599784
+    - suggestion: .isContainedIn("BMI Category", ["Overweight", "Obese", "Normal",
+        "Normal Weight"])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ebd38312-db92-4958-8557-408345ce5d4a
+      source_assumptions:
+      - 9d5cc72c-9688-4e9f-8e70-4ca0a1554e7b
+    assumptions:
+    - text: The 'BMI Category' column is expected to be of string type and must not
+        contain any null values. The code performs string-based comparisons on this
+        column without any null handling, so nulls would lead to incorrect risk score
+        calculations.
+      sources:
+      - start_line: 54
+        end_line: 55
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      uid: 990b9f92-e74f-4f8e-9be2-12b9ed599784
+    - text: 'The ''BMI Category'' column is expected to contain a specific set of
+        values. The code''s logic relies on identifying ''Overweight'' and ''Obese''
+        categories to calculate an apnea risk score. Based on the data profile, the
+        complete set of expected values is [''Overweight'', ''Obese'', ''Normal'',
+        ''Normal Weight''].
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .isContainedIn("BMI Category", Array("Overweight", "Obese", "Normal", "Normal
+        Weight"))'
+      sources:
+      - start_line: 54
+        end_line: 55
+        file: ''
+      - start_line: 65
+        end_line: 65
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      uid: 9d5cc72c-9688-4e9f-8e70-4ca0a1554e7b
+  Blood Pressure:
+    code:
+    - suggestion: '.satisfies("`Blood Pressure` RLIKE ''^[0-9]+/[0-9]+$''", "Blood
+        Pressure format must be ''systolic/diastolic''", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ed7569ff-b560-4b8e-babe-66fa60538058
+      source_assumptions:
+      - d9a406ef-e11d-4f3c-9808-282b9031b7cf
+    - suggestion: '.satisfies("CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) > CAST(SPLIT(`Blood
+        Pressure`, ''/'')[1] AS INT)", "Systolic must be greater than Diastolic",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 65e355be-5672-44f8-9290-5ae887494ffd
+      source_assumptions:
+      - 95cee8e7-e827-4d1e-b2d2-f075c064a274
+    assumptions:
+    - text: The 'Blood Pressure' column is expected to be a string formatted as 'systolic/diastolic',
+        where both 'systolic' and 'diastolic' are valid integers. This format is crucial
+        for splitting the string and creating the separate 'Systolic' and 'Diastolic'
+        integer columns. A potential Deequ constraint could be `.containsPattern("Blood
+        Pressure", "^[0-9]+/[0-9]+$")`.
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      uid: d9a406ef-e11d-4f3c-9808-282b9031b7cf
+    - text: 'For any given record, the ''Systolic'' blood pressure value should be
+        greater than the ''Diastolic'' blood pressure value. This is a fundamental
+        physiological constraint. The code implicitly assumes the data is valid in
+        this regard when it derives these columns and uses them to calculate the `apnea_risk_score`.
+        A violation would indicate a data quality issue. This can be expressed as
+        a constraint: `Systolic > Diastolic`.'
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      - start_line: 66
+        end_line: 69
+        file: ''
+      uid: 95cee8e7-e827-4d1e-b2d2-f075c064a274
+  Person ID:
+    code:
+    - suggestion: .isComplete("Person ID")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bed6e7bd-49e0-46da-ab38-99350100324b
+      source_assumptions: []
+    - suggestion: .isUnique("Person ID")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5cf82e19-4c8e-4054-b74f-beb6fd2abe99
+      source_assumptions: []
+    - suggestion: .hasDataType("Person ID", "Integral")
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Person ID",
+        "Integral")'
+      level: warning
+      uid: c4c5eed2-7c87-4701-93d6-86ea2f1935b7
+      source_assumptions: []
+    assumptions:
+    - text: 'The ''Person ID'' column must not contain any null values. It is used
+        as a key to identify each person''s record in the output dataframes, and nulls
+        would break this linkage. We could represent this assumption as a deequ constraint
+        like this: .isComplete("Person ID")'
+      sources:
+      - start_line: 103
+        end_line: 104
+        file: ''
+      - start_line: 119
+        end_line: 120
+        file: ''
+      uid: 9179be5b-b25a-48cb-b8c4-86f3cb6a234a
+    - text: 'The ''Person ID'' column should contain unique values. The name ''Person
+        ID'' implies it is a unique identifier, and the code uses it to associate
+        calculated risk scores and coaching plans with specific individuals. Duplicate
+        IDs could lead to ambiguity and incorrect associations in the output. We could
+        represent this assumption as a deequ constraint like this: .isUnique("Person
+        ID")'
+      sources:
+      - start_line: 103
+        end_line: 104
+        file: ''
+      - start_line: 119
+        end_line: 120
+        file: ''
+      uid: 01caad91-7500-42b8-8463-ad2ca045f88c
+    - text: 'The ''Person ID'' column is expected to be of an integral data type.
+        The code directly transfers this column to the output without type conversion,
+        implying the original type is sufficient. The provided data schema also indicates
+        its type is ''Integral''. We could represent this assumption as a deequ constraint
+        like this: .hasDataType("Person ID", ConstrainableDataTypes.Integral)'
+      sources:
+      - start_line: 103
+        end_line: 104
+        file: ''
+      - start_line: 119
+        end_line: 120
+        file: ''
+      uid: 90080639-70ca-4cf2-ac4c-9accf6a06208
+  Sleep Duration:
+    code:
+    - suggestion: '.hasDataType("Sleep Duration", "Numeric", assertion=lambda x: x
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Sleep Duration",
+        "Numeric", assertion=lambda x: x == 1.0)'
+      level: error
+      uid: d59bdd56-00dd-475b-b692-de1b9130f43a
+      source_assumptions:
+      - 2f548285-bf78-42ae-829b-39baa3b10e1b
+    - suggestion: '.satisfies("`Sleep Duration` >= 0 AND `Sleep Duration` <= 24",
+        "Sleep Duration is within a plausible range (0-24 hours)", assertion=lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 40d54511-2339-48d0-9524-c2286b3825b0
+      source_assumptions:
+      - 233f09d5-f59b-460e-9a6f-5d364c06bdba
+    assumptions:
+    - text: 'The ''Sleep Duration'' column must contain values that can be parsed
+        as numbers. The code uses `pd.to_numeric` with `errors=''coerce''`, which
+        converts unparseable strings to null values (NaN). These nulls would propagate
+        through the calculations (lines 26, 28, 63, 67) and result in meaningless
+        risk scores and outputs for the affected rows. We could represent this assumption
+        as a deequ constraint like this:
+
+        .isNumeric("Sleep Duration")'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      uid: 2f548285-bf78-42ae-829b-39baa3b10e1b
+    - text: 'The ''Sleep Duration'' column is assumed to represent the number of hours
+        slept. The code uses it in calculations involving a target of 7.5 hours (line
+        27) and a threshold of 7 hours (line 67), indicating its values should be
+        on a scale where these numbers are meaningful. Therefore, values should be
+        within a plausible range for daily sleep, such as 0 to 24. We could represent
+        this assumption as a deequ constraint like this:
+
+        .isContainedIn("Sleep Duration", 0, 24)'
+      sources:
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 233f09d5-f59b-460e-9a6f-5d364c06bdba
+  Daily Steps:
+    code:
+    - suggestion: '.hasDataType(''`Daily Steps`'', ''Numeric'', assertion=lambda x:
+        x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''`Daily Steps`'',
+        ''Numeric'', assertion=lambda x: x >= 0.95)'
+      level: warning
+      uid: c9835591-df86-4a9d-8665-2b81e1739a94
+      source_assumptions:
+      - 8fbb264a-526b-4d6b-9fbb-3562ef4e063e
+    - suggestion: .isNonNegative('`Daily Steps`')
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ed3d6d42-062e-4c05-a80e-77d11db6871e
+      source_assumptions:
+      - 25ee212f-2404-4b84-8cd9-b58dc2469ebc
+    - suggestion: '.hasCompleteness(''`Daily Steps`'', lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 80172c5e-d9fc-42c6-bd54-9e0cd29a68d0
+      source_assumptions:
+      - b416455c-7940-42fb-9b8d-0f4cd6470afc
+    assumptions:
+    - text: The 'Daily Steps' column is expected to contain values that can be parsed
+        as numbers. The code uses `pd.to_numeric` with `errors='coerce'`, which converts
+        unparseable strings to null values (NaN). While the code is robust to some
+        non-numeric entries, a high percentage of them would compromise the integrity
+        of subsequent statistical calculations (mean, std, correlation).
+      sources:
+      - start_line: 32
+        end_line: 32
+        file: ''
+      uid: 8fbb264a-526b-4d6b-9fbb-3562ef4e063e
+    - text: The 'Daily Steps' column should contain non-negative values. The column
+        represents a physical count, and the code uses positive integer thresholds
+        (e.g., 3000 and 8000) for logical branching, implying that negative values
+        are not expected and would be physically nonsensical.
+      sources:
+      - start_line: 61
+        end_line: 61
+        file: ''
+      - start_line: 95
+        end_line: 96
+        file: ''
+      uid: 25ee212f-2404-4b84-8cd9-b58dc2469ebc
+    - text: The 'Daily Steps' column cannot be entirely null after coercion. The code
+        calculates the mean and standard deviation of this column, which requires
+        at least one non-null value to produce a valid numerical result for the downstream
+        risk analysis.
+      sources:
+      - start_line: 35
+        end_line: 36
+        file: ''
+      uid: b416455c-7940-42fb-9b8d-0f4cd6470afc
+  Sleep Disorder:
+    code:
+    - suggestion: '.satisfies("`Sleep Disorder` IS NULL OR `Sleep Disorder` IN (''Insomnia'',
+        ''Sleep Apnea'')", "Sleep Disorder values are valid or null", lambda x: x
+        == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 1cc3d6ef-705d-4a44-a4d5-5c1dc4b5fd69
+      source_assumptions:
+      - d0d6c37f-e70b-4f3c-bb70-f34868eb5adf
+    - suggestion: '.satisfies("`Sleep Disorder` = ''Insomnia''", "Dataset contains
+        at least one ''Insomnia'' case for threshold calculation", lambda x: x >=
+        1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Sleep Disorder` = ''Insomnia''",
+        "Dataset contains at least one ''Insomnia'' case for threshold calculation",
+        lambda x: x >= 1)'' failed on data sample: Value: 0.20982142857142858 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: 3f512b80-c43e-4aad-873c-3b75c8db7318
+      source_assumptions:
+      - 605ed909-23d5-4cf5-835b-3a29f80a2349
+    - suggestion: '.satisfies("`Sleep Disorder` = ''Sleep Apnea''", "Dataset contains
+        at least one ''Sleep Apnea'' case for threshold calculation", lambda x: x
+        >= 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Sleep Disorder` = ''Sleep Apnea''",
+        "Dataset contains at least one ''Sleep Apnea'' case for threshold calculation",
+        lambda x: x >= 1)'' failed on data sample: Value: 0.20535714285714285 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: edac1513-c323-4034-8af5-9066b9f5a7c3
+      source_assumptions:
+      - 605ed909-23d5-4cf5-835b-3a29f80a2349
+    assumptions:
+    - text: The 'Sleep Disorder' column is expected to contain only the string values
+        'Insomnia' and 'Sleep Apnea', or be null. The code filters the data to only
+        include rows with these two specific values, ignoring any other potential
+        categories or nulls for key calculations.
+      sources:
+      - start_line: 42
+        end_line: 44
+        file: ''
+      uid: d0d6c37f-e70b-4f3c-bb70-f34868eb5adf
+    - text: The 'Sleep Disorder' column can contain null values. However, for the
+        primary logic to calculate data-driven thresholds to work as intended, the
+        column must contain at least one instance of 'Insomnia' and at least one instance
+        of 'Sleep Apnea'. The code has a fallback mechanism that uses a default threshold
+        if either of these categories is missing, but the core logic relies on their
+        presence.
+      sources:
+      - start_line: 46
+        end_line: 52
+        file: ''
+      uid: 605ed909-23d5-4cf5-835b-3a29f80a2349
+  Stress Level:
+    code:
+    - suggestion: '.hasDataType(''Stress Level'', ''Integral'', assertion=lambda x:
+        x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Stress Level'',
+        ''Integral'', assertion=lambda x: x >= 0.95)'
+      level: warning
+      uid: 5d80aa08-81f0-48d7-b0c7-7a2b8d9132d8
+      source_assumptions: []
+    - suggestion: '.satisfies("`Stress Level` >= 0 AND `Stress Level` <= 10", "StressLevelRangeCheck",
+        assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 50c667e0-9271-4711-9387-5dc0cd06711f
+      source_assumptions: []
+    - suggestion: '.hasCompleteness(''Stress Level'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fef153e5-f9ed-473c-a9c1-dfbbd5562c4d
+      source_assumptions: []
+    assumptions:
+    - text: The 'Stress Level' column is expected to contain values that can be parsed
+        as numbers. The code uses `pd.to_numeric` with `errors='coerce'`, which will
+        convert non-parseable strings to NaN. While the code is robust to some invalid
+        entries, a high proportion of non-numeric values would lead to a large number
+        of nulls in downstream calculations, reducing the quality of the risk score
+        analysis.
+      sources:
+      - start_line: 46
+        end_line: 47
+        file: ''
+      - start_line: 57
+        end_line: 57
+        file: ''
+      - start_line: 63
+        end_line: 63
+        file: ''
+      uid: 3ca32081-aa39-437d-8ceb-69c67aa6e845
+    - text: The 'Stress Level' column values are expected to be on a scale of 0 to
+        10. This is inferred from the normalization logic in the code, which uses
+        `(10 - stress_threshold)` in the denominator, implying 10 is the theoretical
+        maximum of the stress scale. The provided data profile, showing values from
+        3 to 8, is consistent with this assumption.
+      sources:
+      - start_line: 58
+        end_line: 58
+        file: ''
+      uid: e5eba1ec-58f6-4896-9ac9-058edfc51820
+    - text: The 'Stress Level' column should have a high degree of completeness. The
+        code does not impute missing values for this column; any nulls (either pre-existing
+        or created by failing to parse non-numeric values) will propagate through
+        calculations and result in missing risk scores.
+      sources:
+      - start_line: 57
+        end_line: 57
+        file: ''
+      - start_line: 58
+        end_line: 58
+        file: ''
+      - start_line: 63
+        end_line: 63
+        file: ''
+      - start_line: 111
+        end_line: 111
+        file: ''
+      uid: d57e5d61-34d9-452b-a6e0-825ae75fc9c0
+  ? '["BMI Category","Blood Pressure","Daily Steps","Person ID","Physical Activity
+    Level","Quality of Sleep","Sleep Disorder","Sleep Duration","Stress Level"]'
+  : code:
+    - suggestion: '.satisfies("CAST(split(`Blood Pressure`, ''/'')[0] AS INT) > CAST(split(`Blood
+        Pressure`, ''/'')[1] AS INT)", "SystolicGreaterThanDiastolic", lambda x: x
+        == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 53b31fed-5924-4715-a077-402e31c9a55f
+      source_assumptions:
+      - a36768a7-99df-4240-9c5a-8f6f82a24f27
+    - suggestion: '.hasCorrelation("Physical Activity Level", "Daily Steps", lambda
+        corr: corr >= 0.5)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 986e6f97-3351-43e0-96f8-d8b93afcb7cb
+      source_assumptions:
+      - 732bf8e7-9527-4eb4-a518-985074bb5001
+    - suggestion: '.satisfies("(`Quality of Sleep` >= 1 AND `Quality of Sleep` <=
+        10) AND (`Sleep Duration` >= 0 AND `Sleep Duration` <= 24)", "SleepMetricsRangeCheck",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5f5d7bd4-7839-47f2-b626-74728ed6a931
+      source_assumptions:
+      - 887bf19c-2520-4039-a29c-2d778676bc58
+    assumptions:
+    - text: 'The ''Blood Pressure'' column is assumed to be consistently formatted
+        as ''<systolic>/<diastolic>'', where both parts are convertible to integers.
+        This format is critical for parsing the ''Systolic'' and ''Diastolic'' columns.
+        A deequ constraint to check this format would be: `.hasPattern("Blood Pressure",
+        "^\\d+/\\d+$")`.'
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      uid: 20ca7a54-996a-4f2f-b429-3b521acea826
+    - text: 'The ''Systolic'' and ''Diastolic'' columns are assumed to hold a valid
+        physiological relationship where the systolic value is always greater than
+        the diastolic value. A violation would indicate a data quality issue in the
+        source ''Blood Pressure'' column. A deequ constraint could be: `.satisfies("Systolic
+        > Diastolic", "Systolic_gt_Diastolic")`.'
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      - start_line: 66
+        end_line: 66
+        file: ''
+      uid: a36768a7-99df-4240-9c5a-8f6f82a24f27
+    - text: 'A strong positive linear correlation is assumed to exist between ''Physical
+        Activity Level'' and ''Daily Steps''. The code relies on this relationship
+        to calculate an ''activity_shortfall''. If the correlation is weak or negative,
+        this metric would be unreliable. A deequ constraint could be: `.hasCorrelation("Physical
+        Activity Level", "Daily Steps", _ >= 0.5)`.'
+      sources:
+      - start_line: 31
+        end_line: 41
+        file: ''
+      uid: 732bf8e7-9527-4eb4-a518-985074bb5001
+    - text: 'A strong association is assumed between ''Sleep Apnea'' and ''BMI Category''.
+        Specifically, a high proportion (expected around 70%) of individuals with
+        ''Sleep Apnea'' are also expected to have a ''BMI Category'' of ''Overweight''
+        or ''Obese''. This assumption directly influences the ''apnea_threshold''
+        calculation. A deequ constraint could check this conditional probability:
+        `.satisfies("SUM(CASE WHEN `BMI Category` IN (''Overweight'', ''Obese'') THEN
+        1 ELSE 0 END) / COUNT(*) >= 0.6 WHERE `Sleep Disorder` = ''Sleep Apnea''")`.'
+      sources:
+      - start_line: 54
+        end_line: 55
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      uid: e8858fbe-2964-4441-85ea-1854e6d72e80
+    - text: The 'Quality of Sleep' and 'Sleep Duration' columns are used together
+        to identify a specific condition of 'low quality, long duration' sleep. This
+        assumes both columns are on their expected scales ('Quality of Sleep' on a
+        1-10 scale and 'Sleep Duration' in hours) for the thresholds (<= 6 for quality,
+        >= 7 for duration) to be meaningful.
+      sources:
+      - start_line: 26
+        end_line: 26
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 887bf19c-2520-4039-a29c-2d778676bc58
+  '["BMI Category","Blood Pressure","Quality of Sleep","Sleep Duration"]':
+    code:
+    - suggestion: '.satisfies("CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) > CAST(SPLIT(`Blood
+        Pressure`, ''/'')[1] AS INT)", "SystolicGreaterThanDiastolic", lambda x: x
+        == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a47de65c-96c7-4f80-a3dc-939e4002ef50
+      source_assumptions:
+      - 8ba1a3a7-4c8a-419b-aeda-e608e33b7e69
+    - suggestion: '.satisfies("`Quality of Sleep` <= 6 AND `Sleep Duration` >= 7",
+        "LowQualityLongSleepPrevalenceCheck", lambda x: x < 0.25)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a23897db-4776-4815-ba18-f23887a9ce08
+      source_assumptions:
+      - e61f3c59-4530-476c-a5a1-ebdedf188118
+    assumptions:
+    - text: 'The ''Blood Pressure'' column is parsed into ''Systolic'' and ''Diastolic''
+        components. The code implicitly assumes that for every record, the ''Systolic''
+        value is greater than the ''Diastolic'' value. A record with a diastolic pressure
+        greater than or equal to its systolic pressure would represent a medical impossibility
+        and would lead to nonsensical risk scoring, but the code does not validate
+        this. We could represent this assumption as a Deequ constraint like this:
+        `.satisfies("CAST(SPLIT(`Blood Pressure`, ''/'')[0] AS INT) > CAST(SPLIT(`Blood
+        Pressure`, ''/'')[1] AS INT)")`.'
+      sources:
+      - start_line: 20
+        end_line: 21
+        file: ''
+      - start_line: 66
+        end_line: 66
+        file: ''
+      uid: 8ba1a3a7-4c8a-419b-aeda-e608e33b7e69
+    - text: 'A significant relationship is assumed between ''Quality of Sleep'' and
+        ''Sleep Duration''. The code specifically flags the combination of low ''Quality
+        of Sleep'' (a value of 6 or less) and long ''Sleep Duration'' (a value of
+        7 or more) as a key risk factor for sleep apnea. This implies that this co-occurrence
+        is medically significant and that the two metrics are not independent. We
+        could represent this assumption as a Deequ constraint to monitor its prevalence:
+        `.satisfies("sum(CASE WHEN `Quality of Sleep` <= 6 AND `Sleep Duration` >=
+        7 THEN 1 ELSE 0 END) / count(*) < 0.25", "Prevalence of low quality, long
+        duration sleep should be less than 25%")`.'
+      sources:
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: e61f3c59-4530-476c-a5a1-ebdedf188118
+    - text: 'A strong correlation is assumed between ''BMI Category'' and the presence
+        of ''Sleep Apnea'' in the ''Sleep Disorder'' column. The code uses the proportion
+        of ''Overweight'' or ''Obese'' individuals among those with sleep apnea to
+        calibrate a risk threshold. This indicates an expectation that these conditions
+        frequently co-occur. If this correlation is not present in the data, the model''s
+        risk assessment may be inaccurate. We could represent this assumption as a
+        Deequ constraint like this: `.satisfies("sum(CASE WHEN `Sleep Disorder` =
+        ''Sleep Apnea'' AND `BMI Category` IN (''Overweight'', ''Obese'') THEN 1 ELSE
+        0 END) / sum(CASE WHEN `Sleep Disorder` = ''Sleep Apnea'' THEN 1 ELSE 0 END)
+        >= 0.5", "At least 50% of Sleep Apnea cases should be Overweight or Obese")`.'
+      sources:
+      - start_line: 54
+        end_line: 55
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      uid: 801be4ad-1ff1-4f7e-8d30-a06a916f097a
+  '["BMI Category","Sleep Disorder"]':
+    code:
+    - suggestion: '.satisfies("`BMI Category` IN (''Overweight'', ''Obese'')", "Prop.
+        of Overweight/Obese in Apnea group > 50%", lambda x: x > 0.5, where="`Sleep
+        Disorder` = ''Sleep Apnea''")'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.satisfies("`BMI Category`
+        IN (''Overweight'', ''Obese'')", "Prop. of Overweight/Obese in Apnea group
+        > 50%", lambda x: x > 0.5, where="`Sleep Disorder` = ''Sleep Apnea''")'':
+        Check.satisfies() got an unexpected keyword argument ''where'''
+      level: error
+      uid: cb4df2ed-9e2f-434a-afaa-c291ebf11248
+      source_assumptions:
+      - a484ac88-7f3d-4adb-86a6-edb046bc4a13
+    assumptions:
+    - text: 'The code assumes a strong positive correlation between having a ''Sleep
+        Disorder'' of ''Sleep Apnea'' and a ''BMI Category'' of ''Overweight'' or
+        ''Obese''. The calculation for the apnea risk score heavily relies on a person''s
+        BMI status (line 69), and the risk threshold is dynamically adjusted based
+        on an expected 70% prevalence of overweight or obese individuals among those
+        with sleep apnea (lines 54-55 and 73). This implies that the subgroup of the
+        population with ''Sleep Apnea'' is expected to have a high rate of being ''Overweight''
+        or ''Obese''. A significant deviation would impact the model''s accuracy.
+
+        A potential Deequ constraint could verify this conditional probability:
+
+        .satisfies("sum(case when `BMI Category` in (''Overweight'', ''Obese'') then
+        1.0 else 0.0 end) / count(*) > 0.5", "Prop. of Overweight/Obese in Apnea group
+        > 50%", where="`Sleep Disorder` = ''Sleep Apnea''")'
+      sources:
+      - start_line: 54
+        end_line: 55
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      - start_line: 73
+        end_line: 73
+        file: ''
+      uid: a484ac88-7f3d-4adb-86a6-edb046bc4a13
+  '["Daily Steps","Physical Activity Level"]':
+    code:
+    - suggestion: '.hasCorrelation(''Daily Steps'', ''Physical Activity Level'', lambda
+        x: x >= 0.5)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a609b444-4c69-476f-92ef-a91d25757ad0
+      source_assumptions:
+      - dddcb781-8cfa-41cc-b790-e81bc2143177
+    - suggestion: '.satisfies(''NOT (`Daily Steps` > 10000 AND `Physical Activity
+        Level` <= 40)'', ''High_steps_should_not_correspond_to_low_PAL'', lambda x:
+        x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5192cfd8-e06d-473d-b73a-4d7978827b0c
+      source_assumptions:
+      - c2563a92-1ab9-4315-9c55-01b6d4d6646a
+    assumptions:
+    - text: 'The ''Daily Steps'' and ''Physical Activity Level'' columns are expected
+        to be positively correlated. The code calculates the Pearson correlation coefficient
+        (line 37) and uses it to build a simple linear model to determine an ''activity
+        shortfall''. This entire calculation assumes a meaningful, positive linear
+        relationship exists between the two columns. A weak or negative correlation
+        would undermine the validity of the derived metrics.
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .hasCorrelation("Daily Steps", "Physical Activity Level", _ >= 0.5)'
+      sources:
+      - start_line: 31
+        end_line: 41
+        file: ''
+      uid: dddcb781-8cfa-41cc-b790-e81bc2143177
+    - text: 'The ''Daily Steps'' and ''Physical Activity Level'' columns are assumed
+        to be logically consistent. The code defines a ''sedentary_flag'' (line 61)
+        if ''Daily Steps'' is less than or equal to 3000 or ''Physical Activity Level''
+        is less than or equal to 40. This implies that it would be anomalous for a
+        record to have a very high value in one metric and a very low value in the
+        other (e.g., ''Daily Steps'' > 10000 while ''Physical Activity Level'' <=
+        40), as these would be contradictory indicators of activity. This flag directly
+        contributes to the ''insomnia_risk_score'' (line 63).
+
+        We could represent this assumption as a deequ constraint like this:
+
+        .satisfies("NOT (`Daily Steps` > 10000 AND `Physical Activity Level` <= 40)",
+        "High steps should not correspond to low PAL")'
+      sources:
+      - start_line: 61
+        end_line: 63
+        file: ''
+      uid: c2563a92-1ab9-4315-9c55-01b6d4d6646a
+  '["Daily Steps","Physical Activity Level","Quality of Sleep","Sleep Duration","Stress Level"]':
+    code:
+    - suggestion: '.hasCorrelation(''Physical Activity Level'', ''Daily Steps'', lambda
+        corr: corr > 0.5)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 45cbdb2b-e619-47ab-9cc4-9cf3fa2d2f2c
+      source_assumptions:
+      - ae83c196-fe53-4591-b0b2-71faa96b87e0
+    - suggestion: '.satisfies("NOT (`Daily Steps` > 10000 AND `Physical Activity Level`
+        <= 40)", "ActivityMetricsConsistency", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0448b992-fc30-43b3-ac1a-c2bf7900dc1f
+      source_assumptions:
+      - 8b4b6927-0f4e-4d1e-8238-ba2e0cc8837c
+    assumptions:
+    - text: 'There is a positive linear correlation between ''Physical Activity Level''
+        and ''Daily Steps''. The code explicitly computes their correlation coefficient
+        to build a simple linear model predicting expected steps. This logic is only
+        sound if the two variables are indeed positively correlated. A potential constraint
+        could verify this: `.corr(''Physical Activity Level'', ''Daily Steps'') >
+        0.5`.'
+      sources:
+      - start_line: 31
+        end_line: 41
+        file: ''
+      uid: 76f76dd8-4cc2-4426-99c7-6f36b46025cb
+    - text: '''Daily Steps'' and ''Physical Activity Level'' are treated as consistent
+        indicators of a person''s activity level. The code defines a ''sedentary_flag''
+        based on a low value in either column. This implies that a record should not
+        have a very high value for one metric and a very low value for the other (e.g.,
+        ''Daily Steps'' > 10000 and ''Physical Activity Level'' <= 40), as this would
+        represent a contradictory state.'
+      sources:
+      - start_line: 61
+        end_line: 61
+        file: ''
+      uid: ae83c196-fe53-4591-b0b2-71faa96b87e0
+    - text: The combination of a low 'Quality of Sleep' (<= 6) and a long 'Sleep Duration'
+        (>= 7) is considered a significant pattern. The code explicitly creates a
+        flag for this scenario to be used as a risk factor for sleep apnea. This assumes
+        that this combination is an anomaly indicative of a potential health issue,
+        rather than a common or healthy state.
+      sources:
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 8b4b6927-0f4e-4d1e-8238-ba2e0cc8837c
+    - text: The calculation of 'restful_hours' assumes a multiplicative relationship
+        between 'Sleep Duration' and a scaled 'Quality of Sleep' (`qos / 10.0`). This
+        implies that for a fixed 'Sleep Duration', 'restful_hours' should increase
+        as 'Quality of Sleep' increases. The relationship is assumed to be monotonic.
+      sources:
+      - start_line: 26
+        end_line: 26
+        file: ''
+      uid: 77415f21-acf6-4fec-b6b0-0b20ffe48c1c
+  '["Quality of Sleep","Sleep Duration"]':
+    code:
+    - suggestion: '.satisfies("`Quality of Sleep` >= 0 AND `Quality of Sleep` <= 10
+        AND `Sleep Duration` >= 0", "Valid_QoS_and_Sleep_Duration_Ranges", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e499d6c4-f3cb-4030-9d24-d0818d39362f
+      source_assumptions:
+      - ae7293a0-b48e-472d-b867-c160babb12e0
+    - suggestion: '.hasCorrelation(''Quality of Sleep'', ''Sleep Duration'', lambda
+        x: x >= 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 8ecd82fb-4f95-415f-ab7a-d29b2d42b396
+      source_assumptions:
+      - ae7293a0-b48e-472d-b867-c160babb12e0
+    - suggestion: '.satisfies("`Quality of Sleep` <= 6 AND `Sleep Duration` >= 7",
+        "low_qos_long_sleep_pattern_exists", lambda x: x > 0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("`Quality of Sleep` <= 6 AND `Sleep
+        Duration` >= 7", "low_qos_long_sleep_pattern_exists", lambda x: x > 0)'' failed
+        on data sample: Value: 0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: 40dd6650-0128-4cf5-a245-09d141076593
+      source_assumptions:
+      - a04d30b9-c95b-41a7-ba27-839248d2c8b9
+    assumptions:
+    - text: 'The calculation of ''restful_hours'' on line 26 assumes a direct proportional
+        relationship where ''Quality of Sleep'' acts as a scaling factor for ''Sleep
+        Duration''. This implies that both columns should be non-negative. Furthermore,
+        the division by 10.0 suggests that ''Quality of Sleep'' is on a scale of 0-10.
+        A Deequ constraint could verify this relationship, for instance by checking
+        for a positive correlation: .hasCorrelation(''Quality of Sleep'', ''Sleep
+        Duration'', _ >= 0).'
+      sources:
+      - start_line: 22
+        end_line: 26
+        file: ''
+      uid: ae7293a0-b48e-472d-b867-c160babb12e0
+    - text: 'The code defines a specific condition where a low ''Quality of Sleep''
+        (value <= 6) co-occurs with a long ''Sleep Duration'' (value >= 7). This combination
+        is used as a feature to calculate ''apnea_risk_score''. This assumes that
+        this joint condition is a meaningful and expected pattern in the data. A Deequ
+        check could verify that this condition exists in the dataset: .satisfies("count_if(`Quality
+        of Sleep` <= 6 AND `Sleep Duration` >= 7) > 0", ''low_qos_long_sleep condition
+        should exist'').'
+      sources:
+      - start_line: 67
+        end_line: 69
+        file: ''
+      uid: a04d30b9-c95b-41a7-ba27-839248d2c8b9
+  '["Sleep Disorder","Stress Level"]':
+    code:
+    - suggestion: .satisfies("(SELECT COUNT(DISTINCT `Sleep Disorder`) FROM __THIS__
+        WHERE `Sleep Disorder` IN ('Insomnia', 'Sleep Apnea')) = 2", "'Sleep Disorder'
+        must contain both 'Insomnia' and 'Sleep Apnea' values for accurate threshold
+        calculation")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(SELECT COUNT(DISTINCT `Sleep Disorder`)
+        FROM __THIS__ WHERE `Sleep Disorder` IN (''Insomnia'', ''Sleep Apnea'')) =
+        2", "''Sleep Disorder'' must contain both ''Insomnia'' and ''Sleep Apnea''
+        values for accurate threshold calculation")'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [TABLE_OR_VIEW_NOT_FOUND] The table or view `__THIS__` cannot be found. Verify
+        the spelling and correctness of the schema and catalog.
+
+        If you did not qualify the name with a schema, verify the current_schema()
+        output, or qualify the name with the correct schema and catalog.
+
+        To tolerate the error on drop use DROP VIEW IF EXISTS or DROP TABLE IF EXISTS.;
+        line 1 pos 46;
+
+        ''Aggregate [sum(cast((scalar-subquery#370639 [] = 2) as int)) AS sum(CAST((scalarsubquery()
+        = 2) AS INT))#370661, count(1) AS count(1)#370662L]
+
+        :  +- ''Project [unresolvedalias(''COUNT(distinct ''Sleep Disorder), None)]
+
+        :     +- ''Filter ''Sleep Disorder IN (Insomnia,Sleep Apnea)
+
+        :        +- ''UnresolvedRelation [__THIS__], [], false
+
+        +- LogicalRDD [id#172863L, Person ID#172864L, Gender#172865, Age#172866L,
+        Occupation#172867, Sleep Duration#172868, Quality of Sleep#172869L, Physical
+        Activity Level#172870L, Stress Level#172871L, BMI Category#172872, Blood Pressure#172873,
+        Heart Rate#172874L, Daily Steps#172875L, Sleep Disorder#172876], false
+
+        '
+      level: error
+      uid: eaf64879-3e8a-4859-b2d5-9d05b84e0021
+      source_assumptions:
+      - 69a7f4f2-784c-451c-bd61-9f182788c323
+    assumptions:
+    - text: 'The code assumes that after filtering out null values, the ''Sleep Disorder''
+        column contains records for both ''Insomnia'' and ''Sleep Apnea'' categories.
+        It calculates the mean ''Stress Level'' for each of these two groups to derive
+        a dynamic `stress_threshold` and `insomnia_threshold`. If either category
+        is absent, the code falls back to using default, hard-coded values, which
+        could significantly alter the risk assessment results. A data quality check
+        should ensure that both categories are present. We could represent this assumption
+        as a Deequ constraint like this:
+
+        .satisfies("select count(distinct `Sleep Disorder`) from __THIS__ where `Sleep
+        Disorder` in (''Insomnia'', ''Sleep Apnea'')" == 2, "''Sleep Disorder'' should
+        contain both ''Insomnia'' and ''Sleep Apnea'' categories")'
+      sources:
+      - start_line: 42
+        end_line: 52
+        file: ''
+      - start_line: 71
+        end_line: 72
+        file: ''
+      uid: 69a7f4f2-784c-451c-bd61-9f182788c323
+column_data_flow_locations:
+  ? '["BMI Category","Blood Pressure","Daily Steps","Person ID","Physical Activity
+    Level","Quality of Sleep","Sleep Disorder","Sleep Duration","Stress Level"]'
+  : - start_line: 18
+      end_line: 18
+      file: ''
+    - start_line: 20
+      end_line: 23
+      file: ''
+    - start_line: 26
+      end_line: 26
+      file: ''
+    - start_line: 28
+      end_line: 29
+      file: ''
+    - start_line: 31
+      end_line: 44
+      file: ''
+    - start_line: 46
+      end_line: 47
+      file: ''
+    - start_line: 49
+      end_line: 52
+      file: ''
+    - start_line: 54
+      end_line: 55
+      file: ''
+    - start_line: 57
+      end_line: 59
+      file: ''
+    - start_line: 61
+      end_line: 61
+      file: ''
+    - start_line: 63
+      end_line: 63
+      file: ''
+    - start_line: 65
+      end_line: 67
+      file: ''
+    - start_line: 69
+      end_line: 69
+      file: ''
+    - start_line: 71
+      end_line: 73
+      file: ''
+    - start_line: 75
+      end_line: 76
+      file: ''
+    - start_line: 78
+      end_line: 85
+      file: ''
+    - start_line: 88
+      end_line: 101
+      file: ''
+    - start_line: 103
+      end_line: 117
+      file: ''
+    - start_line: 119
+      end_line: 122
+      file: ''
+    - start_line: 124
+      end_line: 125
+      file: ''
+  Blood Pressure:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 20
+    end_line: 21
+    file: ''
+  - start_line: 66
+    end_line: 66
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  '["Daily Steps","Physical Activity Level"]':
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 31
+    end_line: 41
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 75
+    end_line: 75
+    file: ''
+  - start_line: 79
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  '["Quality of Sleep","Sleep Duration"]':
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 22
+    end_line: 23
+    file: ''
+  - start_line: 26
+    end_line: 26
+    file: ''
+  - start_line: 28
+    end_line: 29
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 124
+    file: ''
+  - start_line: 125
+    end_line: 125
+    file: ''
+  '["Sleep Disorder","Stress Level"]':
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 42
+    end_line: 44
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 49
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 55
+    file: ''
+  - start_line: 57
+    end_line: 59
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  '["BMI Category","Sleep Disorder"]':
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 42
+    end_line: 44
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 49
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 55
+    file: ''
+  - start_line: 58
+    end_line: 59
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  '["BMI Category","Blood Pressure","Quality of Sleep","Sleep Duration"]':
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 20
+    end_line: 23
+    file: ''
+  - start_line: 26
+    end_line: 26
+    file: ''
+  - start_line: 28
+    end_line: 29
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 54
+    end_line: 55
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 65
+    end_line: 67
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 86
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  '["Daily Steps","Physical Activity Level","Quality of Sleep","Sleep Duration","Stress Level"]':
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 22
+    end_line: 23
+    file: ''
+  - start_line: 26
+    end_line: 26
+    file: ''
+  - start_line: 28
+    end_line: 29
+    file: ''
+  - start_line: 31
+    end_line: 41
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 49
+    end_line: 52
+    file: ''
+  - start_line: 57
+    end_line: 59
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 71
+    end_line: 72
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  Quality of Sleep:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 22
+    end_line: 22
+    file: ''
+  - start_line: 26
+    end_line: 26
+    file: ''
+  - start_line: 28
+    end_line: 29
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  Sleep Duration:
+  - start_line: 23
+    end_line: 23
+    file: ''
+  - start_line: 26
+    end_line: 26
+    file: ''
+  - start_line: 28
+    end_line: 29
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 86
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  Physical Activity Level:
+  - start_line: 31
+    end_line: 31
+    file: ''
+  - start_line: 33
+    end_line: 34
+    file: ''
+  - start_line: 37
+    end_line: 41
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 75
+    end_line: 75
+    file: ''
+  - start_line: 79
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  Daily Steps:
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 41
+    file: ''
+  - start_line: 61
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 75
+    end_line: 75
+    file: ''
+  - start_line: 79
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  Sleep Disorder:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 42
+    end_line: 44
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 49
+    end_line: 52
+    file: ''
+  - start_line: 54
+    end_line: 55
+    file: ''
+  - start_line: 58
+    end_line: 59
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 71
+    end_line: 73
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 78
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  Stress Level:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 49
+    end_line: 52
+    file: ''
+  - start_line: 57
+    end_line: 59
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 71
+    end_line: 72
+    file: ''
+  - start_line: 75
+    end_line: 75
+    file: ''
+  - start_line: 78
+    end_line: 86
+    file: ''
+  - start_line: 88
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  BMI Category:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 54
+    end_line: 55
+    file: ''
+  - start_line: 65
+    end_line: 65
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 73
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 79
+    end_line: 85
+    file: ''
+  - start_line: 89
+    end_line: 101
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+  Person ID:
+  - start_line: 18
+    end_line: 18
+    file: ''
+  - start_line: 103
+    end_line: 117
+    file: ''
+  - start_line: 119
+    end_line: 122
+    file: ''
+  - start_line: 124
+    end_line: 125
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.0
+    total_tokens: 6572
+    prompt_tokens: 5105
+    completion_tokens: 1467
+  data_flow_inspection:
+    cost: 0.0
+    total_tokens: 80644
+    prompt_tokens: 27938
+    completion_tokens: 52706
+  column_correlation_discovery:
+    cost: 0.0
+    total_tokens: 8405
+    prompt_tokens: 3323
+    completion_tokens: 5082
+  multi_column_data_flow_inspection:
+    cost: 0.0
+    total_tokens: 81619
+    prompt_tokens: 25114
+    completion_tokens: 56505
+  multi_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 64578
+    prompt_tokens: 30261
+    completion_tokens: 34317
+  multi_column_code_generation:
+    cost: 0.0
+    total_tokens: 73972
+    prompt_tokens: 42332
+    completion_tokens: 31640
+  single_column_assumption_generation:
+    cost: 0.0
+    total_tokens: 62719
+    prompt_tokens: 36865
+    completion_tokens: 25854
+  single_column_code_generation:
+    cost: 0.0
+    total_tokens: 78844
+    prompt_tokens: 62279
+    completion_tokens: 16565

@@ -1,0 +1,2348 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-mini
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  Star1:
+    code:
+    - suggestion: '.satisfies("`Star1` IS NOT NULL AND trim(`Star1`) <> '''' AND lower(trim(`Star1`))
+        <> ''nan''", "Star1 non-null, non-empty and not literal ''nan''", lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 1838cdf5-fb91-4c01-a15e-06f0075d1b3f
+      source_assumptions:
+      - 5542c007-7065-42ee-95ea-5c61585f855a
+    - suggestion: '.satisfies("lower(trim(`Star1`)) <> lower(trim(`Star2`)) AND lower(trim(`Star1`))
+        <> lower(trim(`Star3`)) AND lower(trim(`Star1`)) <> lower(trim(`Star4`)) AND
+        lower(trim(`Star2`)) <> lower(trim(`Star3`)) AND lower(trim(`Star2`)) <> lower(trim(`Star4`))
+        AND lower(trim(`Star3`)) <> lower(trim(`Star4`))", "Cast names are pairwise
+        distinct (Star1..Star4)", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a0cac4fc-4758-4afb-9ab5-6ea096e17932
+      source_assumptions:
+      - b659dd84-7bd2-493f-81dd-d7a4cce7bfb6
+    assumptions:
+    - text: 'The ''Star1'' column must contain a non-null, non-empty actor name for
+        each input row. After trimming whitespace the value must not be the literal
+        string ''nan'' (case-insensitive). This can be validated as: fraction of rows
+        where Star1 IS NOT NULL AND trim(Star1) != '''' AND lower(trim(Star1)) !=
+        ''nan'' should be 1.0 (or at least very close to 1.0).'
+      sources:
+      - start_line: 60
+        end_line: 63
+        file: ''
+      uid: 5542c007-7065-42ee-95ea-5c61585f855a
+    - text: 'Within each row the cast columns (Star1, Star2, Star3, Star4) are expected
+        to be distinct names. Concretely, Star1 should not equal Star2, Star3, or
+        Star4 after trimming (and optionally case-normalizing). This can be validated
+        as: fraction of rows where size(set(trim(lower(Star1)), trim(lower(Star2)),
+        trim(lower(Star3)), trim(lower(Star4)))) == 4 should be 1.0 (or above an acceptable
+        threshold).'
+      sources:
+      - start_line: 60
+        end_line: 64
+        file: ''
+      - start_line: 83
+        end_line: 85
+        file: ''
+      uid: b659dd84-7bd2-493f-81dd-d7a4cce7bfb6
+  Star2:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Star2` IS NOT NULL AND trim(lower(`Star2`))
+        <> '''' AND trim(lower(`Star2`)) <> ''nan'' THEN 1 ELSE 0 END", "Star2 non-null
+        non-empty", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f786bcf3-e492-42bd-b04a-d4277d8e581a
+      source_assumptions:
+      - c960ca9f-bfce-4875-ad75-37550dfa0b4a
+    - suggestion: '.satisfies("CASE WHEN cardinality(array_distinct(array(trim(lower(`Star1`)),
+        trim(lower(`Star2`)), trim(lower(`Star3`)), trim(lower(`Star4`)))) = 4 THEN
+        1 ELSE 0 END", "Cast-members-unique-per-row", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.satisfies(\"CASE WHEN cardinality(array_distinct(array(trim(lower(`Star1`)),\
+        \ trim(lower(`Star2`)), trim(lower(`Star3`)), trim(lower(`Star4`)))) = 4 THEN\
+        \ 1 ELSE 0 END\", \"Cast-members-unique-per-row\", lambda x: x == 1)' failed\
+        \ on data sample: org.apache.spark.sql.catalyst.parser.ParseException: \n\
+        [PARSE_SYNTAX_ERROR] Syntax error at or near 'cardinality'.(line 1, pos 10)\n\
+        \n== SQL ==\nCASE WHEN cardinality(array_distinct(array(trim(lower(`Star1`)),\
+        \ trim(lower(`Star2`)), trim(lower(`Star3`)), trim(lower(`Star4`)))) = 4 THEN\
+        \ 1 ELSE 0 END\n----------^^^\n"
+      level: error
+      uid: 86539ec6-0961-4072-9d3a-0cd82ecf66cf
+      source_assumptions:
+      - 00bcc7a2-0222-4a48-848f-48352e38bd96
+    - suggestion: '.hasDataType("Star2", "String", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Star2", "String",
+        lambda x: x == 1)'
+      level: warning
+      uid: 7247cba2-e6df-4847-bfcd-2d7d1a705c52
+      source_assumptions:
+      - e3bc4018-ee5a-45be-beeb-05420d343591
+    assumptions:
+    - text: 'Star2 must be present for each input row: it should not be NULL, an empty
+        string, or the literal string ''nan'' (case-insensitive). The code explicitly
+        checks for empty or ''nan'' values in the cast-check helper, so the input
+        should provide a real actor/performer name for Star2. Example validation (Deequ/SQL-like):
+        .satisfies("CASE WHEN `Star2` IS NOT NULL AND trim(lower(`Star2`)) <> ''''
+        AND trim(lower(`Star2`)) <> ''nan'' THEN 1 ELSE 0 END", "Star2 non-null non-empty",
+        lambda x: x == 1)'
+      sources:
+      - start_line: 59
+        end_line: 63
+        file: ''
+      uid: c960ca9f-bfce-4875-ad75-37550dfa0b4a
+    - text: 'Star2 must be distinct from Star1, Star3, and Star4 within the same row.
+        The pipeline expects four unique cast names per row (len(set(names)) == 4)
+        so Star2 must not duplicate any other Star field in that row. Example validation:
+        .satisfies("CASE WHEN cardinality(array_distinct(array(`Star1`,`Star2`,`Star3`,`Star4`)))
+        = 4 THEN 1 ELSE 0 END", "Cast-members-unique-per-row", lambda x: x == 1)'
+      sources:
+      - start_line: 64
+        end_line: 64
+        file: ''
+      - start_line: 83
+        end_line: 85
+        file: ''
+      uid: 00bcc7a2-0222-4a48-848f-48352e38bd96
+    - text: 'Star2 should be a text value that can be trimmed/coerced to string (no
+        complex types). The code calls str(row[''Star2'']).strip() before using it,
+        so input values must be representable as strings and should not rely on non-string
+        objects. Example validation: .satisfies("CASE WHEN `Star2` IS NOT NULL THEN
+        1 ELSE 0 END", "Star2 castable-to-string", lambda x: x == 1) and/or a schema
+        check that `Star2` is of string type.'
+      sources:
+      - start_line: 60
+        end_line: 61
+        file: ''
+      uid: e3bc4018-ee5a-45be-beeb-05420d343591
+  Star3:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(LOWER(CAST(`Star3` AS STRING))) <> ''''
+        AND TRIM(LOWER(CAST(`Star3` AS STRING))) <> ''nan'' THEN 1 ELSE 0 END", "Star3
+        non-empty and not ''nan''", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0c51205b-af8d-4065-831b-34d85bbefbee
+      source_assumptions:
+      - 2e3c9db7-572c-4e8e-8696-1311cda9ec21
+    - suggestion: '.satisfies("CASE WHEN size(array_distinct(array(TRIM(LOWER(CAST(`Star1`
+        AS STRING))), TRIM(LOWER(CAST(`Star2` AS STRING))), TRIM(LOWER(CAST(`Star3`
+        AS STRING))), TRIM(LOWER(CAST(`Star4` AS STRING)))))) = 4 THEN 1 ELSE 0 END",
+        "Cast uniqueness across Star1..Star4", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 482eb7a7-f9d0-47b6-8233-46832b11aacf
+      source_assumptions:
+      - 0784c564-23e1-4c1d-8cf9-c7237cbb9f73
+    assumptions:
+    - text: 'The ''Star3'' value must not be NULL, an empty string after trimming,
+        or the literal string ''nan'' (case-insensitive). The code treats such values
+        as invalid when evaluating cast integrity (it calls str(...).strip() and then
+        checks n == '''' or n.lower() == ''nan'').
+
+        We could represent this as a Deequ/GE-style constraint like:
+
+        .satisfies(''CASE WHEN TRIM(LOWER(CAST(`Star3` AS STRING))) <> "" AND TRIM(LOWER(CAST(`Star3`
+        AS STRING))) <> "nan" THEN 1 ELSE 0 END'', ''Star3 non-empty and not "nan"'',
+        lambda x: x == 1)
+
+        (or in Great Expectations: expect_column_values_to_not_be_null and expect_column_values_to_not_match_regex
+        with pattern ''^\s*$'' and expect_column_values_to_not_match_regex case-insensitive
+        for ''^\s*nan\s*$'').'
+      sources:
+      - start_line: 60
+        end_line: 63
+        file: ''
+      uid: 2e3c9db7-572c-4e8e-8696-1311cda9ec21
+    - text: 'For each input row, ''Star3'' should be distinct from the other cast
+        columns in that row: the set {Star1, Star2, Star3, Star4} is expected to contain
+        4 unique values. The code enforces this by returning False when len(set(names))
+        != 4 and later computes a cast_diversity (expected to be 1.0 for valid data).
+
+        We could express this as:
+
+        .satisfies(''CASE WHEN size(array_distinct(array(TRIM(LOWER(CAST(`Star1` AS
+        STRING))), TRIM(LOWER(CAST(`Star2` AS STRING))), TRIM(LOWER(CAST(`Star3` AS
+        STRING))), TRIM(LOWER(CAST(`Star4` AS STRING))))) ) = 4 THEN 1 ELSE 0 END'',
+        ''Cast uniqueness across Star1..Star4'', lambda x: x == 1)
+
+        (or a Great Expectations row-wise check that no two of Star1..Star4 are equal
+        after trimming/normalization).'
+      sources:
+      - start_line: 60
+        end_line: 64
+        file: ''
+      - start_line: 82
+        end_line: 85
+        file: ''
+      uid: 0784c564-23e1-4c1d-8cf9-c7237cbb9f73
+    - text: 'The values in ''Star3'' should be representable as strings and meaningful
+        after trimming (the code uses str(row[''Star3'']).strip() before further checks).
+        In other words, inputs should not be complex objects that fail a string cast;
+        trimming/normalization is expected to yield the canonical value used for emptiness
+        and uniqueness checks.
+
+        Represent as a validation rule like:
+
+        .satisfies(''CASE WHEN CAST(`Star3` AS STRING) IS NOT NULL THEN 1 ELSE 0 END'',
+        ''Star3 castable to string'', lambda x: x == 1)
+
+        plus the trimming/non-empty constraint above.'
+      sources:
+      - start_line: 60
+        end_line: 61
+        file: ''
+      - start_line: 83
+        end_line: 84
+        file: ''
+      uid: 47746dc1-64b5-488b-bac0-145a5fececd6
+  Star4:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(LOWER(CAST(`Star4` AS STRING))) IS NOT
+        NULL AND TRIM(LOWER(CAST(`Star4` AS STRING))) <> '''' AND TRIM(LOWER(CAST(`Star4`
+        AS STRING))) <> ''nan'' THEN 1 ELSE 0 END", "Star4 present and not literal
+        ''nan''", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fbde67f3-9a18-4846-b4e9-aad8093daba0
+      source_assumptions:
+      - 20b633bb-04de-40e5-8c25-3fa2b5c0501b
+    - suggestion: '.satisfies("CASE WHEN size(array_distinct(array(TRIM(CAST(`Star1`
+        AS STRING)), TRIM(CAST(`Star2` AS STRING)), TRIM(CAST(`Star3` AS STRING)),
+        TRIM(CAST(`Star4` AS STRING))))) = 4 THEN 1 ELSE 0 END", "Cast uniqueness
+        (trimmed)", lambda x: x >= 0.993)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0a01b1fd-ffe8-439b-9ffa-fa5014e0352b
+      source_assumptions:
+      - aac7abd3-ea49-4359-a021-e075cc019fbe
+    - suggestion: '.satisfies("CASE WHEN size(array_distinct(array(LOWER(TRIM(CAST(`Star1`
+        AS STRING))), LOWER(TRIM(CAST(`Star2` AS STRING))), LOWER(TRIM(CAST(`Star3`
+        AS STRING))), LOWER(TRIM(CAST(`Star4` AS STRING)))))) = 4 THEN 1 ELSE 0 END",
+        "Cast uniqueness (case-insensitive) / casing consistency", lambda x: x ==
+        1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN size(array_distinct(array(LOWER(TRIM(CAST(`Star1`
+        AS STRING))), LOWER(TRIM(CAST(`Star2` AS STRING))), LOWER(TRIM(CAST(`Star3`
+        AS STRING))), LOWER(TRIM(CAST(`Star4` AS STRING)))))) = 4 THEN 1 ELSE 0 END",
+        "Cast uniqueness (case-insensitive) / casing consistency", lambda x: x ==
+        1)'' failed on data sample: Value: 0.993322203672788 does not meet the constraint
+        requirement!'
+      level: warning
+      uid: a913d7f0-81d4-4aea-a25f-fa533958106f
+      source_assumptions:
+      - 593a2609-4505-4cc3-81e3-67f320057ef1
+    assumptions:
+    - text: 'The ''Star4'' column must contain a non-empty, non-missing actor name
+        for valid rows. Specifically, after converting to string and trimming whitespace,
+        values should not be the empty string and should not be the literal ''nan''
+        (case-insensitive).
+
+        We could represent this as a validation rule (Deequ/SQL-style) like:
+
+        .satisfies("CASE WHEN TRIM(LOWER(CAST(`Star4` AS STRING))) IS NOT NULL AND
+        TRIM(LOWER(CAST(`Star4` AS STRING))) <> '''' AND TRIM(LOWER(CAST(`Star4` AS
+        STRING))) <> ''nan'' THEN 1 ELSE 0 END", "Star4 present and not literal ''nan''",
+        lambda x: x == 1)
+
+        This ensures the input does not contain empty or placeholder ''nan'' values
+        for Star4.'
+      sources:
+      - start_line: 60
+        end_line: 64
+        file: ''
+      - start_line: 82
+        end_line: 84
+        file: ''
+      uid: 20b633bb-04de-40e5-8c25-3fa2b5c0501b
+    - text: 'Within each row, ''Star4'' must be unique among the four cast name fields
+        (Star1, Star2, Star3, Star4). The code treats uniqueness by constructing a
+        set from the four trimmed string values and expects 4 distinct names per row
+        (cast_diversity assumed to be 1.0 for valid data).
+
+        We could represent this as a per-row constraint (SQL/Deequ-style) like:
+
+        .satisfies("CASE WHEN size(array_distinct(array(TRIM(CAST(`Star1` AS STRING)),
+        TRIM(CAST(`Star2` AS STRING)), TRIM(CAST(`Star3` AS STRING)), TRIM(CAST(`Star4`
+        AS STRING))))) = 4 THEN 1 ELSE 0 END", "Cast uniqueness", lambda x: x == 1)
+
+        This enforces that Star4 is not equal (after trimming) to any of Star1/Star2/Star3
+        in the same row.'
+      sources:
+      - start_line: 64
+        end_line: 64
+        file: ''
+      - start_line: 82
+        end_line: 84
+        file: ''
+      uid: aac7abd3-ea49-4359-a021-e075cc019fbe
+    - text: 'The code compares trimmed names but only lowercases when checking for
+        the literal ''nan''; uniqueness is computed without lowercasing. Therefore
+        the input should use consistent casing for actor names (i.e., avoid representing
+        the same person with case variants such as ''Alice'' vs ''alice'') because
+        ''Alice'' and ''alice'' will be treated as different names by the uniqueness
+        check.
+
+        A validation rule to catch inconsistent casing for likely-duplicate names
+        could be (approximate):
+
+        .satisfies("CASE WHEN TRIM(LOWER(CAST(`Star4` AS STRING))) IN (SELECT TRIM(LOWER(CAST(`Star1`
+        AS STRING))) UNION SELECT TRIM(LOWER(CAST(`Star2` AS STRING))) UNION SELECT
+        TRIM(LOWER(CAST(`Star3` AS STRING))) THEN 0 ELSE 1 END", "Star4 casing-consistent
+        vs other stars", lambda x: x == 1)
+
+        (Alternatively enforce that trimmed lowercase values across Star1..Star4 are
+        distinct.)'
+      sources:
+      - start_line: 60
+        end_line: 64
+        file: ''
+      - start_line: 83
+        end_line: 84
+        file: ''
+      uid: 593a2609-4505-4cc3-81e3-67f320057ef1
+  IMDB_Rating:
+    code:
+    - suggestion: '.satisfies("CASE WHEN CAST(`IMDB_Rating` AS DOUBLE) BETWEEN 0 AND
+        10 THEN 1 ELSE 0 END", "IMDB_Rating_in_0_to_10", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 93e7aaf6-c75e-4fc9-8a03-8cd21396659b
+      source_assumptions:
+      - a2aec123-99cf-4929-9d0d-7b0d85c4ac47
+    - suggestion: '.satisfies("CASE WHEN CAST(`IMDB_Rating` AS DOUBLE) >= 7.0 THEN
+        1 ELSE 0 END", "Has_high_rated_rows", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 681e91be-1929-433e-923a-ca162def5e1d
+      source_assumptions:
+      - c94dc4fa-33f3-4576-b7cd-5e41fff0a313
+    assumptions:
+    - text: 'IMDB_Rating must be parseable as a numeric (float) value for the input
+        rows. The code calls pd.to_numeric(..., errors=''coerce'') on IMDB_Rating
+        (so non-numeric values become NaN), and numeric conversion is required for
+        scoring and eligibility. Enforce that essentially 100% of input IMDB_Rating
+        values can be cast to a numeric type.
+
+
+        Example (Deequ-style) check:
+
+        .satisfies("CASE WHEN cast(`IMDB_Rating` as DOUBLE) IS NOT NULL THEN 1 ELSE
+        0 END", "IMDB_Rating_is_numeric", lambda x: x == 1.0)'
+      sources:
+      - start_line: 42
+        end_line: 47
+        file: ''
+      - start_line: 77
+        end_line: 77
+        file: ''
+      uid: 3fa5e335-21cc-440c-acb6-7cee2d73f3c1
+    - text: "IMDB_Rating is expected to be on the usual IMDb scale (numeric values\
+        \ in the range 0.0 through 10.0). The code subtracts 5.0 and uses comparisons\
+        \ like >= 7.0, so ratings outside a 0\u201310 range are likely invalid for\
+        \ the scoring logic.\n\nExample (Deequ-style) check:\n.satisfies(\"CASE WHEN\
+        \ cast(`IMDB_Rating` as DOUBLE) BETWEEN 0 AND 10 THEN 1 ELSE 0 END\", \"IMDB_Rating_in_0_to_10\"\
+        , lambda x: x == 1.0)"
+      sources:
+      - start_line: 77
+        end_line: 77
+        file: ''
+      - start_line: 103
+        end_line: 103
+        file: ''
+      uid: a2aec123-99cf-4929-9d0d-7b0d85c4ac47
+    - text: 'There must be at least some input rows with IMDB_Rating >= 7.0. The eligibility
+        filter uses (IMDB_Rating >= 7.0) and downstream ranking/quantile computations
+        assume a non-empty set of eligible rows; if no rows meet the >=7.0 threshold
+        the downstream ranking/quantile steps will not behave as intended.
+
+
+        Example (Deequ-style) check:
+
+        .satisfies("CASE WHEN cast(`IMDB_Rating` as DOUBLE) >= 7.0 THEN 1 ELSE 0 END",
+        "Has_high_rated_rows", lambda x: x > 0)'
+      sources:
+      - start_line: 103
+        end_line: 103
+        file: ''
+      - start_line: 112
+        end_line: 113
+        file: ''
+      uid: c94dc4fa-33f3-4576-b7cd-5e41fff0a313
+  Certificate:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NOT NULL THEN 1 ELSE 0 END",
+        "Certificate non-null ratio", lambda x: x >= 0.8)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 08c4ebe3-a311-4a4f-ba1d-1a3fdea3d99f
+      source_assumptions:
+      - 958c151e-89c9-4e9c-8297-a2eaa3de2a13
+    - suggestion: '.satisfies("CASE WHEN UPPER(TRIM(`Certificate`)) IN (''G'',''PG'',''PG-13'',''R'',''NC-17'',''A'',''18+'',''TV-MA'',''TV-PG'',''TV-14'',''TV-G'',''TV-Y'',''UNRATED'')
+        THEN 1 ELSE 0 END", "Valid Certificate labels", lambda x: x >= 0.9)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN UPPER(TRIM(`Certificate`))
+        IN (''G'',''PG'',''PG-13'',''R'',''NC-17'',''A'',''18+'',''TV-MA'',''TV-PG'',''TV-14'',''TV-G'',''TV-Y'',''UNRATED'')
+        THEN 1 ELSE 0 END", "Valid Certificate labels", lambda x: x >= 0.9)'' failed
+        on data sample: Value: 0.4373956594323873 does not meet the constraint requirement!'
+      level: warning
+      uid: 2cf125ff-aa3d-4c9a-8447-13b467cafd05
+      source_assumptions:
+      - 6ac6fe78-8560-4dc2-8a6a-a3fe40024382
+      - 2f24c667-635f-4dd7-aaf1-e78458da2d30
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NULL THEN 1 WHEN LENGTH(UPPER(TRIM(`Certificate`)))
+        <= 20 THEN 1 ELSE 0 END", "Certificate normalized max length <= 20", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: f376ea42-efa4-4870-b8e8-8504ddb8b579
+      source_assumptions:
+      - 2f24c667-635f-4dd7-aaf1-e78458da2d30
+    - suggestion: '.hasNumberOfDistinctValues("Certificate", lambda x: x <= 30)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("Certificate",
+        lambda x: x <= 30)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 65b9c6be-aa07-4e64-83ae-3dc617b24f32
+      source_assumptions:
+      - 2e59d88f-0a8d-45ef-8b2d-1af33ab3166d
+    assumptions:
+    - text: 'The ''Certificate'' column may contain nulls, but the code expects a
+        substantial fraction of rows to have a certificate present. As a practical
+        validation rule, at least 80% of input rows should have a non-null Certificate
+        value. Example Deequ/GREAT EXPECTATIONS style check: .satisfies("CASE WHEN
+        `Certificate` IS NOT NULL THEN 1 ELSE 0 END", "Certificate non-null ratio",
+        lambda x: x >= 0.8).'
+      sources:
+      - start_line: 42
+        end_line: 42
+        file: ''
+      - start_line: 88
+        end_line: 90
+        file: ''
+      uid: 958c151e-89c9-4e9c-8297-a2eaa3de2a13
+    - text: 'The ''Certificate'' column is treated as a small categorical rating vocabulary
+        (the code uppercases string values and checks membership in a handful of restrictive/adult
+        ratings). Most non-null Certificate values should match a known rating label
+        (for example: ''G'',''PG'',''PG-13'',''R'',''NC-17'',''A'',''18+'',''TV-MA'',''TV-PG'',''TV-14'',''TV-G'',''TV-Y'',''UNRATED'').
+        As a practical check require >= 90% of non-null values to be in the expected
+        set. Example: .satisfies("CASE WHEN UPPER(TRIM(`Certificate`)) IN (''G'',''PG'',''PG-13'',''R'',''NC-17'',''A'',''18+'',''TV-MA'',''TV-PG'',''TV-14'',''TV-G'',''TV-Y'',''UNRATED'')
+        THEN 1 ELSE 0 END", "Valid Certificate labels", lambda x: x >= 0.9).'
+      sources:
+      - start_line: 88
+        end_line: 89
+        file: ''
+      uid: 6ac6fe78-8560-4dc2-8a6a-a3fe40024382
+    - text: 'Certificate values may come in different cases or as non-string types;
+        the code converts them with astype(str).str.upper() before checking. Validation
+        logic should therefore normalize values using UPPER(TRIM(Certificate)) or
+        equivalent before comparing. Example check (informational): ensure that applying
+        UPPER(TRIM(...)) does not produce unexpected artifacts (e.g., very long strings).'
+      sources:
+      - start_line: 88
+        end_line: 88
+        file: ''
+      - start_line: 126
+        end_line: 126
+        file: ''
+      uid: 2f24c667-635f-4dd7-aaf1-e78458da2d30
+    - text: 'The ''Certificate'' column is expected to be low-cardinality (a small
+        set of repeated rating labels). As a concrete rule, the number of distinct
+        Certificate values should be reasonably small (for example <= 30). Example
+        Deequ check: .satisfies("CASE WHEN (SELECT COUNT(DISTINCT UPPER(TRIM(`Certificate`)))
+        FROM dataset) <= 30 THEN 1 ELSE 0 END", "Certificate cardinality", lambda
+        x: x == 1).'
+      sources:
+      - start_line: 88
+        end_line: 89
+        file: ''
+      uid: 2e59d88f-0a8d-45ef-8b2d-1af33ab3166d
+  '["Certificate","Genre","Gross","IMDB_Rating","Runtime","Star1","Star2","Star3","Star4"]':
+    code: []
+    assumptions:
+    - text: 'The combination of ''title'' and ''year'' should identify records uniquely
+        (title + year => deterministic title_id). In other words, there should be
+        no two rows with the same title and the same year. (Deequ-style constraint:
+        .isUnique(["title","year"]))'
+      sources:
+      - start_line: 45
+        end_line: 48
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: 5e6a6ed5-a202-4a2e-8567-76853ae8168e
+    - text: 'All four cast columns (Star1, Star2, Star3, Star4) must be present and
+        distinct for a valid row. Concretely: none of Star1..Star4 should be empty/null/''nan''
+        strings, and within each row the four values must be pairwise different. (Row-level
+        predicate; Deequ-style: a satisfies() predicate that asserts non-null/non-empty
+        on each star and array_distinct(array(Star1,Star2,Star3,Star4)) )'
+      sources:
+      - start_line: 59
+        end_line: 65
+        file: ''
+      - start_line: 83
+        end_line: 85
+        file: ''
+      uid: 5be956fe-dbfa-48c9-baff-bd35d59eb6c4
+    - text: 'The ''Genre'' field must be parseable as a comma-separated list with
+        at least one non-empty token, and the derived ''primary_genre'' must be present
+        for rows expected to be evaluated (i.e., primary_genre is not null). (Deequ-style
+        constraints: .satisfies("primary_genre IS NOT NULL") and .satisfies("size(split(Genre,'',''))
+        >= 1 AND trim(split(Genre,'','')[0]) <> ''''") )'
+      sources:
+      - start_line: 70
+        end_line: 73
+        file: ''
+      - start_line: 102
+        end_line: 106
+        file: ''
+      uid: 504733d4-9ae8-4645-9e45-ffae3322ef29
+    - text: 'For any row that will be considered eligible (imdb_rating >= 7.0 and
+        primary_genre != ''Short''), runtime_min must be present and within the allowed
+        bounds (between 60 and 210 minutes). In other words: (imdb_rating >= 7.0 AND
+        primary_genre != ''Short'') => runtime_min BETWEEN 60 AND 210. (Deequ-style:
+        .satisfies("(imdb_rating < 7.0) OR (primary_genre = ''Short'') OR (runtime_min
+        BETWEEN 60 AND 210)", "eligibility_runtime") )'
+      sources:
+      - start_line: 52
+        end_line: 52
+        file: ''
+      - start_line: 102
+        end_line: 106
+        file: ''
+      uid: 56cdab35-abc6-4af3-be7a-faad3fc1406f
+    - text: 'At least one row must have a non-null parsable Gross (gross_usd) so that
+        median(log/gross) and normalization (log_gross.max()) are well-defined; additionally,
+        for rows where monetization contributes meaningfully to score, Gross strings
+        should be numeric after cleaning (so to_int_usd produces an integer). (Deequ-style
+        checks: .hasCompleteness("gross_usd", threshold) and .satisfies("gross_usd
+        IS NULL OR gross_usd >= 0", "gross_numeric") or a custom row-level parseability
+        check on ''Gross'')'
+      sources:
+      - start_line: 54
+        end_line: 54
+        file: ''
+      - start_line: 75
+        end_line: 76
+        file: ''
+      - start_line: 94
+        end_line: 94
+        file: ''
+      uid: 0b100649-23d2-444c-986a-4272e7584114
+  '["Certificate","cert_factor"]':
+    code: []
+    assumptions:
+    - text: 'cert_factor must be deterministically derived from Certificate: for every
+        row, if upper(Certificate) is one of [''R'', ''NC-17'', ''A'', ''18+'', ''TV-MA'']
+        then cert_factor == 0.9, otherwise cert_factor == 1.0. This can be encoded
+        as a conditional constraint (for example in Deequ): .satisfies("(upper(Certificate)
+        IN (''R'',''NC-17'',''A'',''18+'',''TV-MA'') AND cert_factor = 0.9) OR (upper(Certificate)
+        NOT IN (''R'',''NC-17'',''A'',''18+'',''TV-MA'') AND cert_factor = 1.0)",
+        "cert factor matches certificate")'
+      sources:
+      - start_line: 87
+        end_line: 89
+        file: ''
+      - start_line: 92
+        end_line: 99
+        file: ''
+      uid: f73afdf5-6474-4560-b126-db2d526523ca
+    - text: 'The cert_factor column only contains the two expected numeric values
+        {0.9, 1.0} (no other values). A Deequ-style check: .isContainedIn("cert_factor",
+        [0.9, 1.0]) or a predicate .satisfies("cert_factor IN (0.9, 1.0)", "cert_factor
+        domain")'
+      sources:
+      - start_line: 87
+        end_line: 89
+        file: ''
+      uid: d082a7bf-b8e6-443e-b590-6be20a5d04f6
+  Genre:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(`Genre`) RLIKE ''^[^,]+(\\s*,\\s*[^,]+)*$''
+        THEN 1 ELSE 0 END", "Comma-separated genres", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 16bea74f-2cfb-4116-910f-4c6a4ee5e4fe
+      source_assumptions:
+      - a6d714cf-0fec-4a09-af9b-57775d6d6d91
+    - suggestion: '.satisfies("CASE WHEN LOWER(TRIM(SPLIT(`Genre`,'','')[0])) = ''short''
+        THEN CASE WHEN TRIM(SPLIT(`Genre`,'','')[0]) = ''Short'' THEN 1 ELSE 0 END
+        ELSE 1 END", "Primary genre casing for ''Short''", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ae34a769-08e0-4660-82b2-2dfc9e48b6fc
+      source_assumptions:
+      - fb816594-9cb4-4cde-a2c7-eb47ec02c59b
+    - suggestion: '.hasDataType("Genre", "String", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("Genre", "String",
+        lambda x: x == 1.0)'
+      level: error
+      uid: 0fb071a3-ab83-4b12-b7de-6cab37a901bf
+      source_assumptions:
+      - 05e0a43f-ad73-45e9-8c97-bf2e2ce48df9
+    assumptions:
+    - text: 'The ''Genre'' column must be present and non-null / non-empty for input
+        rows because the code builds a list of genres and uses the first element as
+        the primary genre. If ''Genre'' is empty or missing the primary_genre will
+        be None and downstream eligibility and output (primary_genre in the feed)
+        will be impacted.
+
+        We could represent this as a Deequ/GE constraint such as:
+
+        .satisfies("CASE WHEN `Genre` IS NOT NULL AND TRIM(`Genre`) <> '''' THEN 1
+        ELSE 0 END", "Non-empty Genre", lambda x: x == 1.0)
+
+        (or use a threshold like >= 0.99 if you expect tiny amounts of bad rows).'
+      sources:
+      - start_line: 71
+        end_line: 72
+        file: ''
+      - start_line: 126
+        end_line: 127
+        file: ''
+      uid: 2e41798c-3ae0-4f56-bd9e-ac86c3e26086
+    - text: 'Each ''Genre'' value is expected to be a comma-separated list of one
+        or more genre labels (e.g. "Action, Adventure, Sci-Fi"). The code splits on
+        '','' and treats each comma-separated token (after .strip()) as a genre token,
+        so tokens must not be empty after trimming and genre labels must not embed
+        unescaped commas.
+
+        Example validation (Deequ/SQL-style):
+
+        .satisfies("CASE WHEN TRIM(`Genre`) RLIKE ''^[^,]+(\s*,\s*[^,]+)*$'' THEN
+        1 ELSE 0 END", "Comma-separated genres", lambda x: x == 1.0)
+
+        This enforces that each value contains at least one non-empty token and tokens
+        are separated by commas.'
+      sources:
+      - start_line: 71
+        end_line: 72
+        file: ''
+      uid: a6d714cf-0fec-4a09-af9b-57775d6d6d91
+    - text: 'The code derives primary_genre by taking the first token exactly as-is
+        (no case normalization). Downstream logic explicitly checks primary_genre
+        against the literal ''Short'' (case-sensitive) to exclude short films. Therefore,
+        if you expect short films to be excluded, the input must use the capitalization
+        ''Short'' (or you must update the code to normalize case). Validate that primary
+        genre values are correctly cased/formed; e.g. enforce that lowercasing would
+        match known categories if you want case-insensitive behavior.
+
+        Representative check (detects mismatches between exact and lower-cased normalized
+        labels):
+
+        .satisfies("CASE WHEN TRIM(SPLIT(`Genre`,'','')[0]) = ''Short'' OR LOWER(TRIM(SPLIT(`Genre`,'','')[0]))
+        <> ''short'' THEN 1 ELSE 0 END", "Primary genre casing awareness", lambda
+        x: x >= 0.99)
+
+        (Or simpler: require that any row intended to be a short film uses ''Short''
+        exactly.)'
+      sources:
+      - start_line: 71
+        end_line: 72
+        file: ''
+      - start_line: 102
+        end_line: 106
+        file: ''
+      uid: fb816594-9cb4-4cde-a2c7-eb47ec02c59b
+    - text: 'The ''Genre'' column should be text (string-like) or otherwise safely
+        castable to string. The code does astype(str) and then performs string operations;
+        values that are complex types (lists/dicts) or binary blobs may produce unexpected
+        serialized strings and break parsing. Example constraint:
+
+        .satisfies("CASE WHEN `Genre` IS NOT NULL THEN 1 ELSE 0 END", "Genre present
+        (string-castable)", lambda x: x == 1.0)
+
+        and a complementary check that values match an expected pattern (see prior
+        assumption) to ensure they are parseable strings.'
+      sources:
+      - start_line: 71
+        end_line: 72
+        file: ''
+      - start_line: 42
+        end_line: 42
+        file: ''
+      uid: 05e0a43f-ad73-45e9-8c97-bf2e2ce48df9
+  Gross:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Gross` IS NULL OR lower(trim(`Gross`)) =
+        '''' OR lower(trim(`Gross`)) = ''nan'' THEN 1 WHEN regexp_like(replace(trim(`Gross`),
+        '','', ''''), ''^[0-9]+$'') THEN 1 ELSE 0 END", "Gross_integer_or_missing",
+        lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 3b7e6cf4-00e1-4e49-b677-ee568b2724ac
+      source_assumptions:
+      - 428aec97-e328-45b0-8543-5657d336fdfb
+      - 5411520e-3c83-4183-95e3-2c8111abfc34
+    - suggestion: '.satisfies("regexp_like(replace(trim(`Gross`), '','', ''''), ''^[0-9]+$'')",
+        "Gross_has_some_numeric_rows", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 645f9696-0484-464a-9dcc-600e76c7c3ce
+      source_assumptions:
+      - ea1169d8-fe0a-4384-ae76-3930799f25f0
+    - suggestion: '.satisfies("CASE WHEN regexp_like(replace(trim(`Gross`), '','',
+        ''''), ''^[0-9]+$'') THEN CASE WHEN cast(replace(trim(`Gross`), '','', '''')
+        AS BIGINT) >= 0 THEN 1 ELSE 0 END ELSE 1 END", "Gross_non_negative_integer",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 39410dd2-ad12-4752-b66c-b354280721f8
+      source_assumptions:
+      - 8531fb9c-a05c-497f-9a60-81319089ec22
+    assumptions:
+    - text: 'The ''Gross'' column may contain missing values: nulls, empty strings,
+        or the literal string ''nan'' (case-insensitive). The code maps these to NaN
+        and treats them as missing when computing monetization features.
+
+        We could represent this assumption as a validation rule (Great Expectations
+        / Deequ style):
+
+        - Great Expectations: expect_column_values_to_be_null_or_match_regex for empty
+        or ''nan'' cases is allowed; or explicitly allow nulls with expect_column_values_to_not_be_in_set
+        when checking presence.
+
+        - Deequ (example predicate to check that such values are considered missing):
+        .satisfies("CASE WHEN `Gross` IS NULL OR trim(lower(`Gross`)) = '''' OR trim(lower(`Gross`))
+        = ''nan'' THEN 1 ELSE 0 END", "Gross_missing_indicator", lambda x: x >= 0)
+
+        (Meaning: missing/empty/''nan'' values are expected to occur; downstream code
+        will treat them as missing.)'
+      sources:
+      - start_line: 16
+        end_line: 25
+        file: ''
+      - start_line: 54
+        end_line: 55
+        file: ''
+      uid: 428aec97-e328-45b0-8543-5657d336fdfb
+    - text: 'Valid non-missing ''Gross'' values are expected to be integer USD amounts,
+        optionally containing commas as thousands separators (e.g. ''1,234,567'' or
+        ''1234567''). After trimming and removing commas the remaining characters
+        must be digits only (regex ''^\d+$''). Values containing currency symbols
+        (e.g. ''$''), decimal points, negative signs, parentheses, or other non-digit
+        characters will be treated as missing by the parser.
+
+        Deequ-style constraint example:
+
+        .satisfies("CASE WHEN regexp_like(replace(trim(`Gross`), '','', ''''), ''^[0-9]+$'')
+        THEN 1 ELSE 0 END", "Gross_integer_format", lambda x: x >= 0.95)
+
+        (Adjust the threshold as appropriate; the code treats any non-matching format
+        as missing.)'
+      sources:
+      - start_line: 19
+        end_line: 24
+        file: ''
+      - start_line: 54
+        end_line: 54
+        file: ''
+      uid: 5411520e-3c83-4183-95e3-2c8111abfc34
+    - text: 'There must be at least one (preferably a non-trivial fraction of) rows
+        where ''Gross'' is parseable to an integer as above. The pipeline computes
+        df[''gross_usd''].median() and uses it to fill missing values and compute
+        log1p; if all gross values are missing/unparseable then median() will be NaN
+        and monetization features (log_gross and licensing_score) will be invalid.
+
+        Validation predicate (Deequ-style):
+
+        .satisfies("CASE WHEN regexp_like(replace(trim(`Gross`), '','', ''''), ''^[0-9]+$'')
+        THEN 1 ELSE 0 END", "Gross_has_some_numeric_rows", lambda x: x > 0)
+
+        (Require fraction > 0; you can raise this to a higher threshold if you need
+        a robust median estimate.)'
+      sources:
+      - start_line: 75
+        end_line: 76
+        file: ''
+      - start_line: 92
+        end_line: 97
+        file: ''
+      - start_line: 54
+        end_line: 55
+        file: ''
+      uid: ea1169d8-fe0a-4384-ae76-3930799f25f0
+    - text: 'Parsed ''Gross'' amounts should be non-negative whole US dollar amounts
+        (no fractional dollars, no negative values). The parser demands only digits
+        after removing commas, which enforces whole non-negative integers; negative
+        or fractional revenues are not supported and would be treated as missing.
+
+        Deequ-style constraint example:
+
+        .satisfies("CASE WHEN regexp_like(replace(trim(`Gross`), '','', ''''), ''^[0-9]+$'')
+        AND cast(replace(trim(`Gross`), '','', '''') AS BIGINT) >= 0 THEN 1 ELSE 0
+        END", "Gross_non_negative_integer", lambda x: x == 1)
+
+        (Use ==1 if you require all rows to satisfy this; use a lower threshold if
+        some invalid rows are acceptable and will be imputed.)'
+      sources:
+      - start_line: 22
+        end_line: 24
+        file: ''
+      - start_line: 75
+        end_line: 76
+        file: ''
+      uid: 8531fb9c-a05c-497f-9a60-81319089ec22
+  '["Genre","primary_genre"]':
+    code: []
+    assumptions:
+    - text: 'The deterministic record identifier is constructed from the normalized
+        title and the year, and the code assumes that the combination of title and
+        year uniquely identifies a record. Actionable constraint (Deequ-like): .isUnique(["title",
+        "year"]) or on the generated id: .isUnique(["title_id"]).'
+      sources:
+      - start_line: 45
+        end_line: 68
+        file: ''
+      uid: a20ecd59-11b4-4a80-b0fd-2c6d88fb5bc2
+    - text: 'Cast integrity: the four cast name columns (Star1, Star2, Star3, Star4)
+        are assumed to be non-empty/non-missing for valid rows and to contain four
+        distinct names per record. Actionable constraint (Deequ-like): ensure completeness
+        and row-level distinctness, e.g. .isComplete(["Star1","Star2","Star3","Star4"])
+        and .satisfies("array_distinct(array(Star1,Star2,Star3,Star4)).size = 4",
+        ["Star1","Star2","Star3","Star4"]).'
+      sources:
+      - start_line: 59
+        end_line: 65
+        file: ''
+      - start_line: 82
+        end_line: 85
+        file: ''
+      uid: 47334723-cf21-41d9-a39c-5618adc3cfd3
+    - text: 'Primary genre must be the first (canonical) entry of the comma-separated
+        Genre field. For rows where Genre is blank/empty the primary_genre should
+        be null. Actionable constraint: .satisfies("primary_genre = split(Genre, '','')[0]
+        OR (Genre IS NULL OR trim(Genre) = '''')", ["Genre","primary_genre"]).'
+      sources:
+      - start_line: 70
+        end_line: 72
+        file: ''
+      uid: d397db3d-6b05-415b-9d54-a7e6eba46a02
+    - text: 'Eligibility interlock: a row is considered eligible (candidate) only
+        if imdb_rating >= 7.0, runtime_min is between 60 and 210 (inclusive), and
+        primary_genre is not ''Short''. This is a multi-column predicate used to filter
+        the output. Actionable constraint (apply to candidate set): .satisfies("imdb_rating
+        >= 7.0 AND runtime_min BETWEEN 60 AND 210 AND primary_genre != ''Short''",
+        ["imdb_rating","runtime_min","primary_genre"]).'
+      sources:
+      - start_line: 101
+        end_line: 106
+        file: ''
+      - start_line: 108
+        end_line: 109
+        file: ''
+      uid: 66b6e75f-6383-4d85-a2e3-c6337d64e371
+    - text: 'Licensing score inputs interdependence: the licensing_score is computed
+        from imdb_rating, gross_usd (normalized via log and dataset max), runtime_min,
+        cast_diversity (derived from Star1..Star4), and Certificate. The code assumes
+        (a) at least one non-null gross_usd exists so log_gross.max() is finite for
+        normalization, and (b) for any candidate row licensing_score evaluates to
+        a finite numeric value. Actionable constraints: 1) Dataset-level: assert at
+        least one non-null gross_usd (e.g. .hasCompleteness("gross_usd") > 0). 2)
+        Candidate-level: .satisfies("licensing_score IS NOT NULL AND isFinite(licensing_score)",
+        ["licensing_score","imdb_rating","gross_usd","runtime_min","Star1","Star2","Star3","Star4","Certificate"]).'
+      sources:
+      - start_line: 74
+        end_line: 76
+        file: ''
+      - start_line: 92
+        end_line: 99
+        file: ''
+      uid: 62c0d1fa-bf7c-4cae-a12d-564230cfb7b8
+  '["Gross","gross_usd"]':
+    code:
+    - suggestion: '.satisfies("`Gross` IS NULL OR regexp_replace(`Gross`, '','', '''')
+        RLIKE ''^[0-9]+$''", "Gross parseable when present", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ab0ada8a-76d3-4536-9f00-ad41e4b571af
+      source_assumptions:
+      - 8744ee19-e40f-4698-b9b6-d010388dab52
+    - suggestion: '.haveCompleteness(columns=[''gross_usd''], assertion=lambda x:
+        x > 0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.haveCompleteness(columns=[''gross_usd''],
+        assertion=lambda x: x > 0)'' failed on data sample: Input data does not include
+        column gross_usd!'
+      level: error
+      uid: 1e373b7c-51eb-4f8b-804c-4a9a1538ed8d
+      source_assumptions:
+      - a096f613-dd9e-49fb-8416-41b28e4dd254
+    - suggestion: '.satisfies("CASE WHEN `gross_usd` IS NOT NULL THEN CASE WHEN `gross_usd`
+        >= 0 THEN 1 ELSE 0 END ELSE 1 END", "Gross non-negative for finite log", lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `gross_usd` IS NOT NULL
+        THEN CASE WHEN `gross_usd` >= 0 THEN 1 ELSE 0 END ELSE 1 END", "Gross non-negative
+        for finite log", lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `gross_usd` cannot be resolved. Did you mean one of the following? [`Gross`,
+        `Genre`, `Runtime`, `Star1`, `Star2`].; line 1 pos 10;
+
+        ''Aggregate [sum(cast(CASE WHEN isnotnull(''gross_usd) THEN CASE WHEN (''gross_usd
+        >= 0) THEN 1 ELSE 0 END ELSE 1 END as int)) AS sum(CAST(CASE WHEN (gross_usd
+        IS NOT NULL) THEN CASE WHEN (gross_usd >= 0) THEN 1 ELSE 0 END ELSE 1 END
+        AS INT))#119935, count(1) AS count(1)#119936L]
+
+        +- LogicalRDD [id#81714L, Poster_Link#81715, Series_Title#81716, Released_Year#81717L,
+        Certificate#81718, Runtime#81719, Genre#81720, IMDB_Rating#81721, Overview#81722,
+        Meta_score#81723, Director#81724, Star1#81725, Star2#81726, Star3#81727, Star4#81728,
+        No_of_Votes#81729L, Gross#81730], false
+
+        '
+      level: error
+      uid: c5338597-03a1-4dcb-8ad2-120d756f5531
+      source_assumptions:
+      - 657ec1e8-d347-4b18-9c4c-76b5ddd85d91
+    - suggestion: '.satisfies("CASE WHEN `imdb_rating` >= 7.0 AND `runtime_min` BETWEEN
+        60 AND 210 AND ( `primary_genre` IS NULL OR `primary_genre` NOT IN (''Short'')
+        ) THEN CASE WHEN `gross_usd` IS NOT NULL THEN 1 ELSE 0 END ELSE 1 END", "Eligible
+        rows should have parseable gross_usd", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `imdb_rating` >= 7.0
+        AND `runtime_min` BETWEEN 60 AND 210 AND ( `primary_genre` IS NULL OR `primary_genre`
+        NOT IN (''Short'') ) THEN CASE WHEN `gross_usd` IS NOT NULL THEN 1 ELSE 0
+        END ELSE 1 END", "Eligible rows should have parseable gross_usd", lambda x:
+        x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `runtime_min` cannot be resolved.
+        Did you mean one of the following? [`Runtime`, `Director`, `Genre`, `Poster_Link`,
+        `Star1`].; line 1 pos 35;
+
+        ''Aggregate [sum(cast(CASE WHEN (((imdb_rating#81721 >= cast(7.0 as double))
+        AND ((''runtime_min >= 60) AND (''runtime_min <= 210))) AND (isnull(''primary_genre)
+        OR NOT ''primary_genre IN (Short))) THEN CASE WHEN isnotnull(''gross_usd)
+        THEN 1 ELSE 0 END ELSE 1 END as int)) AS sum(CAST(CASE WHEN (((imdb_rating
+        >= 7.0) AND ((runtime_min >= 60) AND (runtime_min <= 210))) AND ((primary_genre
+        IS NULL) OR (NOT (primary_genre IN (Short))))) THEN CASE WHEN (gross_usd IS
+        NOT NULL) THEN 1 ELSE 0 END ELSE 1 END AS INT))#120075, count(1) AS count(1)#120076L]
+
+        +- LogicalRDD [id#81714L, Poster_Link#81715, Series_Title#81716, Released_Year#81717L,
+        Certificate#81718, Runtime#81719, Genre#81720, IMDB_Rating#81721, Overview#81722,
+        Meta_score#81723, Director#81724, Star1#81725, Star2#81726, Star3#81727, Star4#81728,
+        No_of_Votes#81729L, Gross#81730], false
+
+        '
+      level: warning
+      uid: fbe25c4f-7694-4913-a167-271fb547654f
+      source_assumptions:
+      - a889a8b3-2052-4438-ad2c-9e8c2ca3fb82
+    assumptions:
+    - text: 'Whenever the raw ''Gross'' field is present (not null), it should be
+        parseable by to_int_usd into an integer number of USD (digits with optional
+        commas). Concretely, for every row where Gross is not null, gross_usd should
+        be non-null and an integer. This can be enforced as a conditional completeness/validity
+        constraint, e.g. in Deequ: .hasCompleteness("gross_usd", predicate=lambda
+        row: row["Gross"] is null or row["gross_usd"] is not null) or (filter: "Gross
+        IS NOT NULL" then .isComplete(["gross_usd"]) / .isNonNegative(["gross_usd"])
+        if appropriate).'
+      sources:
+      - start_line: 16
+        end_line: 25
+        file: ''
+      - start_line: 54
+        end_line: 55
+        file: ''
+      - start_line: 126
+        end_line: 127
+        file: ''
+      - start_line: 136
+        end_line: 139
+        file: ''
+      uid: 8744ee19-e40f-4698-b9b6-d010388dab52
+    - text: 'There must be at least one (practically: a non-trivial fraction of) rows
+        with a valid gross_usd so that gross_fill = gross_usd.fillna(median) produces
+        a defined median and log_gross is computeable. If gross_usd is entirely null
+        then median/log operations will yield NaNs and licensing_score will be invalid.
+        This can be expressed as: count(gross_usd IS NOT NULL) > 0 (or count(gross_usd
+        IS NOT NULL) / count(*) >= X).'
+      sources:
+      - start_line: 54
+        end_line: 55
+        file: ''
+      - start_line: 75
+        end_line: 76
+        file: ''
+      - start_line: 92
+        end_line: 95
+        file: ''
+      uid: a096f613-dd9e-49fb-8416-41b28e4dd254
+    - text: 'The monetization term uses log_gross and log_gross.max() in the denominator;
+        therefore log1p(gross_usd.fillna(median)) must produce finite (non-NaN, non-infinite)
+        values and log_gross.max() must be finite. Concretely: all rows should have
+        finite log_gross and the global max(log_gross) should be finite (not NaN/Inf)
+        so (1 + log_gross.max()) is a valid finite divisor.'
+      sources:
+      - start_line: 75
+        end_line: 76
+        file: ''
+      - start_line: 92
+        end_line: 95
+        file: ''
+      uid: 657ec1e8-d347-4b18-9c4c-76b5ddd85d91
+    - text: 'For ranking/monetization to be meaningful, rows that pass eligibility
+        (the ''eligible'' mask) should generally have parseable gross values. In other
+        words, for rows where (imdb_rating >= 7.0 AND runtime_min between 60 and 210
+        AND primary_genre not in [''Short'']), gross_usd should be present/valid.
+        This can be enforced as a filtered completeness/validity constraint: filter
+        eligible rows then require gross_usd IS NOT NULL and numeric.'
+      sources:
+      - start_line: 101
+        end_line: 106
+        file: ''
+      - start_line: 54
+        end_line: 55
+        file: ''
+      - start_line: 75
+        end_line: 76
+        file: ''
+      uid: a889a8b3-2052-4438-ad2c-9e8c2ca3fb82
+  '["IMDB_Rating","Runtime"]':
+    code: []
+    assumptions:
+    - text: 'Rows that are intended to be "eligible" (and thus considered as candidates)
+        must satisfy the combined predicate: IMDB_Rating >= 7.0 AND Runtime (after
+        parsing into runtime_min) is between 60 and 210 minutes AND primary_genre
+        is not ''Short''. This can be enforced as a multi-column constraint, e.g.
+        a Deequ-style predicate: .satisfies("imdb_rating >= 7.0 AND runtime_min >=
+        60 AND runtime_min <= 210 AND primary_genre != ''Short''", "eligibility_predicate").'
+      sources:
+      - start_line: 47
+        end_line: 52
+        file: ''
+      - start_line: 71
+        end_line: 73
+        file: ''
+      - start_line: 101
+        end_line: 106
+        file: ''
+      uid: fab6fc12-e163-4ec9-99df-63e3adf79d00
+    - text: 'For rows that will be scored, the script assumes IMDB_Rating and Runtime
+        are present together: if imdb_rating is non-null then runtime_min should be
+        non-null (and vice versa). The scoring combines both components, so having
+        one present and the other missing will produce NaN licensing_score and incorrect
+        ranking. Enforceable as multi-column constraints such as: .satisfies("imdb_rating
+        IS NOT NULL => runtime_min IS NOT NULL", "rating_implies_runtime") and .satisfies("runtime_min
+        IS NOT NULL => imdb_rating IS NOT NULL", "runtime_implies_rating").'
+      sources:
+      - start_line: 47
+        end_line: 52
+        file: ''
+      - start_line: 76
+        end_line: 80
+        file: ''
+      - start_line: 92
+        end_line: 99
+        file: ''
+      uid: 51bab593-2734-4388-8ed3-d13302bdf8ed
+    - text: 'IMDB_Rating must be numeric and within a plausible rating range (e.g.,
+        0..10) and Runtime strings must contain an integer parseable by to_minutes
+        so that runtime_min falls within a reasonable movie duration (e.g., 30..400
+        minutes). These are multi-column / multi-field data quality expectations that
+        can be checked with constraints like: .satisfies("imdb_rating >= 0 AND imdb_rating
+        <= 10", "imdb_range") and .satisfies("runtime_min >= 30 AND runtime_min <=
+        400", "runtime_reasonable").'
+      sources:
+      - start_line: 9
+        end_line: 13
+        file: ''
+      - start_line: 47
+        end_line: 52
+        file: ''
+      - start_line: 78
+        end_line: 80
+        file: ''
+      uid: dad93ded-d4f5-4275-ae62-4e123b41c129
+  No_of_Votes:
+    code:
+    - suggestion: .isComplete('No_of_Votes')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 300cbf99-a75a-434c-90ea-7c3661175147
+      source_assumptions:
+      - 88c16ea6-34d1-492b-b159-f5fcdfa1393a
+    - suggestion: '.hasDataType(''No_of_Votes'', ''Integral'', lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''No_of_Votes'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: error
+      uid: b5b4ca05-69c2-4597-8647-dc6378e549ba
+      source_assumptions:
+      - 981f2bb2-5be4-4650-bc6a-f0213462d6f1
+    - suggestion: '.isNonNegative(''No_of_Votes'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7dd103a8-1033-4df8-910c-b2bb0dadb6f3
+      source_assumptions:
+      - b3ee0fa0-f668-42b3-a9c7-a2885d2e1e93
+    assumptions:
+    - text: 'The input column ''No_of_Votes'' must be numeric / integer-convertible.
+        The code calls pd.to_numeric(df[''No_of_Votes''], errors=''coerce'') which
+        will turn non-numeric strings into NaN; downstream the script expects a numeric
+        vote count to be present for output and downstream consumers. We can represent
+        this as a validation rule that values match an integer pattern (only digits)
+        or are parsable as integers.
+
+        We could represent this assumption as a Deequ/GRE-style constraint like this:
+
+        .satisfies("CASE WHEN `No_of_Votes` RLIKE ''^[0-9]+$'' THEN 1 ELSE 0 END",
+        "Votes integer-like", lambda x: x == 1)
+
+        (Or: check that casting to double does not produce nulls: .satisfies("CASE
+        WHEN CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Votes
+        numeric-parseable", lambda x: x == 1))'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 125
+        end_line: 127
+        file: ''
+      uid: 981f2bb2-5be4-4650-bc6a-f0213462d6f1
+    - text: 'The ''No_of_Votes'' column should be complete (no nulls). The dataset
+        metadata indicates completeness=1.0 and the pipeline writes the converted
+        votes into the final feed without handling missing votes, so input rows are
+        expected to include a value for every record.
+
+        We could represent this assumption as a Deequ constraint like this:
+
+        .satisfies("CASE WHEN `No_of_Votes` IS NOT NULL THEN 1 ELSE 0 END", "Non-null
+        Votes", lambda x: x == 1)'
+      sources:
+      - start_line: 42
+        end_line: 48
+        file: ''
+      - start_line: 125
+        end_line: 127
+        file: ''
+      uid: 88c16ea6-34d1-492b-b159-f5fcdfa1393a
+    - text: 'The ''No_of_Votes'' values represent counts and thus should be non-negative
+        integers (>= 0). Negative values would be semantically invalid for a vote
+        count and could break downstream consumers expecting counts.
+
+        We could represent this assumption as a Deequ constraint like this:
+
+        .satisfies("CASE WHEN `No_of_Votes` >= 0 THEN 1 ELSE 0 END", "Non-negative
+        Votes", lambda x: x == 1)
+
+        (If you also want to assert integer-ness after parsing: .satisfies("CASE WHEN
+        `No_of_Votes` = FLOOR(`No_of_Votes`) THEN 1 ELSE 0 END", "Integer Votes",
+        lambda x: x == 1))'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 125
+        end_line: 127
+        file: ''
+      uid: b3ee0fa0-f668-42b3-a9c7-a2885d2e1e93
+  Released_Year:
+    code:
+    - suggestion: .isComplete('Released_Year')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 69760ba0-0a3b-4850-98c1-ea089847a60a
+      source_assumptions:
+      - 2f38e0d3-20cc-42eb-839e-40e3b7181031
+    - suggestion: '.hasDataType(''Released_Year'', ''Integral'', lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Released_Year'',
+        ''Integral'', lambda x: x >= 0.99)'
+      level: error
+      uid: 0d250db1-33b7-4ea6-b248-edca3b59c604
+      source_assumptions:
+      - fffcd592-eca7-4421-87f4-ff55616853ac
+    - suggestion: '.satisfies(''CASE WHEN `Released_Year` BETWEEN 1880 AND 2100 THEN
+        1 ELSE 0 END'', ''Plausible year range'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9b2f245d-d134-4713-987f-10b09f4d6607
+      source_assumptions:
+      - a19c7bb0-6998-4c25-a45e-9ab591e5c000
+    - suggestion: '.hasUniqueness([''Series_Title'',''Released_Year''], lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 626ce581-8bf7-4df3-8881-c3783a3dd9dd
+      source_assumptions:
+      - 78d1fe49-92d8-4e0a-8eca-99b57be87dba
+    assumptions:
+    - text: 'The ''Released_Year'' column must be present for input rows (no NULL/empty
+        values). The code immediately converts this column to numeric with pd.to_numeric
+        and later relies on the presence of a year when building deterministic ids
+        and in the output ''year'' column. Represent as a validation rule such as:
+        .satisfies("CASE WHEN Released_Year IS NOT NULL AND trim(CAST(Released_Year
+        AS STRING)) <> '''' THEN 1 ELSE 0 END", ''Non-null Released_Year'', lambda
+        x: x == 1)'
+      sources:
+      - start_line: 42
+        end_line: 46
+        file: ''
+      uid: 2f38e0d3-20cc-42eb-839e-40e3b7181031
+    - text: 'Values in ''Released_Year'' should be numeric/integer (e.g., digit-only
+        year strings or integers). The code uses pd.to_numeric(..., errors=''coerce'')
+        so non-numeric values will become NaN and any rows where the year cannot be
+        parsed will lose the year information (affecting title_id creation). Represent
+        as a validation rule such as: .satisfies("CASE WHEN regexp_like(CAST(Released_Year
+        AS STRING), ''^\d+$'') THEN 1 ELSE 0 END", ''Numeric integer year format'',
+        lambda x: x >= 0.99) to require that almost all rows are integer years.'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: fffcd592-eca7-4421-87f4-ff55616853ac
+    - text: 'Released_Year should fall in a plausible movie release-year range (e.g.,
+        between 1880 and a reasonable future bound such as the current year + 1).
+        This prevents outliers or parse errors that produce unrealistic year values.
+        Represent as a validation rule such as: .satisfies("CASE WHEN Released_Year
+        BETWEEN 1880 AND 2100 THEN 1 ELSE 0 END", ''Plausible year range'', lambda
+        x: x >= 0.99).'
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: a19c7bb0-6998-4c25-a45e-9ab591e5c000
+    - text: 'The pair (Series_Title, Released_Year) is expected to be unique so that
+        the deterministic id produced by slugify(title) + ''-'' + int(year) identifies
+        a single title. If duplicates exist, downstream logic that assumes title+year
+        uniqueness will be invalid. Represent as a validation rule such as: .satisfies("CASE
+        WHEN COUNT(*) = COUNT(DISTINCT CONCAT(COALESCE(Series_Title,''''), ''::'',
+        CAST(Released_Year AS STRING))) THEN 1 ELSE 0 END", ''Title+Year uniqueness'',
+        lambda x: x == 1).'
+      sources:
+      - start_line: 57
+        end_line: 68
+        file: ''
+      uid: 78d1fe49-92d8-4e0a-8eca-99b57be87dba
+  Runtime:
+    code:
+    - suggestion: .isComplete('Runtime')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2ecbe8bc-040b-42ef-8e98-7e80bbbf511d
+      source_assumptions:
+      - 7453c0a4-6259-4f9d-93f8-e1e473a3aaa2
+    - suggestion: '.satisfies("CASE WHEN `Runtime` RLIKE ''\d+'' THEN 1 ELSE 0 END",
+        "Runtime contains digit", lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `Runtime` RLIKE ''\d+''
+        THEN 1 ELSE 0 END", "Runtime contains digit", lambda x: x >= 0.99)'' failed
+        on data sample: Value: 0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: cfadb646-c21e-403d-aae8-b2bb99ade966
+      source_assumptions:
+      - c4df907e-ef5f-4f81-a4ae-89a2f41b6946
+    - suggestion: '.satisfies("CASE WHEN `Runtime` RLIKE ''\b\d+\s*h\b'' THEN 0 ELSE
+        1 END", "Runtime not in hours-only format", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 351bd2c9-1bf2-4273-a77b-1e55295533d9
+      source_assumptions:
+      - f80c0d48-7e9d-4dd6-b06b-9431a04eb9aa
+    - suggestion: '.satisfies("CASE WHEN CAST(REGEXP_EXTRACT(`Runtime`, ''(\\d+)'')
+        AS INT) BETWEEN 60 AND 210 THEN 1 ELSE 0 END", "Runtime within eligibility
+        range (60..210)", lambda x: x >= 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 24654a27-7e81-413b-9e6d-3e5b73fa89bd
+      source_assumptions:
+      - 31d7756f-8666-412c-822d-8b968f25de4a
+    assumptions:
+    - text: 'The ''Runtime'' input column should not be null or entirely missing for
+        rows that the pipeline is expected to evaluate: the code calls to_minutes()
+        and maps it (so nulls become NaN and will make rows ineligible). This can
+        be expressed as a completeness constraint, e.g. .satisfies("CASE WHEN `Runtime`
+        IS NOT NULL THEN 1 ELSE 0 END", "Runtime non-null", lambda x: x == 1).'
+      sources:
+      - start_line: 9
+        end_line: 13
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 7453c0a4-6259-4f9d-93f8-e1e473a3aaa2
+    - text: 'Each ''Runtime'' string should contain at least one digit so the extractor
+        re.search(r''(\\d+)'') can extract an integer minute value. In Deequ/SQL form:
+        .satisfies("CASE WHEN `Runtime` RLIKE ''\\d+'' THEN 1 ELSE 0 END", "Runtime
+        contains digit", lambda x: x == 1) (or >= 0.95 if a small fraction of exceptions
+        is acceptable).'
+      sources:
+      - start_line: 12
+        end_line: 13
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: c4df907e-ef5f-4f81-a4ae-89a2f41b6946
+    - text: 'The first integer appearing in the ''Runtime'' string must represent
+        minutes (not hours) because to_minutes() takes the first number verbatim without
+        unit conversion. Put another way: runtime strings must be expressed in minutes
+        (e.g., ''95'', ''95 min'', ''95 mins'') rather than hour-based forms like
+        ''1h 35m'' whose first number would be misinterpreted as 1 minute. A rule
+        example: fail rows matching patterns that indicate hours-only like RLIKE ''\\b\d+\s*h\b''
+        or enforce that parsed minutes are in a realistic minutes range (see next
+        assumption).'
+      sources:
+      - start_line: 12
+        end_line: 13
+        file: ''
+      - start_line: 79
+        end_line: 80
+        file: ''
+      - start_line: 102
+        end_line: 105
+        file: ''
+      uid: f80c0d48-7e9d-4dd6-b06b-9431a04eb9aa
+    - text: 'After parsing the first integer, the resulting runtime (runtime_min)
+        should be a plausible positive minute value. At minimum enforce a broad numeric
+        range (e.g., 1..1000) for all rows and enforce 60..210 for rows expected to
+        be eligible (the code filters eligible rows by runtime_min.between(60, 210)).
+        Example Deequ constraints: .satisfies("CASE WHEN CAST(REGEXP_EXTRACT(`Runtime`,
+        ''(\\\d+)'') AS INT) BETWEEN 1 AND 1000 THEN 1 ELSE 0 END", "Runtime plausible
+        range", lambda x: x >= 0.99) and .satisfies("CASE WHEN CAST(REGEXP_EXTRACT(`Runtime`,
+        ''(\\\d+)'') AS INT) BETWEEN 60 AND 210 THEN 1 ELSE 0 END", "Runtime within
+        eligibility range (for eligible set)", lambda x: x >= 0).'
+      sources:
+      - start_line: 12
+        end_line: 13
+        file: ''
+      - start_line: 79
+        end_line: 80
+        file: ''
+      - start_line: 102
+        end_line: 105
+        file: ''
+      - start_line: 125
+        end_line: 127
+        file: ''
+      uid: 31d7756f-8666-412c-822d-8b968f25de4a
+  '["Released_Year","Series_Title"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3d56c7ed-64ee-420a-9874-bb8d6e5af638
+      source_assumptions:
+      - 05bcd956-119d-4252-80cb-40752591159a
+    - suggestion: .hasUniqueness(['title']).where("year IS NULL")
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasUniqueness([''title'']).where("year
+        IS NULL")'': Check.hasUniqueness() missing 1 required positional argument:
+        ''assertion'''
+      level: error
+      uid: 1ed3caa1-97bb-468e-9ee9-446916ebf994
+      source_assumptions:
+      - 896b41d0-b437-4f8d-ac28-7fc8722e8473
+    - suggestion: '.satisfies("CASE WHEN `Released_Year` IS NOT NULL THEN CASE WHEN
+        `Series_Title` IS NOT NULL AND TRIM(CAST(`Series_Title` AS STRING)) <> ''''
+        THEN 1 ELSE 0 END ELSE 1 END", "Title present when year present", lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8ffeb69d-f4c5-4a0f-9670-a818601d95a5
+      source_assumptions:
+      - b105610d-124c-4d4b-b994-75cb4f6205b1
+    assumptions:
+    - text: 'The combination of the normalized title and year must be unique across
+        the dataset. The code builds normalized fields df[''title''] (from Series_Title)
+        and df[''year''] (from Released_Year) and then constructs a deterministic
+        id from them (slugify(title) + ''-'' + int(year) when year is present). To
+        avoid duplicate title_id values, each pair (title, year) should be unique.
+        This can be expressed as a multi-column uniqueness constraint on the normalized
+        columns produced by the pipeline, e.g. in Deequ: .isUnique(["title", "year"]).'
+      sources:
+      - start_line: 45
+        end_line: 46
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: 05bcd956-119d-4252-80cb-40752591159a
+    - text: 'For rows where Released_Year (df[''year'']) is missing, the slugified/normalized
+        Series_Title must be unique among those rows. When year is null the code falls
+        back to using only slugify(title) as the title_id, so multiple rows with the
+        same slugified title and no year would produce duplicate title_id. Enforce
+        uniqueness on slugified title for the subset where year is null (e.g., in
+        Deequ: .isUnique(["title"]).where("year IS NULL") or apply uniqueness check
+        on a derived slug column filtered to year IS NULL).'
+      sources:
+      - start_line: 28
+        end_line: 32
+        file: ''
+      - start_line: 45
+        end_line: 46
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: 896b41d0-b437-4f8d-ac28-7fc8722e8473
+    - text: 'Whenever Released_Year (df[''year'']) is present (not null), the corresponding
+        Series_Title (df[''title'']) must be non-empty / non-blank after normalization.
+        The title_id construction casts year to int and concatenates it with a slugified
+        title; a missing or blank title together with a present year would produce
+        an invalid or ambiguous id. This can be enforced as a conditional completeness
+        constraint: all rows where year IS NOT NULL must have title != '''' (or title
+        IS NOT NULL and title.trim() != '''').'
+      sources:
+      - start_line: 45
+        end_line: 46
+        file: ''
+      - start_line: 28
+        end_line: 32
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: b105610d-124c-4d4b-b994-75cb4f6205b1
+  '["Released_Year","Series_Title","title_id"]':
+    code: []
+    assumptions:
+    - text: 'The combination of normalized Series_Title (the ''title'' column derived
+        from Series_Title by trimming and lower/slugifying) and Released_Year (the
+        ''year'' numeric column) must be unique across the dataset. This ensures deterministic
+        title_id generation from title + year does not collide. Representable as a
+        Deequ-style uniqueness constraint such as: .isUnique(["Series_Title", "Released_Year"])
+        or .isUnique(["title", "year"]).'
+      sources:
+      - start_line: 45
+        end_line: 46
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: ba3e3778-8a95-429e-9ba8-bb57d423fe73
+    - text: 'The title_id column must be a deterministic function of Series_Title
+        and Released_Year: when year is present, title_id == slugify(Series_Title)
+        + ''-'' + str(int(Released_Year)); when year is missing, title_id == slugify(Series_Title).
+        This is a multi-column equality constraint tying title_id to Series_Title
+        and Released_Year and can be checked with a row-level predicate (e.g. Deequ
+        .satisfies) that reimplements the slugify logic and numeric cast.'
+      sources:
+      - start_line: 28
+        end_line: 32
+        file: ''
+      - start_line: 45
+        end_line: 46
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: 7442597f-b784-48fd-9e99-936358fea334
+    - text: For records where Released_Year is null/NaN, Series_Title alone must be
+        unique among those records (because title_id will be derived only from the
+        slugified title for such rows). This prevents collisions in title_id for rows
+        missing year.
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: 8a386d05-1d5b-4f1d-9401-628f9fb02955
+    - text: Released_Year must be convertible to an integer without loss (i.e., numeric
+        and integral) for rows where the code uses int(year) when building title_id.
+        In other words, if Released_Year is not null then floor(Released_Year) ==
+        Released_Year. This can be enforced as a multi-column sanity check on Released_Year
+        (and its interaction with title_id generation).
+      sources:
+      - start_line: 46
+        end_line: 46
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: da03b5a6-f56f-4aec-9c6c-d40286ab143e
+  '["Released_Year","title_id"]':
+    code:
+    - suggestion: '.hasUniqueness([''Series_Title'',''Released_Year''], lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b5ffbaaa-12dd-4360-92d6-edead95c4a8f
+      source_assumptions:
+      - 92021585-77ea-4c07-abfa-d01f46a4b7b3
+    - suggestion: '.satisfies("(Released_Year IS NOT NULL AND title_id rlike concat(''-'',
+        cast(Released_Year as string), ''$'')) OR (Released_Year IS NULL AND title_id
+        rlike ''^[a-z0-9-]+$'')", "Title ID format", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("(Released_Year IS NOT NULL AND
+        title_id rlike concat(''-'', cast(Released_Year as string), ''$'')) OR (Released_Year
+        IS NULL AND title_id rlike ''^[a-z0-9-]+$'')", "Title ID format", lambda x:
+        x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `title_id` cannot be resolved. Did
+        you mean one of the following? [`Star1`, `Star2`, `Star3`, `Star4`, `id`].;
+        line 1 pos 31;
+
+        ''Aggregate [sum(cast(((isnotnull(Released_Year#81717L) AND RLIKE(''title_id,
+        concat(-, cast(Released_Year#81717L as string), $))) OR (isnull(Released_Year#81717L)
+        AND RLIKE(''title_id, ^[a-z0-9-]+$))) as int)) AS sum(CAST((((Released_Year
+        IS NOT NULL) AND RLIKE(title_id, concat(-, CAST(Released_Year AS STRING),
+        $))) OR ((Released_Year IS NULL) AND RLIKE(title_id, ^[a-z0-9-]+$))) AS INT))#119651,
+        count(1) AS count(1)#119652L]
+
+        +- LogicalRDD [id#81714L, Poster_Link#81715, Series_Title#81716, Released_Year#81717L,
+        Certificate#81718, Runtime#81719, Genre#81720, IMDB_Rating#81721, Overview#81722,
+        Meta_score#81723, Director#81724, Star1#81725, Star2#81726, Star3#81727, Star4#81728,
+        No_of_Votes#81729L, Gross#81730], false
+
+        '
+      level: error
+      uid: 909b4d07-9db6-4a39-a0c8-c0d50f245720
+      source_assumptions:
+      - a618bb30-a08f-45b2-9441-8f0f1b441783
+    - suggestion: '.satisfies("Star1 IS NOT NULL AND Star1 <> '''' AND Star2 IS NOT
+        NULL AND Star2 <> '''' AND Star3 IS NOT NULL AND Star3 <> '''' AND Star4 IS
+        NOT NULL AND Star4 <> '''' AND size(array_distinct(array(Star1, Star2, Star3,
+        Star4))) = 4", "Cast integrity", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("Star1 IS NOT NULL AND Star1 <>
+        '''' AND Star2 IS NOT NULL AND Star2 <> '''' AND Star3 IS NOT NULL AND Star3
+        <> '''' AND Star4 IS NOT NULL AND Star4 <> '''' AND size(array_distinct(array(Star1,
+        Star2, Star3, Star4))) = 4", "Cast integrity", lambda x: x == 1)'' failed
+        on data sample: Value: 0.993322203672788 does not meet the constraint requirement!'
+      level: error
+      uid: 200eeaa3-40a0-40ed-b48d-8b2d7e1481ea
+      source_assumptions:
+      - 2a0475f3-979c-4f00-a663-8f5ba4c983e4
+    - suggestion: '.satisfies("NOT (imdb_rating >= 7.0 AND runtime_min >= 60 AND runtime_min
+        <= 210) OR (primary_genre IS NOT NULL AND primary_genre <> ''Short'')", "Eligibility
+        interlock", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("NOT (imdb_rating >= 7.0 AND runtime_min
+        >= 60 AND runtime_min <= 210) OR (primary_genre IS NOT NULL AND primary_genre
+        <> ''Short'')", "Eligibility interlock", lambda x: x == 1)'' failed on data
+        sample: org.apache.spark.sql.AnalysisException: [UNRESOLVED_COLUMN.WITH_SUGGESTION]
+        A column or function parameter with name `runtime_min` cannot be resolved.
+        Did you mean one of the following? [`Runtime`, `Director`, `Genre`, `Poster_Link`,
+        `Star1`].; line 1 pos 28;
+
+        ''Aggregate [sum(cast((NOT (((imdb_rating#81721 >= cast(7.0 as double)) AND
+        (''runtime_min >= 60)) AND (''runtime_min <= 210)) OR (isnotnull(''primary_genre)
+        AND NOT (''primary_genre = Short))) as int)) AS sum(CAST(((NOT (((imdb_rating
+        >= 7.0) AND (runtime_min >= 60)) AND (runtime_min <= 210))) OR ((primary_genre
+        IS NOT NULL) AND (NOT (primary_genre = Short)))) AS INT))#119649, count(1)
+        AS count(1)#119650L]
+
+        +- LogicalRDD [id#81714L, Poster_Link#81715, Series_Title#81716, Released_Year#81717L,
+        Certificate#81718, Runtime#81719, Genre#81720, IMDB_Rating#81721, Overview#81722,
+        Meta_score#81723, Director#81724, Star1#81725, Star2#81726, Star3#81727, Star4#81728,
+        No_of_Votes#81729L, Gross#81730], false
+
+        '
+      level: warning
+      uid: 5edc3a61-c535-4f63-8f78-07c55bfe1b14
+      source_assumptions:
+      - c305270f-60aa-4f67-aa6a-f1b2b6fd6091
+    assumptions:
+    - text: 'The combination of ''title'' (derived from Series_Title) and ''year''
+        (derived from Released_Year) should uniquely identify a record. In other words,
+        no two rows should share the same (title, year) pair. This is the basis for
+        generating a deterministic title_id and can be enforced with a multi-column
+        uniqueness constraint, e.g. Deequ: .isUnique(["title","year"]) (or equivalently
+        .isUnique(["title_id"]) after generation).'
+      sources:
+      - start_line: 44
+        end_line: 48
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: 92021585-77ea-4c07-abfa-d01f46a4b7b3
+    - text: 'title_id is constructed from title and Released_Year. Specifically: if
+        Released_Year is non-null then title_id must equal slugify(title) + ''-''
+        + str(int(Released_Year)); if Released_Year is null then title_id must equal
+        slugify(title). Actionable check: for rows with Released_Year present, title_id
+        should end with ''-'' + Released_Year (as a 4-digit year) and otherwise contain
+        only the slugified title. This can be enforced with a conditional multi-column
+        predicate (example pseudo-Deequ): .satisfies("(Released_Year IS NOT NULL AND
+        title_id rlike concat(''-'', cast(Released_Year as string), ''$'')) OR (Released_Year
+        IS NULL AND title_id rlike ''^[a-z0-9-]+$'')").'
+      sources:
+      - start_line: 28
+        end_line: 32
+        file: ''
+      - start_line: 44
+        end_line: 48
+        file: ''
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: a618bb30-a08f-45b2-9441-8f0f1b441783
+    - text: 'Cast integrity: the four cast columns (Star1, Star2, Star3, Star4) are
+        expected to be present, non-empty, and mutually distinct for correct cast_diversity
+        computation. Concretely, for valid rows none of Star1..Star4 should be null/empty
+        and size(array_distinct(array(Star1,Star2,Star3,Star4))) should equal 4. This
+        can be expressed as a multi-column predicate, e.g. Deequ-like: .satisfies("Star1
+        IS NOT NULL AND Star2 IS NOT NULL AND Star3 IS NOT NULL AND Star4 IS NOT NULL
+        AND size(array_distinct(array(Star1,Star2,Star3,Star4))) = 4").'
+      sources:
+      - start_line: 59
+        end_line: 65
+        file: ''
+      - start_line: 82
+        end_line: 85
+        file: ''
+      uid: 2a0475f3-979c-4f00-a663-8f5ba4c983e4
+    - text: 'Eligibility interlock: rows that are considered eligible (imdb_rating
+        >= 7.0 AND runtime_min between 60 and 210) must also have a valid primary_genre
+        and that genre must not be ''Short''. In practice enforce that whenever (imdb_rating
+        >= 7.0 AND runtime_min BETWEEN 60 AND 210) then (primary_genre IS NOT NULL
+        AND primary_genre <> ''Short''). This is a conditional multi-column constraint
+        and can be implemented as: .satisfies("NOT (imdb_rating >= 7.0 AND runtime_min
+        >= 60 AND runtime_min <= 210) OR (primary_genre IS NOT NULL AND primary_genre
+        <> ''Short'')").'
+      sources:
+      - start_line: 70
+        end_line: 73
+        file: ''
+      - start_line: 101
+        end_line: 106
+        file: ''
+      uid: c305270f-60aa-4f67-aa6a-f1b2b6fd6091
+  '["Runtime","runtime_min"]':
+    code:
+    - suggestion: '.satisfies("NOT(Runtime IS NOT NULL) OR runtime_min = CAST(regexp_extract(Runtime,
+        ''([0-9]+)'', 1) AS int)", "runtime_min_matches_runtime_parse", lambda x:
+        x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("NOT(Runtime IS NOT NULL) OR runtime_min
+        = CAST(regexp_extract(Runtime, ''([0-9]+)'', 1) AS int)", "runtime_min_matches_runtime_parse",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `runtime_min` cannot be resolved. Did you mean one of the following? [`Runtime`,
+        `Director`, `Genre`, `Poster_Link`, `Star1`].; line 1 pos 28;
+
+        ''Aggregate [sum(cast((NOT isnotnull(Runtime#81719) OR (''runtime_min = cast(regexp_extract(Runtime#81719,
+        ([0-9]+), 1) as int))) as int)) AS sum(CAST(((NOT (Runtime IS NOT NULL)) OR
+        (runtime_min = CAST(regexp_extract(Runtime, ([0-9]+), 1) AS INT))) AS INT))#120181,
+        count(1) AS count(1)#120182L]
+
+        +- LogicalRDD [id#81714L, Poster_Link#81715, Series_Title#81716, Released_Year#81717L,
+        Certificate#81718, Runtime#81719, Genre#81720, IMDB_Rating#81721, Overview#81722,
+        Meta_score#81723, Director#81724, Star1#81725, Star2#81726, Star3#81727, Star4#81728,
+        No_of_Votes#81729L, Gross#81730], false
+
+        '
+      level: error
+      uid: 165d1957-b98a-48c8-8708-4a7790e2c99c
+      source_assumptions:
+      - ef951ba7-e22d-4457-9b8d-82e841e78ab8
+    - suggestion: '.satisfies("NOT(imdb_rating >= 7.0 AND primary_genre <> ''Short'')
+        OR (runtime_min BETWEEN 60 AND 210)", "eligible_rows_have_runtime_in_range",
+        lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("NOT(imdb_rating >= 7.0 AND primary_genre
+        <> ''Short'') OR (runtime_min BETWEEN 60 AND 210)", "eligible_rows_have_runtime_in_range",
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `primary_genre` cannot be resolved. Did you mean one of the following? [`Director`,
+        `Genre`, `Meta_score`, `Overview`, `Poster_Link`].; line 1 pos 27;
+
+        ''Aggregate [sum(cast((NOT ((imdb_rating#81721 >= cast(7.0 as double)) AND
+        NOT (''primary_genre = Short)) OR ((''runtime_min >= 60) AND (''runtime_min
+        <= 210))) as int)) AS sum(CAST(((NOT ((imdb_rating >= 7.0) AND (NOT (primary_genre
+        = Short)))) OR ((runtime_min >= 60) AND (runtime_min <= 210))) AS INT))#120178,
+        count(1) AS count(1)#120179L]
+
+        +- LogicalRDD [id#81714L, Poster_Link#81715, Series_Title#81716, Released_Year#81717L,
+        Certificate#81718, Runtime#81719, Genre#81720, IMDB_Rating#81721, Overview#81722,
+        Meta_score#81723, Director#81724, Star1#81725, Star2#81726, Star3#81727, Star4#81728,
+        No_of_Votes#81729L, Gross#81730], false
+
+        '
+      level: error
+      uid: f1db8f93-5e0b-4694-9560-a8ad647f1909
+      source_assumptions:
+      - d93dd3de-ef01-411c-aaaa-09eb4502e3bf
+    - suggestion: '.satisfies("NOT(Genre = ''Short'') OR cast(regexp_replace(Runtime,
+        ''[^0-9]'', '''') AS int) < 60", "shorts_have_short_runtime", lambda x: x
+        == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d6f31934-d444-4d8b-b9e0-3e6e27073a9f
+      source_assumptions:
+      - 521fe081-15dd-4b58-9e4c-a4110c12924d
+    assumptions:
+    - text: 'runtime_min must equal the integer minute value parsed from the Runtime
+        string (the code''s to_minutes() extracts the first numeric token). In other
+        words, for every row where Runtime is not null, runtime_min should equal int(regexp_extract(Runtime,
+        ''(\d+)'', 1)). An actionable Deequ-style constraint example:
+
+        .satisfies("runtime_min = CAST(regexp_extract(Runtime, ''(\\d+)'', 1) AS int)")
+
+        (or as an implication to tolerate fully-missing runtimes: NOT(Runtime IS NOT
+        NULL) OR runtime_min = CAST(regexp_extract(Runtime, ''(\\d+)'', 1) AS int))'
+      sources:
+      - start_line: 9
+        end_line: 13
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: ef951ba7-e22d-4457-9b8d-82e841e78ab8
+    - text: 'Rows that the pipeline considers ''eligible'' (i.e., imdb_rating >= 7.0
+        and primary_genre != ''Short'') are expected to have a parsed runtime in the
+        60..210 minute range. Concretely: if (imdb_rating >= 7.0 AND primary_genre
+        <> ''Short'') then runtime_min must be non-null and between 60 and 210. An
+        example Deequ-style constraint (boolean implication):
+
+        .satisfies("NOT(imdb_rating >= 7.0 AND primary_genre <> ''Short'') OR (runtime_min
+        BETWEEN 60 AND 210)")'
+      sources:
+      - start_line: 47
+        end_line: 47
+        file: ''
+      - start_line: 71
+        end_line: 72
+        file: ''
+      - start_line: 102
+        end_line: 106
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: d93dd3de-ef01-411c-aaaa-09eb4502e3bf
+    - text: 'Primary-genre ''Short'' rows should correspond to short runtimes. If
+        primary_genre == ''Short'' then runtime_min should be below a short-film threshold
+        (for example < 60 minutes). This prevents mislabelled shorts that would otherwise
+        be treated inconsistently. Deequ-style constraint example:
+
+        .satisfies("NOT(primary_genre = ''Short'') OR runtime_min < 60")'
+      sources:
+      - start_line: 71
+        end_line: 72
+        file: ''
+      - start_line: 104
+        end_line: 104
+        file: ''
+      - start_line: 52
+        end_line: 52
+        file: ''
+      uid: 521fe081-15dd-4b58-9e4c-a4110c12924d
+  Series_Title:
+    code:
+    - suggestion: '.satisfies("Series_Title RLIKE ''[A-Za-z0-9]''", ''Series_Title
+        contains at least one alphanumeric character'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2fc3996f-75ea-4abe-8cd4-c1d889f71ba8
+      source_assumptions:
+      - 104107a1-e5ca-497c-9319-647cb048cb45
+    - suggestion: '.hasUniqueness([''Series_Title'', ''Released_Year''], lambda x:
+        x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7b807873-ddba-474c-ab0f-3a8f44274340
+      source_assumptions:
+      - d79f6d55-468d-4e05-b7e1-a509fb326bb3
+    assumptions:
+    - text: 'Series_Title must be non-null for all input rows (the code reads Series_Title
+        and immediately converts it to string/strips it to form ''title''). This can
+        be expressed as a validation: CASE WHEN `Series_Title` IS NOT NULL THEN 1
+        ELSE 0 END should equal 1 for all rows.'
+      sources:
+      - start_line: 42
+        end_line: 45
+        file: ''
+      uid: f610aa7d-dde5-4ebc-a284-d2163f903771
+    - text: 'After trimming whitespace, Series_Title should not be an empty string
+        (no rows that are empty or only whitespace). The code relies on non-empty
+        titles when generating slugs and IDs. Example validation: CASE WHEN trim(Series_Title)
+        <> '''' THEN 1 ELSE 0 END should equal 1 for all rows.'
+      sources:
+      - start_line: 28
+        end_line: 32
+        file: ''
+      - start_line: 45
+        end_line: 45
+        file: ''
+      uid: 7fbc74b2-c746-4aaa-b68d-a8111f57b191
+    - text: 'Series_Title should contain at least one alphanumeric character (A-Z,
+        a-z, or 0-9) so that slugify produces a non-empty, meaningful slug. Example
+        validation: CASE WHEN Series_Title RLIKE ''[A-Za-z0-9]'' THEN 1 ELSE 0 END
+        should equal 1 for all rows.'
+      sources:
+      - start_line: 28
+        end_line: 32
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: 104107a1-e5ca-497c-9319-647cb048cb45
+    - text: 'The combination of the normalized title and Released_Year should be unique
+        (i.e., (slugified(lower(trim(Series_Title))), Released_Year) pairs are unique).
+        This ensures deterministic title_id values don''t collide. Example validation
+        (SQL-like): COUNT(DISTINCT concat(lower(trim(Series_Title)), ''-'', coalesce(cast(Released_Year
+        as string), ''''))) == COUNT(*) . If Released_Year is null for some rows,
+        the slug alone should be unique among rows with null year.'
+      sources:
+      - start_line: 66
+        end_line: 68
+        file: ''
+      uid: d79f6d55-468d-4e05-b7e1-a509fb326bb3
+  '["Star1","Star2","Star3","Star4"]':
+    code: []
+    assumptions:
+    - text: 'All four star columns (Star1, Star2, Star3, Star4) must be present as
+        non-null, non-empty, non-whitespace strings and must not contain the literal
+        ''nan'' (case-insensitive). This matches the explicit guard in _check_cast_row
+        that rejects names that are '''' or ''nan''. An actionable Deequ-style constraint
+        could be expressed as a row-level predicate, for example:
+
+        .satisfies("lower(trim(Star1)) <> '''' AND lower(trim(Star1)) <> ''nan'' AND
+        lower(trim(Star2)) <> '''' AND lower(trim(Star2)) <> ''nan'' AND lower(trim(Star3))
+        <> '''' AND lower(trim(Star3)) <> ''nan'' AND lower(trim(Star4)) <> '''' AND
+        lower(trim(Star4)) <> ''nan''", "stars_non_empty_not_literal_nan")'
+      sources:
+      - start_line: 59
+        end_line: 63
+        file: ''
+      uid: 7f8274af-33bc-4a12-b0f8-f0751bea306a
+    - text: 'Within each record, the four star columns must be pairwise distinct (no
+        duplicate actor names across Star1..Star4 for the same row). The code checks
+        len(set(names)) == 4 and later computes cast_diversity as the size of the
+        distinct set divided by 4. An actionable Deequ-style row-level constraint
+        is, for example:
+
+        .satisfies("size(array_distinct(array(Star1, Star2, Star3, Star4))) = 4",
+        "stars_all_distinct_within_row")'
+      sources:
+      - start_line: 64
+        end_line: 64
+        file: ''
+      - start_line: 82
+        end_line: 85
+        file: ''
+      uid: 56adb0d0-25fc-4c80-8794-d944fcb5f401
+column_data_flow_locations:
+  '["Star1","Star2","Star3","Star4"]':
+  - start_line: 59
+    end_line: 149
+    file: ''
+  '["Released_Year","Series_Title"]':
+  - start_line: 28
+    end_line: 32
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 45
+    end_line: 46
+    file: ''
+  - start_line: 67
+    end_line: 68
+    file: ''
+  - start_line: 109
+    end_line: 109
+    file: ''
+  - start_line: 125
+    end_line: 133
+    file: ''
+  - start_line: 136
+    end_line: 145
+    file: ''
+  '["Released_Year","Series_Title","title_id"]': []
+  '["Genre","primary_genre"]': []
+  '["Runtime","runtime_min"]':
+  - start_line: 9
+    end_line: 13
+    file: ''
+  - start_line: 41
+    end_line: 52
+    file: ''
+  - start_line: 75
+    end_line: 80
+    file: ''
+  - start_line: 91
+    end_line: 99
+    file: ''
+  - start_line: 102
+    end_line: 109
+    file: ''
+  - start_line: 111
+    end_line: 113
+    file: ''
+  - start_line: 122
+    end_line: 133
+    file: ''
+  - start_line: 136
+    end_line: 141
+    file: ''
+  '["Gross","gross_usd"]':
+  - start_line: 1
+    end_line: 6
+    file: ''
+  - start_line: 16
+    end_line: 25
+    file: ''
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 54
+    end_line: 55
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 92
+    end_line: 99
+    file: ''
+  - start_line: 109
+    end_line: 113
+    file: ''
+  - start_line: 115
+    end_line: 122
+    file: ''
+  - start_line: 127
+    end_line: 133
+    file: ''
+  - start_line: 136
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 145
+    file: ''
+  - start_line: 148
+    end_line: 149
+    file: ''
+  '["Certificate","cert_factor"]':
+  - start_line: 1
+    end_line: 6
+    file: ''
+  - start_line: 9
+    end_line: 13
+    file: ''
+  - start_line: 16
+    end_line: 25
+    file: ''
+  - start_line: 42
+    end_line: 55
+    file: ''
+  - start_line: 71
+    end_line: 86
+    file: ''
+  - start_line: 88
+    end_line: 99
+    file: ''
+  - start_line: 102
+    end_line: 114
+    file: ''
+  - start_line: 115
+    end_line: 123
+    file: ''
+  - start_line: 124
+    end_line: 133
+    file: ''
+  - start_line: 136
+    end_line: 145
+    file: ''
+  '["IMDB_Rating","Runtime"]': []
+  '["Certificate","Genre","Gross","IMDB_Rating","Runtime","Star1","Star2","Star3","Star4"]':
+  - start_line: 1
+    end_line: 6
+    file: ''
+  - start_line: 9
+    end_line: 13
+    file: ''
+  - start_line: 16
+    end_line: 25
+    file: ''
+  - start_line: 35
+    end_line: 54
+    file: ''
+  - start_line: 55
+    end_line: 80
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  - start_line: 88
+    end_line: 99
+    file: ''
+  - start_line: 102
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 122
+    file: ''
+  - start_line: 125
+    end_line: 133
+    file: ''
+  - start_line: 136
+    end_line: 145
+    file: ''
+  - start_line: 148
+    end_line: 149
+    file: ''
+  '["Released_Year","title_id"]': []
+  IMDB_Rating:
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 47
+    end_line: 47
+    file: ''
+  - start_line: 77
+    end_line: 77
+    file: ''
+  - start_line: 92
+    end_line: 97
+    file: ''
+  - start_line: 99
+    end_line: 99
+    file: ''
+  - start_line: 103
+    end_line: 103
+    file: ''
+  - start_line: 109
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 113
+    file: ''
+  - start_line: 122
+    end_line: 122
+    file: ''
+  - start_line: 126
+    end_line: 126
+    file: ''
+  - start_line: 133
+    end_line: 133
+    file: ''
+  - start_line: 140
+    end_line: 141
+    file: ''
+  Released_Year:
+  - start_line: 46
+    end_line: 46
+    file: ''
+  - start_line: 67
+    end_line: 68
+    file: ''
+  - start_line: 109
+    end_line: 109
+    file: ''
+  - start_line: 125
+    end_line: 128
+    file: ''
+  - start_line: 133
+    end_line: 133
+    file: ''
+  No_of_Votes:
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 48
+    end_line: 48
+    file: ''
+  - start_line: 109
+    end_line: 133
+    file: ''
+  Star1:
+  - start_line: 60
+    end_line: 64
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  Star2:
+  - start_line: 59
+    end_line: 64
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  Star3:
+  - start_line: 60
+    end_line: 61
+    file: ''
+  - start_line: 83
+    end_line: 85
+    file: ''
+  Star4:
+  - start_line: 60
+    end_line: 61
+    file: ''
+  - start_line: 84
+    end_line: 84
+    file: ''
+  Gross:
+  - start_line: 16
+    end_line: 25
+    file: ''
+  - start_line: 54
+    end_line: 55
+    file: ''
+  - start_line: 75
+    end_line: 76
+    file: ''
+  - start_line: 92
+    end_line: 99
+    file: ''
+  - start_line: 109
+    end_line: 109
+    file: ''
+  - start_line: 112
+    end_line: 113
+    file: ''
+  - start_line: 122
+    end_line: 122
+    file: ''
+  - start_line: 127
+    end_line: 127
+    file: ''
+  - start_line: 133
+    end_line: 133
+    file: ''
+  - start_line: 139
+    end_line: 141
+    file: ''
+  - start_line: 145
+    end_line: 145
+    file: ''
+  Runtime:
+  - start_line: 9
+    end_line: 13
+    file: ''
+  - start_line: 52
+    end_line: 52
+    file: ''
+  - start_line: 79
+    end_line: 80
+    file: ''
+  - start_line: 102
+    end_line: 109
+    file: ''
+  - start_line: 125
+    end_line: 133
+    file: ''
+  Series_Title:
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 45
+    end_line: 45
+    file: ''
+  - start_line: 67
+    end_line: 68
+    file: ''
+  - start_line: 125
+    end_line: 128
+    file: ''
+  - start_line: 133
+    end_line: 133
+    file: ''
+  Genre:
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 71
+    end_line: 72
+    file: ''
+  - start_line: 102
+    end_line: 106
+    file: ''
+  - start_line: 109
+    end_line: 109
+    file: ''
+  - start_line: 125
+    end_line: 128
+    file: ''
+  - start_line: 133
+    end_line: 133
+    file: ''
+  Certificate:
+  - start_line: 42
+    end_line: 42
+    file: ''
+  - start_line: 88
+    end_line: 99
+    file: ''
+  - start_line: 109
+    end_line: 133
+    file: ''
+fixing_results:
+  Star1:
+    a0cac4fc-4758-4afb-9ab5-6ea096e17932: '.satisfies("lower(trim(`Star1`)) <> lower(trim(`Star2`))
+      AND lower(trim(`Star1`)) <> lower(trim(`Star3`)) AND lower(trim(`Star1`)) <>
+      lower(trim(`Star4`)) AND lower(trim(`Star2`)) <> lower(trim(`Star3`)) AND lower(trim(`Star2`))
+      <> lower(trim(`Star4`)) AND lower(trim(`Star3`)) <> lower(trim(`Star4`))", "Cast
+      names are pairwise distinct (Star1..Star4)", lambda x: x >= 0.99)'
+  Star3:
+    482eb7a7-f9d0-47b6-8233-46832b11aacf: '.satisfies("CASE WHEN size(array_distinct(array(TRIM(LOWER(CAST(`Star1`
+      AS STRING))), TRIM(LOWER(CAST(`Star2` AS STRING))), TRIM(LOWER(CAST(`Star3`
+      AS STRING))), TRIM(LOWER(CAST(`Star4` AS STRING)))))) = 4 THEN 1 ELSE 0 END",
+      "Cast uniqueness across Star1..Star4", lambda x: x >= 0.99)'
+  Star4:
+    0a01b1fd-ffe8-439b-9ffa-fa5014e0352b: '.satisfies("CASE WHEN size(array_distinct(array(TRIM(CAST(`Star1`
+      AS STRING)), TRIM(CAST(`Star2` AS STRING)), TRIM(CAST(`Star3` AS STRING)), TRIM(CAST(`Star4`
+      AS STRING))))) = 4 THEN 1 ELSE 0 END", "Cast uniqueness (trimmed)", lambda x:
+      x >= 0.993)'
+    a913d7f0-81d4-4aea-a25f-fa533958106f: '.satisfies("CASE WHEN size(array_distinct(array(LOWER(TRIM(CAST(`Star1`
+      AS STRING))), LOWER(TRIM(CAST(`Star2` AS STRING))), LOWER(TRIM(CAST(`Star3`
+      AS STRING))), LOWER(TRIM(CAST(`Star4` AS STRING)))))) = 4 THEN 1 ELSE 0 END",
+      "Cast uniqueness (case-insensitive) / casing consistency", lambda x: x >= 0.99)'
+  '["Gross","gross_usd"]':
+    ab0ada8a-76d3-4536-9f00-ad41e4b571af: '.satisfies("`Gross` IS NULL OR regexp_replace(`Gross`,
+      '','', '''') RLIKE ''^[0-9]+$''", "Gross parseable when present", lambda x:
+      x == 1)'
+    1e373b7c-51eb-4f8b-804c-4a9a1538ed8d: '.haveCompleteness(columns=[''Gross''],
+      assertion=lambda x: x > 0)'
+    c5338597-03a1-4dcb-8ad2-120d756f5531: '.satisfies("CASE WHEN cast(regexp_replace(`Gross`,
+      ''[$,]'', '''') AS double) IS NOT NULL THEN CASE WHEN cast(regexp_replace(`Gross`,
+      ''[$,]'', '''') AS double) >= 0 THEN 1 ELSE 0 END ELSE 1 END", "Gross non-negative
+      for finite log", lambda x: x == 1)'
+  Runtime:
+    ae39be28-656f-44f8-bd0a-f5ca0f1b23e7: '.satisfies("CASE WHEN CAST(REGEXP_EXTRACT(`Runtime`,
+      ''(\\d+)'') AS INT) BETWEEN 1 AND 1000 THEN 1 ELSE 0 END", "Runtime plausible
+      range 1..1000", lambda x: x >= 0.0)'
+  '["Released_Year","Series_Title"]':
+    3d56c7ed-64ee-420a-9874-bb8d6e5af638: '.hasUniqueness([''Series_Title'', ''Released_Year''],
+      lambda x: x == 1)'
+  '["Released_Year","title_id"]':
+    b5ffbaaa-12dd-4360-92d6-edead95c4a8f: '.hasUniqueness([''Series_Title'',''Released_Year''],
+      lambda x: x == 1)'
+    200eeaa3-40a0-40ed-b48d-8b2d7e1481ea: '.satisfies("Star1 IS NOT NULL AND Star1
+      <> '''' AND Star2 IS NOT NULL AND Star2 <> '''' AND Star3 IS NOT NULL AND Star3
+      <> '''' AND Star4 IS NOT NULL AND Star4 <> '''' AND size(array_distinct(array(Star1,
+      Star2, Star3, Star4))) = 4", "Cast integrity", lambda x: x >= 0.99)'
+    5edc3a61-c535-4f63-8f78-07c55bfe1b14: '.satisfies("NOT (IMDB_Rating >= 7.0 AND
+      Runtime >= 60 AND Runtime <= 210) OR (Genre IS NOT NULL AND Genre <> ''Short'')",
+      "Eligibility interlock", lambda x: x == 1)'
+  '["Runtime","runtime_min"]':
+    d6f31934-d444-4d8b-b9e0-3e6e27073a9f: '.satisfies("NOT(Genre = ''Short'') OR cast(regexp_replace(Runtime,
+      ''[^0-9]'', '''') AS int) < 60", "shorts_have_short_runtime", lambda x: x ==
+      1)'
+  Series_Title:
+    7b807873-ddba-474c-ab0f-3a8f44274340: '.hasUniqueness([''Series_Title'', ''Released_Year''],
+      lambda x: x == 1)'
+consolidation_results:
+  Star3:
+  - idx_to_remove: 07722666-3617-4c7d-b22b-3627b442dd6c
+    redundant_with:
+    - 0c51205b-af8d-4065-831b-34d85bbefbee
+  IMDB_Rating:
+  - idx_to_remove: cf34e9a1-361d-41db-be27-9d113a046e5d
+    redundant_with:
+    - 93e7aaf6-c75e-4fc9-8a03-8cd21396659b
+  Genre:
+  - idx_to_remove: 3a3cfaf5-d1f0-469b-a06d-ffdc50912fcc
+    redundant_with:
+    - 16bea74f-2cfb-4116-910f-4c6a4ee5e4fe
+  Runtime:
+  - idx_to_remove: ae39be28-656f-44f8-bd0a-f5ca0f1b23e7
+    redundant_with:
+    - 24654a27-7e81-413b-9e6d-3e5b73fa89bd
+  Series_Title:
+  - idx_to_remove: 5628210f-3934-44a1-b46b-7132a79536c6
+    redundant_with:
+    - d99eafa5-3838-4500-bfcd-a6be63c21be2
+  - idx_to_remove: d99eafa5-3838-4500-bfcd-a6be63c21be2
+    redundant_with:
+    - 2fc3996f-75ea-4abe-8cd4-c1d889f71ba8
+cost_summary:
+  column_access_detection:
+    cost: 0.00249475
+    total_tokens: 4736
+    prompt_tokens: 3987
+    completion_tokens: 749
+  data_flow_inspection:
+    cost: 0.07152525
+    total_tokens: 63629
+    prompt_tokens: 31189
+    completion_tokens: 32440
+  column_correlation_discovery:
+    cost: 0.007418500000000001
+    total_tokens: 6217
+    prompt_tokens: 2866
+    completion_tokens: 3351
+  multi_column_data_flow_inspection:
+    cost: 0.0496555
+    total_tokens: 48423
+    prompt_tokens: 26966
+    completion_tokens: 21457
+  multi_column_assumption_generation:
+    cost: 0.059094
+    total_tokens: 56763
+    prompt_tokens: 31104
+    completion_tokens: 25659
+  multi_column_code_generation:
+    cost: 0.06531624999999999
+    total_tokens: 74451
+    prompt_tokens: 46529
+    completion_tokens: 27922
+  single_column_assumption_generation:
+    cost: 0.07338575
+    total_tokens: 73995
+    prompt_tokens: 42631
+    completion_tokens: 31364
+  single_column_code_generation:
+    cost: 0.07423605000000001
+    total_tokens: 106439
+    prompt_tokens: 78829
+    completion_tokens: 27610
+  code_fixing:
+    cost: 0.04713925000000001
+    total_tokens: 42390
+    prompt_tokens: 21509
+    completion_tokens: 20881
+  consolidate_constraints:
+    cost: 0.02242475
+    total_tokens: 23255
+    prompt_tokens: 13763
+    completion_tokens: 9492

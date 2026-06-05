@@ -1,0 +1,2485 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-mini
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  team1:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `team1` IN (SELECT DISTINCT team2 FROM __THIS__
+        UNION SELECT DISTINCT winner FROM __THIS__) THEN 1 ELSE 0 END", "team1_in_domain",
+        lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `team1` IN (SELECT DISTINCT
+        team2 FROM __THIS__ UNION SELECT DISTINCT winner FROM __THIS__) THEN 1 ELSE
+        0 END", "team1_in_domain", lambda x: x >= 0.95)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [TABLE_OR_VIEW_NOT_FOUND] The table or view `__THIS__` cannot be found. Verify
+        the spelling and correctness of the schema and catalog.
+
+        If you did not qualify the name with a schema, verify the current_schema()
+        output, or qualify the name with the correct schema and catalog.
+
+        To tolerate the error on drop use DROP VIEW IF EXISTS or DROP TABLE IF EXISTS.;
+        line 1 pos 49;
+
+        ''Aggregate [sum(cast(CASE WHEN team1#1011308 IN (list#1088742 []) THEN 1
+        ELSE 0 END as int)) AS sum(CAST(CASE WHEN (team1 IN (listquery())) THEN 1
+        ELSE 0 END AS INT))#1088772, count(1) AS count(1)#1088773L]
+
+        :  +- ''Distinct
+
+        :     +- ''Union false, false
+
+        :        :- ''Distinct
+
+        :        :  +- ''Project [''team2]
+
+        :        :     +- ''UnresolvedRelation [__THIS__], [], false
+
+        :        +- ''Distinct
+
+        :           +- ''Project [''winner]
+
+        :              +- ''UnresolvedRelation [__THIS__], [], false
+
+        +- LogicalRDD [id#1011301L, season#1011302L, city#1011303, date#1011304, match_type#1011305,
+        player_of_match#1011306, venue#1011307, team1#1011308, team2#1011309, toss_winner#1011310,
+        toss_decision#1011311, winner#1011312, result#1011313, result_margin#1011314,
+        target_runs#1011315, target_overs#1011316, super_over#1011317, method#1011318,
+        umpire1#1011319, umpire2#1011320], false
+
+        '
+      level: warning
+      uid: 390efd59-52db-4da4-91cd-c602ab694aff
+      source_assumptions:
+      - 0f5decb8-a827-455e-84f8-2ec3cd2830c5
+    - suggestion: '.satisfies("CASE WHEN `team1` != `team2` THEN 1 ELSE 0 END", "team1_ne_team2",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ed6a5434-93f4-42df-bce3-99e7bda35dfe
+      source_assumptions:
+      - 11523af7-7aed-4fa3-b691-d0ac55af652b
+    - suggestion: '.satisfies("CASE WHEN trim(`team1`) = `team1` THEN 1 ELSE 0 END",
+        "team1_trimmed", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9f449351-c12d-4bf4-9d31-6c46e2dde0c6
+      source_assumptions:
+      - 557c600d-785a-4eac-bb55-bc0d57fa750b
+    - suggestion: '.hasDataType("team1", "String", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("team1", "String",
+        lambda x: x == 1)'
+      level: error
+      uid: dc3a383e-146e-4fe8-8baf-4d39e46ee4de
+      source_assumptions:
+      - 5aa3daa5-41a3-4d99-bfa1-2c4771bf06cd
+    assumptions:
+    - text: 'The ''team1'' column must be non-null for all input rows because the
+        code reads the dataframe and later uses team1 to compute the loser and to
+        produce settlement output. Example constraint (Deequ-style): .satisfies("CASE
+        WHEN `team1` IS NOT NULL THEN 1 ELSE 0 END", "team1_not_null", lambda x: x
+        == 1). Great Expectations equivalent: expect_column_values_to_not_be_null(''team1'').'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: 19806f1c-eba4-4d6a-945d-949304d7dc47
+    - text: 'Each ''team1'' value should be a valid team name within the domain of
+        teams used in the dataset (i.e., the same naming domain as ''team2'' and ''winner'').
+        The code assumes exact string equality between ''winner'' and ''team1'' when
+        deciding the loser, so team1 must match the canonical team names. Example
+        constraint (Deequ-style): .satisfies("CASE WHEN `team1` IN (<KNOWN_TEAM_NAMES>)
+        THEN 1 ELSE 0 END", "team1_in_domain", lambda x: x >= 0.95). If you don''t
+        have the canonical list available, enforce that every team1 value appears
+        in the union of team2 and winner: .satisfies("CASE WHEN `team1` IN (SELECT
+        DISTINCT team2 FROM input UNION SELECT DISTINCT winner FROM input) THEN 1
+        ELSE 0 END", ... ). Great Expectations equivalent: expect_column_values_to_be_in_set(''team1'',
+        <KNOWN_TEAM_NAMES>) or a custom cross-column check that team1 is in (team2
+        U winner).'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 52
+        end_line: 60
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: 0f5decb8-a827-455e-84f8-2ec3cd2830c5
+    - text: 'For each match row, ''team1'' must not be equal to ''team2'' (teams in
+        a single match must be different). If team1 == team2, the loser computation
+        and settlement text will be incorrect. Example constraint (Deequ-style): .satisfies("CASE
+        WHEN `team1` != `team2` THEN 1 ELSE 0 END", "team1_ne_team2", lambda x: x
+        == 1). Great Expectations equivalent: expect_column_pair_values_A_not_equal_to_B(''team1'',''team2'').'
+      sources:
+      - start_line: 47
+        end_line: 47
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: 11523af7-7aed-4fa3-b691-d0ac55af652b
+    - text: 'The ''team1'' values must be normalized (no unintended leading/trailing
+        whitespace and consistent canonical spelling/casing) because the code does
+        not explicitly normalize team name columns before comparing them (it normalizes
+        other columns but not team columns). Example constraints: ensure no leading/trailing
+        whitespace: .satisfies("CASE WHEN trim(`team1`) = `team1` THEN 1 ELSE 0 END",
+        "team1_trimmed", lambda x: x == 1). To enforce consistent casing/spelling,
+        require team1 to be in the canonical set from the data owner or match team2/winner
+        canonical forms.'
+      sources:
+      - start_line: 18
+        end_line: 23
+        file: ''
+      - start_line: 44
+        end_line: 49
+        file: ''
+      uid: 557c600d-785a-4eac-bb55-bc0d57fa750b
+    - text: 'The ''team1'' column should be of string type (or safely convertible
+        to string) because the code treats team names as strings when comparing and
+        formatting settlement text. Example constraint (Deequ-style): .satisfies("CASE
+        WHEN typeof(`team1`) = ''string'' THEN 1 ELSE 0 END", "team1_is_string", lambda
+        x: x == 1) or validate that casting to string yields no nulls/truncation.
+        Great Expectations: expect_column_values_to_be_of_type(''team1'', ''string'')
+        or use a custom check that casting preserves values.'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 44
+        end_line: 49
+        file: ''
+      uid: 5aa3daa5-41a3-4d99-bfa1-2c4771bf06cd
+  team2:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(COALESCE(team2, '''')) <> '''' THEN
+        1 ELSE 0 END", "team2_not_blank", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9ef43583-6641-4b71-8f83-b688c612da83
+      source_assumptions:
+      - 7d41990d-ffd9-491a-8446-52fd791abc2c
+    - suggestion: '.satisfies("CASE WHEN team1 IS NOT NULL AND team2 IS NOT NULL AND
+        team1 <> team2 THEN 1 ELSE 0 END", "team1_team2_distinct", lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 63748af2-c159-4fb4-b526-0bba54d19ae3
+      source_assumptions:
+      - fff9bd69-d054-4c2a-bf2e-006d4ee0e1ed
+    - suggestion: '.satisfies("CASE WHEN winner IS NOT NULL THEN CASE WHEN winner
+        = team1 OR winner = team2 THEN 1 ELSE 0 END ELSE 1 END", "winner_matches_team1_or_team2",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 912adc11-cb56-49f4-9f68-3b25860486a3
+      source_assumptions:
+      - 0451c886-01e5-492b-adf3-5d1ca1a2a1ab
+    - suggestion: '.hasDataType("team2", "String", lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType("team2", "String",
+        lambda x: x == 1.0)'
+      level: warning
+      uid: 74fbe647-713c-4131-9101-8ad86ea161c6
+      source_assumptions:
+      - 0456ce4d-3a32-4f31-ac71-2c545ae610cf
+    assumptions:
+    - text: 'The ''team2'' column must be non-null for input rows. The code directly
+        reads row[''team2''] when building the loser and when composing settlement
+        text and writing the settled_markets.csv output, so missing values in ''team2''
+        would cause incorrect loser values or NA/exception downstream. This can be
+        expressed as a completeness / non-null check, e.g. a Great Expectations check:
+        expect_column_values_to_not_be_null(''team2'') or a deequ-like constraint:
+        .satisfies("CASE WHEN `team2` IS NOT NULL THEN 1 ELSE 0 END", "team2_non_null",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 63
+        end_line: 67
+        file: ''
+      uid: 3747028c-974a-43b7-a7a3-12bfcf75a448
+    - text: 'The ''team2'' value must be a non-empty string (not just whitespace).
+        The code uses team names verbatim in textual settlement strings (e.g., f"{row[''winner'']}
+        beat {row[''loser'']} ...") so blank or whitespace-only team2 values would
+        produce malformed output. Represent as: .satisfies("CASE WHEN TRIM(COALESCE(`team2`,
+        '''')) <> '''' THEN 1 ELSE 0 END", "team2_not_blank", lambda x: x == 1.0)
+        or expect_column_values_to_not_be_blank(''team2'') in Great Expectations.'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 52
+        end_line: 61
+        file: ''
+      uid: 7d41990d-ffd9-491a-8446-52fd791abc2c
+    - text: 'For every match row, ''team2'' should be a distinct team from ''team1''
+        (team1 != team2). The logic that selects the other team assumes two different
+        participants; if team1 == team2 the computed loser may equal the winner and
+        settlement text will be invalid. Represent as: .satisfies("CASE WHEN `team1`
+        IS NOT NULL AND `team2` IS NOT NULL AND `team1` <> `team2` THEN 1 ELSE 0 END",
+        "team1_team2_distinct", lambda x: x == 1.0).'
+      sources:
+      - start_line: 44
+        end_line: 47
+        file: ''
+      - start_line: 63
+        end_line: 67
+        file: ''
+      uid: fff9bd69-d054-4c2a-bf2e-006d4ee0e1ed
+    - text: 'When a ''winner'' is present (non-null), that winner must equal one of
+        the two team columns (team1 or team2). This implies that team2 must contain
+        the correct team names used in the ''winner'' column for resulted matches.
+        Express as: .satisfies("CASE WHEN `winner` IS NOT NULL THEN CASE WHEN `winner`
+        = `team1` OR `winner` = `team2` THEN 1 ELSE 0 END ELSE 1 END", "winner_matches_team1_or_team2",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 44
+        end_line: 47
+        file: ''
+      - start_line: 52
+        end_line: 60
+        file: ''
+      uid: 0451c886-01e5-492b-adf3-5d1ca1a2a1ab
+    - text: 'The ''team2'' column should be string-typed (categorical/team name),
+        not numeric. The code treats team2 as a textual team identifier (used in string
+        interpolation and output), so values that are numeric or otherwise unexpected
+        types may indicate malformed input. Represent as a type check / regex or cast
+        check, e.g. expect_column_values_to_be_of_type(''team2'', ''string'') or .satisfies("CASE
+        WHEN typeof(`team2`) = ''string'' THEN 1 ELSE 0 END", ''team2_is_string'',
+        lambda x: x == 1.0) (implementation depends on validation framework).'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 63
+        end_line: 67
+        file: ''
+      uid: 0456ce4d-3a32-4f31-ac71-2c545ae610cf
+  target_overs:
+    code:
+    - suggestion: '.satisfies("CAST(target_overs AS DOUBLE) IS NOT NULL", "target_overs_is_numeric",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: abfaf453-1380-4872-a25a-7a17d0752b70
+      source_assumptions:
+      - 7530d78f-ede4-4740-9185-8d702d3fb27e
+    - suggestion: '.satisfies("CASE WHEN result != ''no result'' AND target_overs
+        > 0 THEN 1 ELSE 0 END", "positive_target_overs_for_resulted_matches", lambda
+        x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c59abbad-7e09-4165-a691-98e002dae9f1
+      source_assumptions:
+      - dd37201b-c745-4209-9363-6b8b2bc79a32
+    assumptions:
+    - text: 'The ''target_overs'' column must be numeric or convertible to numeric.
+        The code explicitly calls pd.to_numeric on target_overs with errors=''coerce'',
+        which will turn non-numeric strings into nulls; to avoid unintended loss ensure
+        most input values are parseable as numbers. Example validation (Deequ/Great
+        Expectations style): fraction of rows where CAST(target_overs AS DOUBLE) IS
+        NOT NULL should be >= 0.99.'
+      sources:
+      - start_line: 28
+        end_line: 30
+        file: ''
+      uid: 7530d78f-ede4-4740-9185-8d702d3fb27e
+    - text: 'The ''target_overs'' values used as a denominator must be positive and
+        non-zero because req_run_rate is computed as target_runs / target_overs. In
+        particular, for matches included in KPIs (rows with result != ''no result''),
+        target_overs should be > 0 to avoid division by zero or infinite/undefined
+        req_run_rate. Example validation: CASE WHEN result != ''no result'' AND target_overs
+        > 0 THEN 1 ELSE 0 END >= 1.0 (or >= 0.99 if allowing rare exceptions).'
+      sources:
+      - start_line: 28
+        end_line: 30
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      - start_line: 72
+        end_line: 80
+        file: ''
+      uid: dd37201b-c745-4209-9363-6b8b2bc79a32
+    - text: 'The ''target_overs'' column should have very low missingness. Dataset
+        metadata shows completeness ~0.99818; the pipeline expects almost all rows
+        to have target_overs present so that req_run_rate and season-level avg_req_run_rate
+        are meaningful. Example validation: CASE WHEN target_overs IS NOT NULL THEN
+        1 ELSE 0 END >= 0.998.'
+      sources:
+      - start_line: 28
+        end_line: 30
+        file: ''
+      - start_line: 70
+        end_line: 80
+        file: ''
+      uid: 2f03395a-e981-4ca8-b361-b6fc80f33120
+  result_margin:
+    code:
+    - suggestion: '.satisfies("CASE WHEN result_margin IS NULL THEN 1 WHEN try_cast(result_margin
+        AS double) IS NOT NULL THEN 1 ELSE 0 END", "result_margin_is_numeric_or_null",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 687290cc-c9d4-4789-982a-8f27fee93a8f
+      source_assumptions:
+      - 7b5c541a-ce73-4d12-af02-0863d72fe498
+    - suggestion: '.satisfies("CASE WHEN result IN (''runs'',''wickets'') THEN CASE
+        WHEN result_margin IS NOT NULL AND floor(result_margin) = result_margin THEN
+        1 ELSE 0 END ELSE 1 END", "margin_is_integer_for_resulted_matches", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 71aa559c-69b3-4ab8-8754-ed9544709dec
+      source_assumptions:
+      - e216b0d7-66de-43da-a0ed-0abde92dce23
+    - suggestion: '.satisfies("CASE WHEN result IN (''runs'',''wickets'') THEN CASE
+        WHEN result_margin >= 1 THEN 1 ELSE 0 END ELSE 1 END", "margin_positive_for_resulted_matches",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0f0516ac-2e92-4baf-b156-cf7e0b1cf65c
+      source_assumptions:
+      - 21155169-b79c-499e-8e5d-8b4266dfae52
+    - suggestion: '.satisfies("CASE WHEN result IN (''no result'',''tie'') THEN CASE
+        WHEN result_margin IS NULL THEN 1 ELSE 0 END ELSE 1 END", "no_margin_for_void_or_tie",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d0e4051c-3ff7-4b2d-adbc-14b6c1b0510d
+      source_assumptions:
+      - 0b63619e-9a9e-447c-a231-6aef37922521
+    assumptions:
+    - text: 'The ''result_margin'' column should contain numeric values or values
+        parseable as numeric. The code coerces this column using pd.to_numeric(...,
+        errors=''coerce''), so non-numeric inputs will become NULL and will break
+        expectations downstream. Example validation (Deequ/SQL-style): .satisfies("CASE
+        WHEN try_cast(result_margin AS double) IS NOT NULL THEN 1 ELSE 0 END", "result_margin_is_numeric",
+        lambda x: x == 1.0) or a Great Expectations: expect_column_values_to_be_of_type
+        / expect_column_values_to_be_convertible_to_type.'
+      sources:
+      - start_line: 28
+        end_line: 30
+        file: ''
+      uid: 7b5c541a-ce73-4d12-af02-0863d72fe498
+    - text: 'For rows where result == ''runs'' or result == ''wickets'', ''result_margin''
+        must be present (non-null). The code constructs margin_int = df[''result_margin''].astype(''Int64'')
+        for those rows and then calls int(row[''margin_int'']) when building settlement
+        text; missing margins for resulted matches will cause errors or produce invalid
+        settlement text. Example validation: .satisfies("CASE WHEN result IN (''runs'',''wickets'')
+        THEN CASE WHEN result_margin IS NOT NULL THEN 1 ELSE 0 END ELSE 1 END", "margin_present_for_resulted_matches",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 38
+        end_line: 41
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 2431f13d-c533-4db2-a800-2eedf8fc0b89
+    - text: 'For rows where result == ''runs'' or result == ''wickets'', ''result_margin''
+        should be an integer value (no fractional part). The code casts to pandas''
+        nullable Int64 and later uses int(...) when formatting settlement strings,
+        so fractional margins would be invalid. Example validation: .satisfies("CASE
+        WHEN result IN (''runs'',''wickets'') THEN CASE WHEN result_margin IS NOT
+        NULL AND floor(result_margin)=result_margin THEN 1 ELSE 0 END ELSE 1 END",
+        "margin_is_integer_for_resulted_matches", lambda x: x == 1.0).'
+      sources:
+      - start_line: 28
+        end_line: 30
+        file: ''
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: e216b0d7-66de-43da-a0ed-0abde92dce23
+    - text: 'For rows where result == ''runs'' or result == ''wickets'', ''result_margin''
+        should be a positive integer (>= 1). The settlement text uses phrasing like
+        ''beat X by N runs/wickets'', so a zero or negative margin is invalid. Example
+        validation: .satisfies("CASE WHEN result IN (''runs'',''wickets'') THEN CASE
+        WHEN result_margin >= 1 THEN 1 ELSE 0 END ELSE 1 END", "margin_positive_for_resulted_matches",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 21155169-b79c-499e-8e5d-8b4266dfae52
+    - text: 'For rows where result == ''no result'' or result == ''tie'', ''result_margin''
+        is expected to be null or irrelevant. The code produces special settlement
+        strings for ''no result'' and ''tie'' and does not use result_margin in those
+        cases, so margins present for these outcomes are unexpected and may indicate
+        bad input. Example validation: .satisfies("CASE WHEN result IN (''no result'',''tie'')
+        THEN CASE WHEN result_margin IS NULL THEN 1 ELSE 0 END ELSE 1 END", "no_margin_for_void_or_tie",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 53
+        end_line: 56
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 0b63619e-9a9e-447c-a231-6aef37922521
+  target_runs:
+    code:
+    - suggestion: '.hasDataType(''target_runs'', ''Fractional'', lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''target_runs'',
+        ''Fractional'', lambda x: x >= 0.99)'
+      level: error
+      uid: 3df8a67d-c419-4e84-bf06-345f377c0879
+      source_assumptions:
+      - a7a0234c-c750-4ff7-af66-fe15caff52d2
+    - suggestion: '.hasCompleteness(''target_runs'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f597408f-051f-4b83-a25a-bab07ce259c5
+      source_assumptions:
+      - a0fae94e-3719-4c52-92cc-d9ac172c627e
+    - suggestion: '.satisfies("CASE WHEN `target_runs` >= 0 OR `target_runs` IS NULL
+        THEN 1 ELSE 0 END", "Non-negative target_runs", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: cb426266-0d0d-4662-8337-753ca75e0dba
+      source_assumptions:
+      - 0f0d1eaf-5104-423a-b272-207cbe20cb56
+    - suggestion: '.satisfies("CASE WHEN `target_runs` IS NULL OR floor(`target_runs`)
+        = `target_runs` THEN 1 ELSE 0 END", "Integer-valued target_runs (>=99%)",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5d804c9b-818c-45cc-af6e-7a5897126791
+      source_assumptions:
+      - 0f0d1eaf-5104-423a-b272-207cbe20cb56
+    assumptions:
+    - text: "Values in 'target_runs' must be parseable as numeric (integers or floats).\
+        \ The code calls pd.to_numeric(..., errors='coerce') on this column, so non-numeric\
+        \ input will be coerced to NaN and lead to missing req_run_rate values. Example\
+        \ validation (Deequ/SQL-style): .satisfies(\"CASE WHEN `target_runs` IS NULL\
+        \ OR `target_runs` RLIKE '^-?[0-9]+(\\\\.[0-9]+)?$' THEN 1 ELSE 0 END\", \"\
+        Numeric target_runs\", lambda x: x >= 0.99) \u2014 i.e. at least 99% of rows\
+        \ should be numeric/parseable."
+      sources:
+      - start_line: 28
+        end_line: 30
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: a7a0234c-c750-4ff7-af66-fe15caff52d2
+    - text: 'The ''target_runs'' column should be largely complete (very few missing
+        values). The dataset shows high completeness (~99.82%), and downstream code
+        computes req_run_rate = target_runs / target_overs and then averages req_run_rate
+        per season, so a small fraction of missing target_runs is acceptable but most
+        rows should have a non-null value. Example validation: .satisfies("CASE WHEN
+        `target_runs` IS NOT NULL THEN 1 ELSE 0 END", "target_runs non-null rate",
+        lambda x: x >= 0.99).'
+      sources:
+      - start_line: 70
+        end_line: 70
+        file: ''
+      - start_line: 76
+        end_line: 81
+        file: ''
+      uid: a0fae94e-3719-4c52-92cc-d9ac172c627e
+    - text: 'target_runs should be non-negative (>= 0) and, in practice, integer-valued
+        (whole runs). At minimum enforce non-negativity on the input to avoid invalid
+        req_run_rate values. Example validations: .satisfies("CASE WHEN `target_runs`
+        >= 0 OR `target_runs` IS NULL THEN 1 ELSE 0 END", "Non-negative target_runs",
+        lambda x: x == 1) and optionally .satisfies("CASE WHEN `target_runs` IS NULL
+        OR floor(`target_runs`) = `target_runs` THEN 1 ELSE 0 END", "Integer-valued
+        target_runs", lambda x: x >= 0.99).'
+      sources:
+      - start_line: 28
+        end_line: 30
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: 0f0d1eaf-5104-423a-b272-207cbe20cb56
+  toss_decision:
+    code:
+    - suggestion: '.satisfies("CASE WHEN lower(trim(cast(`toss_decision` AS STRING)))
+        IN (''field'',''bat'') THEN 1 ELSE 0 END", "Toss decision is one of [''field'',''bat'']
+        after normalization", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a98ad0e7-a975-4c4f-89a5-c4f0bea613f1
+      source_assumptions:
+      - d77b9b7d-343a-48b8-bf12-6a07aa0a8172
+      - d942c482-bdfc-407d-81d7-b8bd3092bb2e
+    assumptions:
+    - text: "The 'toss_decision' column must not contain nulls in the input data.\
+        \ The downstream code groups and pivots on toss_decision to compute decision-conditional\
+        \ rates, and missing values would prevent correct grouping and may produce\
+        \ unexpected NaNs in the KPI output. \n\nSuggested validation (Deequ-like):\
+        \ .satisfies(\"CASE WHEN `toss_decision` IS NOT NULL THEN 1 ELSE 0 END\",\
+        \ \"No null toss_decision\", lambda x: x == 1.0)\n\nSuggested Great Expectations:\
+        \ expect_column_values_to_not_be_null('toss_decision')"
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 19
+        end_line: 21
+        file: ''
+      - start_line: 85
+        end_line: 91
+        file: ''
+      uid: d8e5a077-7c57-48b2-8b36-538edfb8f376
+    - text: "The domain of 'toss_decision' in the input should be limited to the two\
+        \ canonical decisions 'field' and 'bat' (after trimming and lower-casing).\
+        \ The code normalizes values then pivots and explicitly renames expected columns\
+        \ 'field' and 'bat'; unexpected categories will break the expected KPI columns\
+        \ or produce missing columns. \n\nSuggested validation (Deequ-like): .satisfies(\"\
+        CASE WHEN lower(trim(`toss_decision`)) IN ('field','bat') THEN 1 ELSE 0 END\"\
+        , \"Valid toss_decision values\", lambda x: x == 1.0)\n\nSuggested Great Expectations:\
+        \ expect_column_values_to_be_in_set('toss_decision', ['field','bat']) (apply\
+        \ lower/strip preprocessing if needed)"
+      sources:
+      - start_line: 19
+        end_line: 21
+        file: ''
+      - start_line: 85
+        end_line: 91
+        file: ''
+      - start_line: 91
+        end_line: 95
+        file: ''
+      uid: d77b9b7d-343a-48b8-bf12-6a07aa0a8172
+    - text: "Values in 'toss_decision' may contain surrounding whitespace or mixed\
+        \ case in the raw input, but they must be convertible to strings so that the\
+        \ normalization (astype(str).str.strip().str.lower()) produces the canonical\
+        \ values. In other words, input values should be string-like and, after trimming\
+        \ and lower-casing, equal 'field' or 'bat'. \n\nSuggested precondition check\
+        \ (Deequ-like): .satisfies(\"CASE WHEN `toss_decision` IS NOT NULL AND lower(trim(cast(`toss_decision`\
+        \ AS STRING))) IN ('field','bat') THEN 1 ELSE 0 END\", \"Toss decision normalizable\
+        \ to canonical set\", lambda x: x == 1.0)\n\nSuggested Great Expectations:\
+        \ apply a preprocessing lambda that casts to str and strips/lowercases, then\
+        \ expect_column_values_to_be_in_set on the transformed values."
+      sources:
+      - start_line: 19
+        end_line: 21
+        file: ''
+      - start_line: 16
+        end_line: 16
+        file: ''
+      uid: d942c482-bdfc-407d-81d7-b8bd3092bb2e
+  super_over:
+    code:
+    - suggestion: '.satisfies("CASE WHEN upper(trim(`super_over`)) IN (''Y'',''N'')
+        THEN 1 ELSE 0 END", "super_over_domain", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 68eef3ac-52b6-4b19-b70d-485dd6f295cd
+      source_assumptions:
+      - 936138bf-db6a-4ffc-8145-2a7d09099f83
+    - suggestion: '.satisfies("CASE WHEN upper(trim(`super_over`)) = ''Y'' THEN 1
+        ELSE 0 END", "super_over_Y_rate", lambda x: x <= 0.05)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0ce88c29-5d17-4bf1-9f9d-c4a5c93a3d15
+      source_assumptions:
+      - dde24f95-1a4b-447d-95c8-93a85921e970
+    assumptions:
+    - text: 'The input must contain the ''super_over'' column and it should not contain
+        null/missing values. The code does not fill or explicitly handle missing values
+        for this column (it casts to str and uppercases), so nulls in the input would
+        be converted to string forms like ''NAN'' and produce incorrect downstream
+        values. Represent as a validation rule (Deequ / SQL style): .satisfies("CASE
+        WHEN `super_over` IS NOT NULL THEN 1 ELSE 0 END", "super_over_not_null", lambda
+        x: x == 1).'
+      sources:
+      - start_line: 16
+        end_line: 24
+        file: ''
+      uid: 4601c276-2cdb-4867-addc-d422a7997895
+    - text: 'The ''super_over'' values are expected to be categorical with allowed
+        (case-insensitive) values ''Y'' or ''N''. The code normalizes by stripping
+        and uppercasing, so the canonical domain after processing is {''Y'',''N''}.
+        Represent as a validation rule: .satisfies("CASE WHEN upper(trim(`super_over`))
+        IN (''Y'',''N'') THEN 1 ELSE 0 END", "super_over_domain", lambda x: x == 1).'
+      sources:
+      - start_line: 23
+        end_line: 23
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 936138bf-db6a-4ffc-8145-2a7d09099f83
+    - text: 'Based on current data characteristics, ''Y'' (a match decided by a super
+        over) is rare. As a practical data-quality check, the fraction of rows with
+        super_over = ''Y'' (after normalization) should be small (for example <= 5%).
+        This is optional but helps catch anomalous inputs where many rows are flagged
+        ''Y''. Represent as a validation rule: .satisfies("CASE WHEN upper(trim(`super_over`))
+        = ''Y'' THEN 1 ELSE 0 END", "super_over_Y_rate", lambda x: x <= 0.05).'
+      sources:
+      - start_line: 16
+        end_line: 24
+        file: ''
+      uid: dde24f95-1a4b-447d-95c8-93a85921e970
+  toss_winner:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `toss_winner` = `team1` OR `toss_winner`
+        = `team2` THEN 1 ELSE 0 END", "toss_winner_is_one_of_participating_teams",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6e39a601-70d2-4d6a-b892-56ea9fee6047
+      source_assumptions:
+      - f82cb871-6dea-44f4-99fb-4a941cfcb909
+    - suggestion: '.satisfies("CASE WHEN `toss_winner` IS NOT NULL THEN CASE WHEN
+        trim(`toss_winner`) = `toss_winner` THEN 1 ELSE 0 END ELSE 1 END", "toss_winner_no_leading_trailing_whitespace",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fc7a77a2-ae99-42b2-b1f0-0e5c8c38eb59
+      source_assumptions:
+      - 2223d695-98b4-4e66-b135-84886ebc4daf
+    - suggestion: '.satisfies("CASE WHEN `winner` IS NOT NULL AND lower(trim(`toss_winner`))
+        = lower(trim(`winner`)) THEN CASE WHEN `toss_winner` = `winner` THEN 1 ELSE
+        0 END ELSE 1 END", "toss_winner_format_consistent_with_winner_when_equal_ignoring_case",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b918b4a5-099c-437b-8306-805f70b05ac5
+      source_assumptions:
+      - 2223d695-98b4-4e66-b135-84886ebc4daf
+    assumptions:
+    - text: 'For any match with result != ''no result'', the ''toss_winner'' column
+        must be populated (non-null). The code computes ''toss_winner_won'' by directly
+        comparing ''toss_winner'' to ''winner'' for non-void matches, so missing toss_winner
+        values would make the KPI incorrect. Representable as a validation rule: fraction
+        of rows where result != ''no result'' and toss_winner IS NOT NULL should equal
+        1 (e.g. assert that count(result != ''no result'' AND toss_winner IS NULL)
+        == 0).'
+      sources:
+      - start_line: 36
+        end_line: 41
+        file: ''
+      - start_line: 72
+        end_line: 73
+        file: ''
+      uid: 8b01ca8c-2a40-4b49-8f87-2ab7e13ecf38
+    - text: 'For every row, ''toss_winner'' must be one of the two teams playing in
+        that row (i.e., equal to either ''team1'' or ''team2''). The KPI logic assumes
+        the toss winner refers to one of the competing teams so membership in {team1,
+        team2} should hold for each record. Representable as: fraction of rows where
+        toss_winner IN (team1, team2) == 1 (or count where toss_winner NOT IN (team1,
+        team2) == 0).'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 72
+        end_line: 73
+        file: ''
+      uid: f82cb871-6dea-44f4-99fb-4a941cfcb909
+    - text: 'Values in ''toss_winner'' must use the same canonical team naming/formatting
+        as the ''winner'' column (no stray leading/trailing whitespace or case differences),
+        because the code compares these columns exactly without normalizing team names.
+        Representable as: fraction of rows where lower(trim(toss_winner)) == lower(trim(winner))
+        is consistent with expected matches, or require trim(toss_winner) == toss_winner
+        and consistent casing between columns. Example check: count(lower(trim(toss_winner))
+        != lower(trim(winner)) AND result != ''no result'') should reflect only true
+        mismatches, but ideally be 0 for formatting differences.'
+      sources:
+      - start_line: 18
+        end_line: 21
+        file: ''
+      - start_line: 72
+        end_line: 73
+        file: ''
+      uid: 2223d695-98b4-4e66-b135-84886ebc4daf
+  date:
+    code:
+    - suggestion: .areComplete(['date'])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 34b0ef1b-2b3c-4255-8808-f5f6b6294002
+      source_assumptions:
+      - af0edec1-4c6f-4e23-8003-c71275827c88
+      - 23e3c602-78fd-4a56-a46f-a87d37949366
+    - suggestion: '.satisfies(''CASE WHEN to_timestamp(`date`) IS NOT NULL THEN 1
+        ELSE 0 END'', ''Parseable date'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ef82ddb1-1157-41c8-ae69-76fd2e4a29d6
+      source_assumptions:
+      - 0f7ed7bf-26c9-4a5e-8e10-bf3097962c6e
+    assumptions:
+    - text: The input must contain a 'date' column. The script reads the CSV and later
+        includes 'date' in the output settled_markets.csv, so the pipeline expects
+        the column to be present in the input.
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: af0edec1-4c6f-4e23-8003-c71275827c88
+    - text: 'The ''date'' column should be non-null for input rows (no missing/NULL
+        values). The code does not handle missing date values before writing them
+        out and creates a parsed_date via to_datetime which would produce NaT for
+        nulls; to avoid downstream surprises the input should provide date for every
+        row. Example Deequ-like constraint: .satisfies("CASE WHEN `date` IS NOT NULL
+        THEN 1 ELSE 0 END", "Non-null date", lambda x: x == 1)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: 23e3c602-78fd-4a56-a46f-a87d37949366
+    - text: 'The values in the ''date'' column should be parseable by pandas.to_datetime()
+        with default parameters (i.e., recognized date/time strings). A small tolerance
+        for unparsable values is acceptable, but the majority should parse successfully
+        (suggestion: >= 95% parseable). Example Deequ-like constraint: .satisfies("CASE
+        WHEN to_timestamp(`date`) IS NOT NULL THEN 1 ELSE 0 END", "Parseable date",
+        lambda x: x >= 0.95)'
+      sources:
+      - start_line: 33
+        end_line: 33
+        file: ''
+      uid: 0f7ed7bf-26c9-4a5e-8e10-bf3097962c6e
+  season:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `result` != ''no result'' THEN CASE WHEN
+        `season` RLIKE ''^[0-9]+$'' THEN 1 ELSE 0 END ELSE 1 END", "Season numeric
+        for resulted matches", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2f6bb6bc-367b-4b38-b2dc-45c81b9bbc91
+      source_assumptions:
+      - e4fcb091-01cd-4a43-b75c-3451d3230710
+    - suggestion: '.satisfies("CASE WHEN `season` RLIKE ''^[0-9]+$'' THEN 1 ELSE 0
+        END", "Season integral", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e2936e50-8738-4865-b72b-b8baadfa49e9
+      source_assumptions:
+      - 2ee27457-f9ab-47b4-9c91-b851f407c645
+    - suggestion: '.hasNumberOfDistinctValues("season", lambda x: x <= 20)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("season",
+        lambda x: x <= 20)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 5ae2862d-e60b-42ee-a236-10ad3745c0c9
+      source_assumptions:
+      - 2ee27457-f9ab-47b4-9c91-b851f407c645
+    assumptions:
+    - text: The input must contain a column named 'season'. The script directly reads
+        df['season'] (used when building settlement_out and when coercing to numeric),
+        so the column must exist in the input CSV.
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: 85f94ed0-961c-4da1-8be6-cb2f6eb856b6
+    - text: "For matches that are used to compute per-season KPIs (rows where result\
+        \ != 'no result'), 'season' must be parseable to a numeric integer. The code\
+        \ does pd.to_numeric(df['season'], errors='coerce') to produce season_int\
+        \ and then groups by season_int \u2014 if parsing yields NaN those rows will\
+        \ be excluded from the KPI grouping. A Deequ-like constraint: .satisfies(\"\
+        CASE WHEN `result` != 'no result' THEN CASE WHEN `season` RLIKE '^[0-9]+$'\
+        \ THEN 1 ELSE 0 END ELSE 1 END\", \"Season numeric for resulted matches\"\
+        , lambda x: x == 1)."
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 72
+        end_line: 81
+        file: ''
+      uid: e4fcb091-01cd-4a43-b75c-3451d3230710
+    - text: "Values in 'season' should be integer-like (no decimals) and come from\
+        \ a small discrete set of seasons. The dataset metadata indicates ~14 distinct\
+        \ values; the code groups by season_int and expects season-level KPIs, so\
+        \ cardinality should be small and stable. Example Deequ-style checks: (1)\
+        \ .satisfies(\"CASE WHEN `season` RLIKE '^[0-9]+$' THEN 1 ELSE 0 END\", \"\
+        Season integral\", lambda x: x == 1) and (2) .satisfies(\"CASE WHEN cardinality(`season`)\
+        \ <= 100 THEN 1 ELSE 0 END\", \"Season cardinality reasonable\", lambda x:\
+        \ x == 1) \u2014 adjust the upper bound (100) to a tighter number (e.g., 20)\
+        \ if you want to enforce the expected ~14 values."
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 76
+        end_line: 81
+        file: ''
+      uid: 2ee27457-f9ab-47b4-9c91-b851f407c645
+    - text: 'The original ''season'' column should not be null in the input. While
+        the metadata shows completeness=1.0, the code does numeric coercion which
+        could produce NaN; to avoid losing rows and to ensure outputs contain season,
+        require season IS NOT NULL in the input. Deequ-style: .satisfies("CASE WHEN
+        `season` IS NOT NULL THEN 1 ELSE 0 END", "Non-null season", lambda x: x ==
+        1).'
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      uid: c37ce2af-f6a8-4241-bca6-53edbf50eede
+  method:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `method` IS NULL OR `method` IN ('''', ''NA'',
+        ''NaN'', ''nan'', ''NULL'', ''Null'', ''null'', ''None'', ''NullValue'', ''D/L'')
+        THEN 1 ELSE 0 END", "Method allowed values and missing tokens only", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ce8bae5c-13b5-44d1-8a3d-15df25ed8784
+      source_assumptions:
+      - 4562b0cc-108c-43a0-91ac-6a7a258b2ecf
+      - 810f0a25-823f-4c87-8610-96fec8026ae9
+    - suggestion: '.satisfies("CASE WHEN `method` IS NOT NULL THEN 1 ELSE 0 END",
+        "Method non-null rate <= 5%", lambda x: x <= 0.05)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 893e8ae3-ae36-4348-b9a3-66bef64315d7
+      source_assumptions:
+      - 4bd72d13-e53d-4bae-afa0-4879c89f0005
+    assumptions:
+    - text: 'The ''method'' column uses a set of textual tokens to represent missing
+        values and the code will only normalize the following tokens to null: '''',
+        ''NA'', ''NaN'', ''nan'', ''NULL'', ''Null'', ''null'', ''None'', ''NullValue''.
+        Input data is expected to use only these tokens (or actual empty cells) to
+        represent missingness; other tokens that mean ''missing'' will not be converted
+        by the code and may be treated as real values. Example validation (Great Expectations
+        / Deequ style):
+
+        - Great Expectations: expect_column_values_to_be_in_set(''method'', [None,
+        '''', ''NA'', ''NaN'', ''nan'', ''NULL'', ''Null'', ''null'', ''None'', ''NullValue''])
+        OR explicitly check for presence of unexpected missing-like tokens.
+
+        - Deequ (satisfies style): .satisfies("CASE WHEN `method` IS NULL OR `method`
+        IN ('''', ''NA'', ''NaN'', ''nan'', ''NULL'', ''Null'', ''null'', ''None'',
+        ''NullValue'') THEN 1 ELSE 0 END", "Method missing tokens only", lambda x:
+        x == 1)
+
+        '
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      uid: 4562b0cc-108c-43a0-91ac-6a7a258b2ecf
+    - text: 'When present (non-null after normalization), ''method'' is expected to
+        take only a very small set of concrete values. In the current dataset the
+        only observed non-null value is ''D/L'', so input should normally have ''method''
+        either null or one of {''D/L''}. Example validation:
+
+        - Great Expectations: expect_column_values_to_be_in_set(''method'', [None,
+        ''D/L''])
+
+        - Deequ: .satisfies("CASE WHEN `method` IS NULL OR `method` IN (''D/L'') THEN
+        1 ELSE 0 END", "Allowed method values", lambda x: x == 1)
+
+        '
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      uid: 810f0a25-823f-4c87-8610-96fec8026ae9
+    - text: 'The ''method'' column is optional / mostly missing. The input is expected
+        to have a very low non-null rate (for safety, assert non-null proportion <=
+        5%). Example validation:
+
+        - Great Expectations: expect_column_values_to_not_be_null(''method'') with
+        mostly-null check via expect_column_proportion_of_unique_values_to_be_between
+        or a custom metric checking non-null fraction <= 0.05.
+
+        - Deequ: .satisfies("CASE WHEN `method` IS NOT NULL THEN 1 ELSE 0 END", "Method
+        non-null rate", lambda x: x <= 0.05)
+
+        '
+      sources:
+      - start_line: 24
+        end_line: 25
+        file: ''
+      uid: 4bd72d13-e53d-4bae-afa0-4879c89f0005
+  id:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `id` IS NOT NULL THEN 1 ELSE 0 END", "Id
+        column exists", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6f2a8b69-7007-4c23-a1f6-b1bce1b0a919
+      source_assumptions:
+      - d3515d42-a158-4444-bc1c-ea4b2c65e6a4
+    - suggestion: '.hasDataType(''id'', ''Integral'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''id'', ''Integral'',
+        lambda x: x == 1)'
+      level: error
+      uid: b11de009-19e2-46d4-82ae-298fb01435c1
+      source_assumptions:
+      - 4a592b40-235c-44a1-8b5d-093409df8b28
+    - suggestion: .isUnique('id')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 9bbd1be0-24e5-4095-b1b4-f99cbc75d85f
+      source_assumptions:
+      - 53a10f05-5393-498a-ac86-cd207142cc02
+    assumptions:
+    - text: 'The input CSV must contain an ''id'' column. The code selects ''id''
+        for the output (settled_markets.csv) and uses it as the label in aggregations,
+        so missing the column will cause KeyError / failures. Example validation (Great
+        Expectations / Deequ style): - Great Expectations: expect_column_to_exist(''id'')
+        - Deequ SQL-style: .satisfies("CASE WHEN `id` IS NOT NULL THEN 1 ELSE 0 END",
+        "Id column exists", lambda x: x == 1)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 76
+        end_line: 80
+        file: ''
+      uid: d3515d42-a158-4444-bc1c-ea4b2c65e6a4
+    - text: 'The ''id'' column must be complete (no NULL / missing values). The script
+        writes ''id'' to outputs and uses it as a counting key in aggregations; missing
+        id values would violate completeness expectations. Example validation: - Great
+        Expectations: expect_column_values_to_not_be_null(''id'') - Deequ-style: .satisfies("CASE
+        WHEN `id` IS NOT NULL THEN 1 ELSE 0 END", "Id completeness", lambda x: x >=
+        1.0)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 76
+        end_line: 80
+        file: ''
+      uid: 79a245be-fe85-4ae3-9141-a52c03a1deea
+    - text: 'Values in ''id'' should be integral (integer-valued) or safely coercible
+        to integer. The dataset metadata indicates ''id'' is integral and code expects
+        it as an identifier; non-integer strings could indicate malformed ids. Example
+        validation (SQL-style): .satisfies("CASE WHEN `id` IS NOT NULL AND floor(`id`)
+        = `id` THEN 1 ELSE 0 END", "Id is integral", lambda x: x == 1)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 76
+        end_line: 80
+        file: ''
+      uid: 4a592b40-235c-44a1-8b5d-093409df8b28
+    - text: 'Each ''id'' should be unique (one row per id). ''id'' is used as the
+        primary identifier when producing settled_markets.csv and as the unit counted
+        for matches/decision_matches; duplicate ids likely indicate duplicate or merged
+        rows and will distort per-match KPIs. Example validation: - Great Expectations:
+        expect_compound_columns_to_be_unique([''id'']) or custom expectation comparing
+        distinct count to row count - Deequ-style: .satisfies("CASE WHEN COUNT(DISTINCT
+        `id`) = COUNT(`id`) THEN 1 ELSE 0 END", "Id uniqueness", lambda x: x == 1)'
+      sources:
+      - start_line: 67
+        end_line: 67
+        file: ''
+      - start_line: 76
+        end_line: 81
+        file: ''
+      - start_line: 85
+        end_line: 90
+        file: ''
+      uid: 53a10f05-5393-498a-ac86-cd207142cc02
+  '["date","season"]':
+    code:
+    - suggestion: '.satisfies("to_date(date) IS NULL OR season = year(to_date(date))",
+        "season_matches_date_year", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c6f91a6e-1246-486b-967b-2226c11a94be
+      source_assumptions:
+      - c85b5001-0e90-4d38-a6fa-d008ec5e17f3
+    - suggestion: '.satisfies(''result = \''no result\'' OR (parsed_date IS NOT NULL
+        AND season_int IS NOT NULL)'', ''kpi_rows_have_valid_date_and_season'', lambda
+        x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''result = \''no result\'' OR (parsed_date
+        IS NOT NULL AND season_int IS NOT NULL)'', ''kpi_rows_have_valid_date_and_season'',
+        lambda x: x == 1)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_COLUMN.WITH_SUGGESTION] A column or function parameter with name
+        `parsed_date` cannot be resolved. Did you mean one of the following? [`date`,
+        `result`, `season`, `target_runs`, `id`].; line 1 pos 25;
+
+        ''Aggregate [sum(cast(((result#1011313 = no result) OR (isnotnull(''parsed_date)
+        AND isnotnull(''season_int))) as int)) AS sum(CAST(((result = no result) OR
+        ((parsed_date IS NOT NULL) AND (season_int IS NOT NULL))) AS INT))#1085776,
+        count(1) AS count(1)#1085777L]
+
+        +- LogicalRDD [id#1011301L, season#1011302L, city#1011303, date#1011304, match_type#1011305,
+        player_of_match#1011306, venue#1011307, team1#1011308, team2#1011309, toss_winner#1011310,
+        toss_decision#1011311, winner#1011312, result#1011313, result_margin#1011314,
+        target_runs#1011315, target_overs#1011316, super_over#1011317, method#1011318,
+        umpire1#1011319, umpire2#1011320], false
+
+        '
+      level: error
+      uid: 8ee42261-bbaf-4825-b023-13462239d82e
+      source_assumptions:
+      - ad1aa41e-de5c-476e-9f87-4a3fe0294623
+    assumptions:
+    - text: 'For every record where ''date'' can be parsed to a valid datetime, the
+        numeric season (season_int) must equal the year of that parsed date. This
+        ensures season-level grouping (season_int) aligns with the actual match date.
+        Example Deequ-style constraint (SQL-like): .satisfies("parsed_date IS NOT
+        NULL AND season_int = year(parsed_date)", "season_matches_date_year").'
+      sources:
+      - start_line: 33
+        end_line: 34
+        file: ''
+      - start_line: 76
+        end_line: 82
+        file: ''
+      uid: c85b5001-0e90-4d38-a6fa-d008ec5e17f3
+    - text: 'All rows contributing to season-level KPIs (i.e., rows filtered with
+        result != ''no result'') must have both a parseable ''date'' and a numeric
+        ''season''. Concretely: for rows where result != ''no result'', parsed_date
+        must not be null and season_int must not be null. Example Deequ-style constraint:
+        .satisfies("result = ''no result'' OR (parsed_date IS NOT NULL AND season_int
+        IS NOT NULL)", "kpi_rows_have_valid_date_and_season").'
+      sources:
+      - start_line: 72
+        end_line: 79
+        file: ''
+      - start_line: 76
+        end_line: 82
+        file: ''
+      uid: ad1aa41e-de5c-476e-9f87-4a3fe0294623
+  winner:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN `winner` IS NOT NULL THEN 1 ELSE 0 END'',
+        ''Non-null winner fraction'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ae0f0a1a-00ef-40ef-9039-94a75e0fb24b
+      source_assumptions:
+      - 304ae049-c9bd-441f-b181-0cafd11bd0bd
+    - suggestion: '.satisfies(''CASE WHEN `result` IN (\''runs\'', \''wickets\'',
+        \''tie\'') THEN CASE WHEN (`winner` = `team1`) OR (`winner` = `team2`) THEN
+        1 ELSE 0 END ELSE 1 END'', ''Winner equals team1 or team2 for decided matches'',
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a00db66e-9d95-4064-a109-1240b12bae6a
+      source_assumptions:
+      - 0ad3f4a4-65ac-436a-8691-fcfeb1337c8a
+    - suggestion: '.hasNumberOfDistinctValues(''winner'', lambda x: x <= 50)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''winner'',
+        lambda x: x <= 50)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 715a3928-8911-4f72-8c63-f0bf68c20b46
+      source_assumptions:
+      - 9e44ef82-3a2d-47e1-a8d4-c77cbc58afae
+    assumptions:
+    - text: 'The ''winner'' column may contain NULL/NA values in the input (the code
+        explicitly checks pd.isna(row[''winner'']) before building the loser). Validation
+        suggestion: assert that some nulls are allowed, e.g. fraction_non_null >=
+        0.99 (based on dataset completeness ~0.998). Deequ-style: .satisfies("CASE
+        WHEN `winner` IS NOT NULL THEN 1 ELSE 0 END", "Non-null winner fraction",
+        lambda x: x >= 0.99). Great Expectations: expect_column_values_to_not_be_null
+        with mostly=0.99.'
+      sources:
+      - start_line: 45
+        end_line: 47
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 304ae049-c9bd-441f-b181-0cafd11bd0bd
+    - text: 'For matches that are decided (result == ''runs'' or ''wickets'' or ''tie''),
+        ''winner'' must be present (non-null). The code builds settlement text and
+        relies on a valid winner for these branches. Deequ-style: .satisfies("CASE
+        WHEN `result` IN (''runs'',''wickets'',''tie'') THEN CASE WHEN `winner` IS
+        NOT NULL THEN 1 ELSE 0 END ELSE 1 END", "Winner present for decided matches",
+        lambda x: x == 1). Great Expectations: expect_column_values_to_not_be_null
+        conditional on result being in that set.'
+      sources:
+      - start_line: 35
+        end_line: 41
+        file: ''
+      - start_line: 52
+        end_line: 61
+        file: ''
+      uid: b895a721-0f6a-4611-b03e-09c77d1c489f
+    - text: 'When a match is decided (result in {''runs'',''wickets'',''tie''}), the
+        ''winner'' value must exactly match one of the competing teams in that row
+        (either team1 or team2). The code determines the loser by comparing winner
+        == team1 and otherwise selecting team1/team2. Deequ-style: .satisfies("CASE
+        WHEN `result` IN (''runs'',''wickets'',''tie'') THEN CASE WHEN (`winner` =
+        `team1`) OR (`winner` = `team2`) THEN 1 ELSE 0 END ELSE 1 END", "Winner equals
+        team1 or team2 for decided matches", lambda x: x == 1). Great Expectations:
+        conditional expectation that winner is in the set [team1, team2] per row.'
+      sources:
+      - start_line: 44
+        end_line: 47
+        file: ''
+      - start_line: 49
+        end_line: 49
+        file: ''
+      uid: 0ad3f4a4-65ac-436a-8691-fcfeb1337c8a
+    - text: 'The textual format of ''winner'' must be consistent with the team name
+        fields (team1/team2): no extra leading/trailing whitespace or case differences
+        expected (the code does not normalize ''winner'' but compares it directly
+        to team1/team2). Validation suggestion: assert winner stripped equals one
+        of {team1, team2} for decided matches, or assert no leading/trailing whitespace
+        and a canonical case (e.g., .satisfies("CASE WHEN `winner` IS NOT NULL THEN
+        CASE WHEN trim(lower(`winner`)) = lower(`team1`) OR trim(lower(`winner`))
+        = lower(`team2`) THEN 1 ELSE 0 END ELSE 1 END", ...)).'
+      sources:
+      - start_line: 18
+        end_line: 25
+        file: ''
+      - start_line: 44
+        end_line: 47
+        file: ''
+      uid: 5664bac7-8f3f-4680-a260-2b1e1fcdb1d8
+    - text: "The values in 'winner' should come from a small, closed set of team names\
+        \ (dataset shows \u224819 distinct winners). Validation suggestion: enforce\
+        \ domain membership against the expected list of team names (or enforce that\
+        \ the number of distinct winners is small and stable). Deequ-style examples:\
+        \ (a) .satisfies(\"CASE WHEN `winner` IN ('TeamA','TeamB',... ) THEN 1 ELSE\
+        \ 0 END\", \"Winner in known teams\", lambda x: x >= 0.995) or (b) assert\
+        \ distinct_count(`winner`) <= 50 (or close to expected 19)."
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: 9e44ef82-3a2d-47e1-a8d4-c77cbc58afae
+  result:
+    code:
+    - suggestion: '.satisfies("CASE WHEN lower(trim(`result`)) IN (''runs'',''wickets'',''tie'',''no
+        result'') THEN 1 ELSE 0 END", "Result in allowed set", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 162546ed-f2be-439f-9f58-9631eca33ca2
+      source_assumptions:
+      - bdfbc669-09ab-434b-9af0-1ba550969bbf
+    - suggestion: '.satisfies("CASE WHEN lower(trim(`result`)) IN (''runs'',''wickets'')
+        THEN `result_margin` IS NOT NULL ELSE TRUE END", "Margin present for runs/wickets",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: fdc33f94-c187-4cf7-98ba-03fe04234fce
+      source_assumptions:
+      - 9db0f42f-e295-4dac-8dfc-795ebdb9be3b
+    - suggestion: '.satisfies("CASE WHEN lower(trim(`result`)) IN (''runs'',''wickets'')
+        THEN TRY_CAST(`result_margin` AS INT) IS NOT NULL ELSE 1 END", "Margin integer-coercible
+        for runs/wickets", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN lower(trim(`result`))
+        IN (''runs'',''wickets'') THEN TRY_CAST(`result_margin` AS INT) IS NOT NULL
+        ELSE 1 END", "Margin integer-coercible for runs/wickets", lambda x: x == 1)''
+        failed on data sample: org.apache.spark.sql.AnalysisException: [DATATYPE_MISMATCH.DATA_DIFF_TYPES]
+        Cannot resolve "CASE WHEN (lower(trim(result)) IN (runs, wickets)) THEN (TRY_CAST(result_margin
+        AS INT) IS NOT NULL) ELSE 1 END" due to data type mismatch: Input to `casewhen`
+        should all be the same type, but it''s ["BOOLEAN", "INT"].; line 1 pos 0;
+
+        ''Aggregate [sum(cast(CASE WHEN lower(trim(result#1011313, None)) IN (runs,wickets)
+        THEN isnotnull(try_cast(result_margin#1011314 as int)) ELSE 1 END as int))
+        AS sum(CAST(CASE WHEN (lower(trim(result)) IN (runs, wickets)) THEN (TRY_CAST(result_margin
+        AS INT) IS NOT NULL) ELSE 1 END AS INT))#1087331, count(1) AS count(1)#1087332L]
+
+        +- LogicalRDD [id#1011301L, season#1011302L, city#1011303, date#1011304, match_type#1011305,
+        player_of_match#1011306, venue#1011307, team1#1011308, team2#1011309, toss_winner#1011310,
+        toss_decision#1011311, winner#1011312, result#1011313, result_margin#1011314,
+        target_runs#1011315, target_overs#1011316, super_over#1011317, method#1011318,
+        umpire1#1011319, umpire2#1011320], false
+
+        '
+      level: error
+      uid: 3717c7e5-bb06-4967-b8d3-199b159518be
+      source_assumptions:
+      - 9db0f42f-e295-4dac-8dfc-795ebdb9be3b
+    assumptions:
+    - text: 'The ''result'' column must be present and non-null for every input row.
+        The code normalizes and then uses ''result'' in boolean masks, downstream
+        branching and filtering (e.g. building settlement text and computing KPIs)
+        without handling missing values, so missing ''result'' would cause incorrect
+        logic or ''UNSETTLED'' outcomes. Represent as a validation rule: .satisfies("CASE
+        WHEN `result` IS NOT NULL THEN 1 ELSE 0 END", "Result completeness", lambda
+        x: x == 1).'
+      sources:
+      - start_line: 19
+        end_line: 21
+        file: ''
+      - start_line: 38
+        end_line: 41
+        file: ''
+      - start_line: 64
+        end_line: 64
+        file: ''
+      - start_line: 72
+        end_line: 72
+        file: ''
+      uid: 6816a8f3-fa88-4a6a-92a6-ab2259c80d2f
+    - text: 'The ''result'' values (after trimming and lowercasing) must be one of
+        the allowed domain values: ''runs'', ''wickets'', ''tie'', or ''no result''.
+        The code defines an allowed_results set and branches on these exact strings
+        to build settlements and to filter out ''no result'' rows for KPI calculations;
+        any other value will produce ''UNSETTLED'' strings or incorrect KPI grouping.
+        Represent as a validation rule: .satisfies("CASE WHEN lower(trim(`result`))
+        IN (''runs'',''wickets'',''tie'',''no result'') THEN 1 ELSE 0 END", "Result
+        in allowed set", lambda x: x == 1).'
+      sources:
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 53
+        end_line: 61
+        file: ''
+      - start_line: 64
+        end_line: 64
+        file: ''
+      - start_line: 72
+        end_line: 72
+        file: ''
+      uid: bdfbc669-09ab-434b-9af0-1ba550969bbf
+    - text: 'For rows where ''result'' is ''runs'' or ''wickets'' (after normalization),
+        ''result_margin'' must be present and convertible to an integer. The code
+        coerces result_margin to numeric, builds margin_int only for runs/wickets,
+        and then calls int(row[''margin_int'']) when formatting settlement text; if
+        margin is missing or not integer-coercible this will error or raise at runtime.
+        Represent as validation rules such as: .satisfies("CASE WHEN lower(trim(`result`))
+        IN (''runs'',''wickets'') THEN `result_margin` IS NOT NULL ELSE 1 END", "Margin
+        present for runs/wickets", lambda x: x == 1) and .satisfies("CASE WHEN lower(trim(`result`))
+        IN (''runs'',''wickets'') THEN TRY_CAST(`result_margin` AS INT) IS NOT NULL
+        ELSE 1 END", "Margin integer-coercible for runs/wickets", lambda x: x == 1).'
+      sources:
+      - start_line: 28
+        end_line: 31
+        file: ''
+      - start_line: 38
+        end_line: 41
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      - start_line: 64
+        end_line: 64
+        file: ''
+      uid: 9db0f42f-e295-4dac-8dfc-795ebdb9be3b
+  '["margin_int","result","result_margin"]':
+    code: []
+    assumptions:
+    - text: 'For rows where result is ''runs'' or ''wickets'', result_margin must
+        be present and numeric (no fractional part) and margin_int should equal result_margin
+        cast to an integer. Example checks (Deequ-style):
+
+        - .satisfies("(result == ''runs'' OR result == ''wickets'') => (result_margin
+        IS NOT NULL AND result_margin == CAST(CAST(result_margin AS LONG) AS DOUBLE))")
+
+        - .where("result IN (''runs'',''wickets'')").isComplete(''margin_int'')
+
+        - .where("result IN (''runs'',''wickets'')").satisfies("margin_int == CAST(result_margin
+        AS LONG)")'
+      sources:
+      - start_line: 28
+        end_line: 41
+        file: ''
+      uid: fc713b08-5eb2-4334-83a7-af92708d9638
+    - text: 'For rows where result is ''tie'' or ''no result'', result_margin (and
+        therefore margin_int) should be null/NA. margin_int is only populated for
+        ''runs'' or ''wickets''. Example Deequ constraint:
+
+        - .satisfies("(result IN (''tie'',''no result'')) => (result_margin IS NULL)")
+
+        - .satisfies("(result IN (''tie'',''no result'')) => (margin_int IS NULL)")'
+      sources:
+      - start_line: 35
+        end_line: 41
+        file: ''
+      uid: e667710d-7a19-4942-b3be-8f5be3d2fb81
+    - text: 'If a match has a result other than ''no result'' (i.e., a resulted match),
+        winner must be non-null and must be one of the participating teams (team1
+        or team2). Example Deequ constraint:
+
+        - .satisfies("(result != ''no result'') => (winner IS NOT NULL AND (winner
+        == team1 OR winner == team2))")'
+      sources:
+      - start_line: 43
+        end_line: 61
+        file: ''
+      uid: ff17a973-4efe-4772-83c2-e0965f0c8432
+    - text: 'For matches with result in {''runs'',''wickets''}, loser must be non-null
+        and must equal the other team (if winner == team1 then loser == team2, and
+        vice versa). Example Deequ constraint:
+
+        - .satisfies("(result IN (''runs'',''wickets'')) => (loser IS NOT NULL AND
+        ((winner == team1 AND loser == team2) OR (winner == team2 AND loser == team1)))")'
+      sources:
+      - start_line: 43
+        end_line: 60
+        file: ''
+      uid: 8b274915-8504-429a-8cf7-6003008835a1
+    - text: 'When computing req_run_rate (target_runs / target_overs), target_overs
+        must be numeric and strictly greater than zero whenever target_runs is present
+        (to avoid division-by-zero and invalid rates). Example checks:
+
+        - .satisfies("(NOT isNull(target_runs)) => (NOT isNull(target_overs) AND target_overs
+        > 0)")
+
+        - .satisfies("(NOT isNull(req_run_rate)) => (isFinite(req_run_rate))")'
+      sources:
+      - start_line: 28
+        end_line: 30
+        file: ''
+      - start_line: 69
+        end_line: 70
+        file: ''
+      uid: 7d21073d-0fdb-4413-84f8-977d4d305e87
+    - text: 'Rows used for toss KPIs (result != ''no result'') must have toss_winner
+        present and toss_winner should be one of the participating teams (team1 or
+        team2) so that toss_winner_won = (toss_winner == winner) is meaningful. Example
+        Deequ constraint:
+
+        - .satisfies("(result != ''no result'') => (toss_winner IS NOT NULL AND (toss_winner
+        == team1 OR toss_winner == team2))")'
+      sources:
+      - start_line: 72
+        end_line: 74
+        file: ''
+      - start_line: 43
+        end_line: 49
+        file: ''
+      uid: 14ae6ac6-ae7a-4a34-8f79-f15fddf37555
+    - text: 'toss_decision is normalized to lowercase and later grouped/pivoted; when
+        present it should be one of the expected categories (e.g., ''bat'' or ''field'').
+        Example Deequ constraint:
+
+        - .satisfies("(NOT isNull(toss_decision)) => (toss_decision IN (''bat'',''field''))")'
+      sources:
+      - start_line: 19
+        end_line: 21
+        file: ''
+      - start_line: 84
+        end_line: 91
+        file: ''
+      uid: 061eff14-6f79-493d-93e7-c263a2f38c25
+  '["result","super_over"]':
+    code: []
+    assumptions:
+    - text: 'Rows with result == ''tie'' should have super_over == ''Y'', and conversely
+        rows with super_over == ''Y'' should have result == ''tie'' (i.e., super_over
+        ''Y'' iff result ''tie'').
+
+        Representative Deequ-style checks:
+
+        - .satisfies("NOT(result = ''tie'') OR super_over = ''Y''", "tie_implies_super_over")
+
+        - .satisfies("NOT(super_over = ''Y'') OR result = ''tie''", "super_over_implies_tie")'
+      sources:
+      - start_line: 18
+        end_line: 23
+        file: ''
+      - start_line: 52
+        end_line: 56
+        file: ''
+      uid: 5e8779e5-619f-4c1d-8d71-c37e043c2230
+    - text: 'When result is ''runs'' or ''wickets'', result_margin must be present
+        and represent an integer margin (i.e., non-null and numeric). The code casts
+        result_margin to integer for margin_int and then uses it in settlement text,
+        so margin must be available for those result values.
+
+        Representative Deequ-style checks:
+
+        - .satisfies("NOT(result IN (''runs'',''wickets'')) OR result_margin IS NOT
+        NULL", "margin_presence_for_result_types")
+
+        - .satisfies("NOT(result IN (''runs'',''wickets'')) OR try_cast(result_margin
+        AS BIGINT) IS NOT NULL", "margin_is_integer_when_required")'
+      sources:
+      - start_line: 36
+        end_line: 41
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: ff251f98-3fbd-4518-9458-29bcdbd6c007
+    - text: 'When result is in {''runs'',''wickets'',''tie''}, a winner must be present
+        and the winner value must match one of the competing teams (team1 or team2).
+        Settlement text uses winner and other_team logic relies on winner being one
+        of team1/team2.
+
+        Representative Deequ-style check:
+
+        - .satisfies("NOT(result IN (''runs'',''wickets'',''tie'')) OR (winner IS
+        NOT NULL AND (winner = team1 OR winner = team2))", "winner_consistency_with_teams")'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 52
+        end_line: 60
+        file: ''
+      uid: 9e8df3ae-8594-419e-ae8b-5f335fcede16
+    - text: 'For result values other than ''runs'' or ''wickets'' (e.g., ''tie'' or
+        ''no result''), margin_int should be null. Conversely, margin_int should be
+        non-null only when result is ''runs'' or ''wickets''. This is required because
+        margin_int is used (cast to int) only for runs/wickets.
+
+        Representative Deequ-style checks:
+
+        - .satisfies("NOT(result IN (''runs'',''wickets'')) OR margin_int IS NOT NULL",
+        "margin_int_present_for_runs_wickets")
+
+        - .satisfies("NOT(result IN (''runs'',''wickets'')) OR margin_int IS NOT NULL",
+        "margin_int_nonnull_when_required")
+
+        - .satisfies("NOT(result IN (''runs'',''wickets'')) OR margin_int IS NOT NULL",
+        "redundant_but_actionable")'
+      sources:
+      - start_line: 38
+        end_line: 41
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: ba0a99e8-ef6d-454d-a472-bec5185f0c53
+  '["result","winner"]':
+    code: []
+    assumptions:
+    - text: 'When result is ''runs'' or ''wickets'', result_margin must be present
+        and a positive integer (so margin_int can be safely constructed and used).
+        Actionable constraint: for rows where result in {''runs'',''wickets''}, result_margin
+        is non-null, numeric, and > 0 (and margin_int equals result_margin after coercion).
+        In Deequ-style form this can be expressed as a filtered completeness and range
+        check on result_margin and a consistency check between result_margin and margin_int.'
+      sources:
+      - start_line: 36
+        end_line: 41
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 5ad44cd2-2728-4f64-837f-3aed29544399
+    - text: For any match that produced a result (i.e., result != 'no result'), winner
+        must be non-null and must equal one of the participating teams (team1 or team2).
+        This is required so that loser can be determined by comparing winner to team1/team2
+        and settlement strings referencing winner are valid.
+      sources:
+      - start_line: 43
+        end_line: 49
+        file: ''
+      - start_line: 51
+        end_line: 56
+        file: ''
+      uid: bc8b0834-514f-4d2c-8b50-87080f391cb1
+    - text: 'For matches with result ''runs'' or ''wickets'', loser must be determinable
+        and non-null: loser should equal team2 when winner == team1, otherwise team1.
+        In other words, for these result types, the tuple (team1, team2, winner, loser)
+        must satisfy loser == (team2 if winner == team1 else team1).'
+      sources:
+      - start_line: 43
+        end_line: 49
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 57c22b2a-91bd-4b49-a763-cbbf0ee12a8e
+    - text: margin_int is only meaningful when result is 'runs' or 'wickets' and must
+        be an integer type (no NA) in those cases because settlement_text calls int(margin_int).
+        Enforce that for rows with result in {'runs','wickets'} margin_int is non-null
+        and represents the integer value of result_margin.
+      sources:
+      - start_line: 38
+        end_line: 41
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: bb1489c0-4a1d-4a0e-90eb-a4e8d3aa4c01
+    - text: 'When computing req_run_rate, target_runs and target_overs must be numeric
+        and target_overs must be non-null and non-zero for rows where a required run
+        rate is expected. In practice enforce: if target_runs is non-null then target_overs
+        is non-null and > 0 so division does not produce inf/NaN.'
+      sources:
+      - start_line: 27
+        end_line: 31
+        file: ''
+      - start_line: 69
+        end_line: 70
+        file: ''
+      uid: 2960564c-a5e3-48be-9248-5bcf38499730
+    - text: Toss-decision conditional KPIs assume toss_decision takes a limited set
+        of normalized values (e.g., 'field' and 'bat'). The pivot and subsequent renaming
+        expect columns named 'field' and 'bat' to appear; enforce that toss_decision
+        values include those labels (or that pivot produces those columns).
+      sources:
+      - start_line: 84
+        end_line: 91
+        file: ''
+      uid: 72735fe6-7d94-4faa-953c-f4dd6234bd39
+  '["season","season_int"]':
+    code: []
+    assumptions:
+    - text: 'All rows must have ''season'' values that are numeric/integer so that
+        pd.to_numeric(df[''season''], errors=''coerce'') produces a non-null ''season_int''
+        for every row. Practically: ''season'' should be convertible to an integer
+        and ''season_int'' must be complete (no nulls) because subsequent grouping/merge
+        operations use ''season_int'' as the join/group key. Example constraint form:
+        .isComplete(''season_int'') (or a predicate: season is numeric -> season_int
+        not null).'
+      sources:
+      - start_line: 34
+        end_line: 34
+        file: ''
+      - start_line: 76
+        end_line: 82
+        file: ''
+      - start_line: 97
+        end_line: 98
+        file: ''
+      uid: 9a0e885d-5889-44ff-95c1-6daf318ee216
+    - text: 'The ''toss_decision'' column (after normalization to lowercase/stripped)
+        is expected to be drawn from the domain {''field'', ''bat''} for the rows
+        used to compute decision-level KPIs. In addition, for the pivot that creates
+        season-level columns, there should be at least one row per (''season_int'',''toss_decision'')
+        for both ''field'' and ''bat'' if a meaningful difference is to be computed.
+        Example checks: .isContainedIn(''toss_decision'',[''field'',''bat'']) and
+        a grouped completeness check that for each season_int both decisions appear
+        at least once.'
+      sources:
+      - start_line: 19
+        end_line: 21
+        file: ''
+      - start_line: 85
+        end_line: 92
+        file: ''
+      uid: 8e5e6a25-5de1-427c-9f0d-0d98cff993c7
+    - text: 'When computing required run rate (''req_run_rate'' = target_runs / target_overs),
+        rows where ''target_runs'' is not null must have ''target_overs'' non-null
+        and > 0 to avoid division-by-zero or NaN results. Constraint form: for all
+        rows: target_runs IS NULL OR (target_overs IS NOT NULL AND target_overs >
+        0).'
+      sources:
+      - start_line: 28
+        end_line: 31
+        file: ''
+      - start_line: 70
+        end_line: 70
+        file: ''
+      uid: 47747178-7bed-4de9-813e-7b84c3a3d5b3
+    - text: 'For rows with result == ''runs'' or result == ''wickets'', ''result_margin''
+        must be numeric/non-null so that ''margin_int'' is valid, and the match must
+        have a non-null ''winner'' and both team columns present so settlement text
+        can be built (they are used to compute ''loser'' and then the settlement message).
+        Practical predicate: NOT(result IN {''runs'',''wickets''}) OR (result_margin
+        IS NOT NULL AND winner IS NOT NULL AND team1 IS NOT NULL AND team2 IS NOT
+        NULL).'
+      sources:
+      - start_line: 36
+        end_line: 41
+        file: ''
+      - start_line: 43
+        end_line: 49
+        file: ''
+      - start_line: 52
+        end_line: 61
+        file: ''
+      uid: da68c5bd-afca-4fc6-a55c-ae0ecbe322d7
+    - text: 'For rows with result == ''tie'', the ''winner'' must be present (non-null)
+        because settlement_text builds "<winner> won after Super Over". Constraint
+        form: NOT(result == ''tie'') OR (winner IS NOT NULL).'
+      sources:
+      - start_line: 52
+        end_line: 56
+        file: ''
+      uid: 8006afa1-9165-4017-9b6c-94a9590121a2
+    - text: 'The logic that builds ''loser'' assumes that when ''winner'' is present
+        it equals either ''team1'' or ''team2'' and that at least one of ''team1''/''team2''
+        is non-null. Formally: NOT(winner IS NOT NULL) OR ( (team1 IS NOT NULL OR
+        team2 IS NOT NULL) AND winner IN (team1, team2) ). This ensures ''loser''
+        can be resolved deterministically.'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 13415661-ad2e-4d5b-8d7f-b7ce774a5acb
+    - text: 'When computing season-level KPIs the code counts ''id'' per season: for
+        rows considered in KPIs (result != ''no result''), ''id'' must be present
+        (non-null) and ''season_int'' must also be present. Constraint form: NOT(result
+        != ''no result'') OR (id IS NOT NULL AND season_int IS NOT NULL).'
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      - start_line: 76
+        end_line: 81
+        file: ''
+      uid: a56566a7-11cb-4755-aa0e-f47c26e83870
+  '["season_int","toss_decision"]':
+    code: []
+    assumptions:
+    - text: For every season (season_int) represented in the KPI calculations (i.e.,
+        rows where result != 'no result'), there must be at least one record with
+        toss_decision = 'field' and at least one record with toss_decision = 'bat'.
+        This ensures the groupby/pivot produces both columns ('field' and 'bat') so
+        the per-season toss_decision advantage (field_toss_winner_win_rate - bat_toss_winner_win_rate)
+        can be computed without producing NaNs.
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      - start_line: 85
+        end_line: 92
+        file: ''
+      - start_line: 94
+        end_line: 96
+        file: ''
+      uid: b62518d9-4797-4624-85d6-cf53c20eec43
+    - text: season_int must be a valid numeric (non-null) for rows that contribute
+        to season-level aggregations. The script converts season -> season_int and
+        then groups by season_int; if season_int is null for many rows, those matches
+        will be excluded from season_rates and decision_rates and will lead to missing/incorrect
+        season KPIs.
+      sources:
+      - start_line: 33
+        end_line: 34
+        file: ''
+      - start_line: 76
+        end_line: 82
+        file: ''
+      - start_line: 85
+        end_line: 90
+        file: ''
+      uid: 214cc95f-9ad5-4aa9-a5cf-e70b1462e90f
+    - text: toss_decision values are expected to be normalized to exactly the two
+        lowercase strings 'field' and 'bat' (no other categories or spelling/casing
+        variants). The code lowercases and strips toss_decision and later pivots/renames
+        pivot columns assuming only 'field' and 'bat' appear.
+      sources:
+      - start_line: 18
+        end_line: 21
+        file: ''
+      - start_line: 86
+        end_line: 92
+        file: ''
+      uid: 4f078bb5-3441-403b-aa0f-7e46f886d7b0
+    - text: For correct computation of the decision-level toss win rate, the columns
+        toss_winner and winner must be present and non-null for rows included in kpi_df
+        (rows where result != 'no result'). toss_winner_won is computed as (toss_winner
+        == winner) and aggregated as a mean by season and toss_decision, so missing
+        values in either column will bias or invalidate the rates.
+      sources:
+      - start_line: 72
+        end_line: 74
+        file: ''
+      - start_line: 76
+        end_line: 80
+        file: ''
+      uid: f5fce2f5-1b01-45fb-a71b-c8a5ba8f56ec
+    - text: req_run_rate is computed as target_runs / target_overs and then averaged
+        per season (avg_req_run_rate). Therefore target_runs and target_overs must
+        be numeric and target_overs must be non-zero for rows that should contribute
+        to the season average. The code coerces these columns to numeric earlier,
+        so successful numeric conversion and absence of zero target_overs are required
+        to avoid infinite/NaN avg_req_run_rate values.
+      sources:
+      - start_line: 28
+        end_line: 31
+        file: ''
+      - start_line: 69
+        end_line: 71
+        file: ''
+      - start_line: 76
+        end_line: 80
+        file: ''
+      uid: ac2a0080-30e0-4a02-a323-ec9386188346
+  '["target_overs","target_runs"]':
+    code: []
+    assumptions:
+    - text: 'When computing required run rate, target_runs and target_overs are used
+        together: for any record where target_runs is present, target_overs must also
+        be present and strictly greater than 0 (to avoid division-by-zero or infinite/NaN
+        req_run_rate). Actionable constraint (Deequ-style): enforce that for every
+        row (target_runs IS NOT NULL) => (target_overs IS NOT NULL AND target_overs
+        > 0).'
+      sources:
+      - start_line: 27
+        end_line: 31
+        file: ''
+      - start_line: 69
+        end_line: 70
+        file: ''
+      uid: d6567fac-63e6-43ac-91f2-14f01db496c0
+    - text: 'For matches with a running result (''runs'' or ''wickets''), result_margin
+        must be present and interpretable as an integer, and both winner and loser
+        must be present (these are used together to build settlement strings that
+        include the margin and the two teams). Actionable constraint: for every row
+        where result IN (''runs'',''wickets'') => (result_margin IS NOT NULL AND winner
+        IS NOT NULL AND ((team1 IS NOT NULL AND team2 IS NOT NULL) OR loser IS NOT
+        NULL)).'
+      sources:
+      - start_line: 36
+        end_line: 41
+        file: ''
+      - start_line: 43
+        end_line: 49
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 646f5ff4-8226-495e-80dc-4e142388994c
+    - text: 'When result == ''tie'', the winner column must be present (settlement
+        text uses winner for tie cases). Actionable constraint: for every row where
+        result = ''tie'' => winner IS NOT NULL.'
+      sources:
+      - start_line: 18
+        end_line: 21
+        file: ''
+      - start_line: 51
+        end_line: 56
+        file: ''
+      uid: 092d897c-3eb1-4b5c-af27-146e337cfa58
+    - text: 'When result == ''no result'', settlement and KPI logic expects there
+        to be no winner and no meaningful result_margin; thus for rows with result
+        = ''no result'' expect winner IS NULL and result_margin IS NULL (and loser
+        IS NULL). Actionable constraint: for every row where result = ''no result''
+        => (winner IS NULL AND result_margin IS NULL AND loser IS NULL).'
+      sources:
+      - start_line: 35
+        end_line: 41
+        file: ''
+      - start_line: 51
+        end_line: 55
+        file: ''
+      - start_line: 72
+        end_line: 72
+        file: ''
+      uid: 9a40c5b8-42d1-4421-84d6-09daa5a0f6aa
+    - text: 'Toss-related KPIs compare toss_winner to winner; for matches included
+        in KPI calculations (result != ''no result''), both toss_winner and winner
+        should be present to make the comparison meaningful. Actionable constraint:
+        for every row where result != ''no result'' => (toss_winner IS NOT NULL AND
+        winner IS NOT NULL).'
+      sources:
+      - start_line: 72
+        end_line: 74
+        file: ''
+      uid: 9131b49a-e78f-4e57-a9ec-8a9c6cd9d31a
+    - text: 'Decision-conditional KPIs pivot on toss_decision and expect canonical
+        values (the code later renames ''field'' and ''bat'' columns); for matches
+        used in decision grouping (result != ''no result''), toss_decision should
+        be non-null and drawn from the expected domain (e.g., {''field'',''bat''}
+        after normalization). Actionable constraint: for every row where result !=
+        ''no result'' => (toss_decision IS NOT NULL AND lower(toss_decision) IN (''field'',''bat'')).'
+      sources:
+      - start_line: 18
+        end_line: 21
+        file: ''
+      - start_line: 85
+        end_line: 91
+        file: ''
+      uid: 2147e720-2da8-4b06-90c9-f02039ae7fea
+  '["team1","team2","toss_winner"]':
+    code: []
+    assumptions:
+    - text: 'If ''winner'' is present (not null), it must be one of the two competing
+        teams in that row: either ''team1'' or ''team2''. Actionable check (Deequ-style):
+        enforce that for every row either winner IS NULL or winner IN (team1, team2).
+        A SQL-like predicate: (winner IS NULL) OR (winner = team1) OR (winner = team2).'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      uid: 59c833d9-30d6-44ff-8d2b-9b3b10f8ee96
+    - text: 'For matches whose ''result'' is ''runs'' or ''wickets'', the match must
+        have a valid margin: ''result_margin'' should be present and convertible to
+        a positive integer and ''margin_int'' should therefore be non-null. Actionable
+        check: for rows where result IN (''runs'',''wickets'') assert result_margin
+        IS NOT NULL AND try_cast(result_margin AS integer) > 0 (or use a Deequ satisfies
+        that checks integer-cast and > 0).'
+      sources:
+      - start_line: 36
+        end_line: 41
+        file: ''
+      - start_line: 52
+        end_line: 60
+        file: ''
+      uid: 731b8c2d-ce52-4945-bf52-d81f1e0e7df6
+    - text: 'When ''result'' == ''no result'', there must be no winner and no margin:
+        ''winner'' should be null and ''margin_int'' (and ''result_margin'') should
+        be null. This is important because later KPI calculations filter out ''no
+        result'' rows. Actionable check: for rows with result = ''no result'' assert
+        winner IS NULL AND result_margin IS NULL.'
+      sources:
+      - start_line: 52
+        end_line: 56
+        file: ''
+      - start_line: 72
+        end_line: 73
+        file: ''
+      uid: 98ad6223-a731-43f0-8679-35aa840b7e06
+    - text: 'When ''result'' == ''tie'', there must still be a declared ''winner''
+        (the code formats a settlement using winner for ties). Actionable check: for
+        rows with result = ''tie'' assert winner IS NOT NULL.'
+      sources:
+      - start_line: 55
+        end_line: 56
+        file: ''
+      uid: aee5bdc1-d608-48fc-9ca2-9290defc00dd
+    - text: 'Required run rate calculation uses target_runs / target_overs. For rows
+        that will be aggregated into KPIs (i.e., result != ''no result''), both ''target_runs''
+        and ''target_overs'' must be numeric and ''target_overs'' must be non-zero
+        and positive to avoid division-by-zero. Actionable check: ensure target_runs
+        and target_overs are numeric and for rows with result != ''no result'' assert
+        target_overs > 0.'
+      sources:
+      - start_line: 28
+        end_line: 31
+        file: ''
+      - start_line: 70
+        end_line: 73
+        file: ''
+      uid: 2da2d6c7-7e91-420f-9570-9d8c7f44746c
+    - text: 'The ''toss_winner'' value should refer to one of the competing teams
+        (team1 or team2) for matches that are used to compute toss-winner KPIs (result
+        != ''no result''). This ensures the boolean comparison (toss_winner == winner)
+        is meaningful. Actionable check: for rows with result != ''no result'' assert
+        (toss_winner = team1) OR (toss_winner = team2).'
+      sources:
+      - start_line: 72
+        end_line: 73
+        file: ''
+      - start_line: 44
+        end_line: 49
+        file: ''
+      uid: 81f1f7a1-e86a-407e-a034-705eb8588cea
+    - text: 'The ''toss_decision'' column is normalized to lowercase and later pivot
+        assumes limited decision categories (e.g., ''field'' and ''bat''). Actionable
+        check: after normalization, toss_decision values should belong to an expected
+        domain such as {''field'',''bat''} (or at least contain these two) so that
+        pivot and subsequent renaming succeed without producing entirely empty columns.'
+      sources:
+      - start_line: 18
+        end_line: 21
+        file: ''
+      - start_line: 85
+        end_line: 91
+        file: ''
+      uid: 3f69bb1b-fa10-4bac-8eb2-77543230cf59
+  '["team1","team2","winner"]':
+    code: []
+    assumptions:
+    - text: "For any match with a definitive outcome (result in {'runs', 'wickets',\
+        \ 'tie'}), the 'winner' field must be present (non-null) and must equal either\
+        \ 'team1' or 'team2'. In other words, whenever result \u2208 {'runs','wickets','tie'}\
+        \ then (winner = team1 OR winner = team2). This can be expressed as a row-level\
+        \ predicate (Deequ-style) such as: .satisfies(\"NOT(result IN ('no result'))\
+        \ => (winner = team1 OR winner = team2)\", \"winner_is_one_of_teams_for_resulted_matches\"\
+        )."
+      sources:
+      - start_line: 36
+        end_line: 41
+        file: ''
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 52
+        end_line: 56
+        file: ''
+      uid: 72150221-c8b2-4997-9e22-6025a1513cdc
+    - text: 'For matches where result == ''runs'' or result == ''wickets'', the numeric
+        margin must be available and usable: ''result_margin'' must coerce to an integer
+        (i.e., margin_int is non-null) and should be positive. Additionally, when
+        constructing the loser, the loser must be the other team (if winner == team1
+        then loser == team2, and if winner == team2 then loser == team1). This can
+        be enforced as predicates like: .satisfies("result IN (''runs'',''wickets'')
+        => result_margin IS NOT NULL AND result_margin > 0", "margin_present_positive")
+        and .satisfies("winner = team1 => loser = team2" , "loser_matches_other_team")
+        and .satisfies("winner = team2 => loser = team1", "loser_matches_other_team_rev").'
+      sources:
+      - start_line: 38
+        end_line: 41
+        file: ''
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 57
+        end_line: 60
+        file: ''
+      uid: 680bddbd-00ad-459c-a3ae-b1c8f0bc3805
+    - text: team1 and team2 must be different for each match (team1 != team2). The
+        loser calculation and settlement strings assume two distinct teams on a match
+        row.
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 67
+        end_line: 68
+        file: ''
+      uid: b2740565-437f-43ac-9cca-c81324f9a193
+    - text: 'Rows with result == ''no result'' are treated as VOID and may legitimately
+        have a null ''winner''. Conversely, for any result other than ''no result'',
+        ''winner'' is expected to be non-null. This can be asserted as: .satisfies("result
+        = ''no result'' => winner IS NULL OR TRUE", "no_result_allows_null_winner")
+        and .satisfies("result != ''no result'' => winner IS NOT NULL", "result_requires_winner").'
+      sources:
+      - start_line: 36
+        end_line: 36
+        file: ''
+      - start_line: 52
+        end_line: 55
+        file: ''
+      uid: 2a544072-07a3-4916-bc8f-99eb582b81ce
+  '["toss_winner","winner"]':
+    code: []
+    assumptions:
+    - text: 'For all matches that produced a result (i.e. result != ''no result''),
+        the ''winner'' value must be present and must be one of the two competing
+        teams (team1 or team2). This is required because the code builds ''loser''
+        from winner (other_team) and uses ''winner'' in settlement text. Example deequ-style
+        row-level constraint: .satisfies("result = ''no result'' OR (winner IS NOT
+        NULL AND (winner = team1 OR winner = team2))", "winner_matches_team1_or_team2_for_resulted_matches")'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 52
+        end_line: 64
+        file: ''
+      - start_line: 72
+        end_line: 74
+        file: ''
+      uid: 748dd1ad-f852-4531-a0b2-3e48cfef3005
+    - text: 'For every row, ''toss_winner'' must equal one of the two competing teams
+        (team1 or team2). This is needed because the KPI calculation compares toss_winner
+        to winner to compute ''toss_winner_won''. Example deequ constraint: .satisfies("toss_winner
+        = team1 OR toss_winner = team2", "toss_winner_in_team1_or_team2")'
+      sources:
+      - start_line: 72
+        end_line: 74
+        file: ''
+      uid: c103239e-4467-483f-b427-b38b040ccf75
+    - text: 'For matches that produced a result (result != ''no result''), both ''winner''
+        and ''toss_winner'' are expected to be non-null and comparable (i.e., use
+        the same canonical naming so direct equality is meaningful). This ensures
+        the computation (toss_winner == winner). Example deequ constraint to check
+        nullness: .satisfies("result = ''no result'' OR (winner IS NOT NULL AND toss_winner
+        IS NOT NULL)", "winner_and_toss_winner_non_null_for_resulted_matches"). To
+        enforce canonicalization you can additionally require trimmed/lowercased parity
+        when appropriate, e.g. using derived expressions lower(trim(winner)) and lower(trim(toss_winner))
+        in a .satisfies expression.'
+      sources:
+      - start_line: 36
+        end_line: 41
+        file: ''
+      - start_line: 72
+        end_line: 74
+        file: ''
+      - start_line: 44
+        end_line: 49
+        file: ''
+      uid: b92e4d07-c2a8-411f-a9c9-112cecb2cfbf
+column_data_flow_locations:
+  '["margin_int","result","result_margin"]':
+  - start_line: 15
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 21
+    file: ''
+  - start_line: 28
+    end_line: 30
+    file: ''
+  - start_line: 38
+    end_line: 41
+    file: ''
+  - start_line: 43
+    end_line: 49
+    file: ''
+  - start_line: 52
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 68
+    file: ''
+  - start_line: 72
+    end_line: 99
+    file: ''
+  '["result","super_over"]': []
+  '["team1","team2","winner"]': []
+  '["team1","team2","toss_winner"]':
+  - start_line: 15
+    end_line: 16
+    file: ''
+  - start_line: 44
+    end_line: 49
+    file: ''
+  - start_line: 52
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 68
+    file: ''
+  - start_line: 70
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 81
+    file: ''
+  - start_line: 85
+    end_line: 92
+    file: ''
+  - start_line: 94
+    end_line: 98
+    file: ''
+  '["toss_winner","winner"]': []
+  '["target_overs","target_runs"]': []
+  '["date","season"]': []
+  '["season","season_int"]':
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 63
+    end_line: 68
+    file: ''
+  - start_line: 70
+    end_line: 74
+    file: ''
+  - start_line: 76
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 92
+    file: ''
+  - start_line: 94
+    end_line: 98
+    file: ''
+  '["season_int","toss_decision"]':
+  - start_line: 8
+    end_line: 16
+    file: ''
+  - start_line: 18
+    end_line: 21
+    file: ''
+  - start_line: 33
+    end_line: 34
+    file: ''
+  - start_line: 69
+    end_line: 74
+    file: ''
+  - start_line: 76
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 92
+    file: ''
+  - start_line: 94
+    end_line: 98
+    file: ''
+  '["result","winner"]': []
+  result:
+  - start_line: 19
+    end_line: 21
+    file: ''
+  - start_line: 38
+    end_line: 39
+    file: ''
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 55
+    end_line: 55
+    file: ''
+  - start_line: 57
+    end_line: 57
+    file: ''
+  - start_line: 59
+    end_line: 59
+    file: ''
+  - start_line: 64
+    end_line: 64
+    file: ''
+  - start_line: 67
+    end_line: 67
+    file: ''
+  - start_line: 72
+    end_line: 72
+    file: ''
+  toss_decision:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 21
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 72
+    end_line: 72
+    file: ''
+  - start_line: 85
+    end_line: 92
+    file: ''
+  - start_line: 94
+    end_line: 98
+    file: ''
+  super_over:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 23
+    end_line: 24
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 67
+    end_line: 68
+    file: ''
+  method:
+  - start_line: 24
+    end_line: 25
+    file: ''
+  target_runs:
+  - start_line: 28
+    end_line: 30
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  - start_line: 72
+    end_line: 72
+    file: ''
+  - start_line: 76
+    end_line: 82
+    file: ''
+  target_overs:
+  - start_line: 28
+    end_line: 31
+    file: ''
+  - start_line: 70
+    end_line: 70
+    file: ''
+  result_margin:
+  - start_line: 28
+    end_line: 30
+    file: ''
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 63
+    end_line: 68
+    file: ''
+  date:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 33
+    end_line: 33
+    file: ''
+  - start_line: 63
+    end_line: 63
+    file: ''
+  - start_line: 67
+    end_line: 68
+    file: ''
+  - start_line: 72
+    end_line: 72
+    file: ''
+  season:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 34
+    end_line: 34
+    file: ''
+  - start_line: 63
+    end_line: 68
+    file: ''
+  - start_line: 72
+    end_line: 98
+    file: ''
+  winner:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 45
+    end_line: 45
+    file: ''
+  - start_line: 47
+    end_line: 47
+    file: ''
+  - start_line: 49
+    end_line: 49
+    file: ''
+  - start_line: 56
+    end_line: 56
+    file: ''
+  - start_line: 58
+    end_line: 58
+    file: ''
+  - start_line: 60
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 64
+    file: ''
+  - start_line: 67
+    end_line: 68
+    file: ''
+  - start_line: 72
+    end_line: 73
+    file: ''
+  team2:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 44
+    end_line: 49
+    file: ''
+  - start_line: 52
+    end_line: 61
+    file: ''
+  - start_line: 63
+    end_line: 68
+    file: ''
+  team1:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 47
+    end_line: 47
+    file: ''
+  - start_line: 49
+    end_line: 49
+    file: ''
+  - start_line: 58
+    end_line: 58
+    file: ''
+  - start_line: 60
+    end_line: 60
+    file: ''
+  - start_line: 63
+    end_line: 64
+    file: ''
+  - start_line: 67
+    end_line: 68
+    file: ''
+  id:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 63
+    end_line: 68
+    file: ''
+  - start_line: 70
+    end_line: 73
+    file: ''
+  - start_line: 76
+    end_line: 82
+    file: ''
+  - start_line: 85
+    end_line: 92
+    file: ''
+  - start_line: 94
+    end_line: 98
+    file: ''
+  toss_winner:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 72
+    end_line: 73
+    file: ''
+fixing_results:
+  '["date","season"]':
+    c6f91a6e-1246-486b-967b-2226c11a94be: '.satisfies("to_date(date) IS NULL OR season
+      = year(to_date(date))", "season_matches_date_year", lambda x: x == 1)'
+    8ee42261-bbaf-4825-b023-13462239d82e: '.satisfies("result = ''no result'' OR (cast(date
+      AS date) IS NOT NULL AND season IS NOT NULL)", ''kpi_rows_have_valid_date_and_season'',
+      lambda x: x == 1)'
+  result:
+    fdc33f94-c187-4cf7-98ba-03fe04234fce: '.satisfies("CASE WHEN lower(trim(`result`))
+      IN (''runs'',''wickets'') THEN `result_margin` IS NOT NULL ELSE TRUE END", "Margin
+      present for runs/wickets", lambda x: x == 1)'
+    3717c7e5-bb06-4967-b8d3-199b159518be: '.satisfies("CASE WHEN lower(trim(`result`))
+      IN (''runs'',''wickets'') THEN TRY_CAST(`result_margin` AS INT) IS NOT NULL
+      ELSE TRUE END", "Margin integer-coercible for runs/wickets", lambda x: x ==
+      1)'
+consolidation_results:
+  team1:
+  - idx_to_remove: 92a285fc-f381-4599-be53-1b0dd6483a69
+    redundant_with:
+    - ed6a5434-93f4-42df-bce3-99e7bda35dfe
+    - 9f449351-c12d-4bf4-9d31-6c46e2dde0c6
+  team2:
+  - idx_to_remove: f1733b94-5594-46be-ac36-0b27c7dcc604
+    redundant_with:
+    - 9ef43583-6641-4b71-8f83-b688c612da83
+    - 63748af2-c159-4fb4-b526-0bba54d19ae3
+  target_overs:
+  - idx_to_remove: 69f895e8-87f0-4f56-8f95-30f522541689
+    redundant_with:
+    - abfaf453-1380-4872-a25a-7a17d0752b70
+  result_margin:
+  - idx_to_remove: 0f71189e-3e08-413e-97af-b3641e64eb34
+    redundant_with:
+    - 71aa559c-69b3-4ab8-8754-ed9544709dec
+  toss_decision:
+  - idx_to_remove: 3b325687-f3d0-4ffe-bc68-3697a0eebeca
+    redundant_with:
+    - a98ad0e7-a975-4c4f-89a5-c4f0bea613f1
+  super_over:
+  - idx_to_remove: 7ae43acb-e58d-4fe5-8dce-1ce3f8504ad5
+    redundant_with:
+    - 68eef3ac-52b6-4b19-b70d-485dd6f295cd
+  toss_winner:
+  - idx_to_remove: 0f931fe6-c259-4ef6-b6ef-9a1378d6dea4
+    redundant_with:
+    - 6e39a601-70d2-4d6a-b892-56ea9fee6047
+  season:
+  - idx_to_remove: 10a3ece1-e514-4b21-bfdf-f9e401c78f8c
+    redundant_with:
+    - e2936e50-8738-4865-b72b-b8baadfa49e9
+  id:
+  - idx_to_remove: fad81c9c-f730-482c-b988-711c3ec49006
+    redundant_with:
+    - 6f2a8b69-7007-4c23-a1f6-b1bce1b0a919
+  winner:
+  - idx_to_remove: c32b94ff-af94-439e-b215-ef1a803839d6
+    redundant_with:
+    - a00db66e-9d95-4064-a109-1240b12bae6a
+  - idx_to_remove: f1a82561-92f7-433d-b69f-8529006e2049
+    redundant_with:
+    - a00db66e-9d95-4064-a109-1240b12bae6a
+  result:
+  - idx_to_remove: f278e712-6a6b-4008-bd88-bbb0d9da6aa0
+    redundant_with:
+    - 162546ed-f2be-439f-9f58-9631eca33ca2
+cost_summary:
+  column_access_detection:
+    cost: 0.00307575
+    total_tokens: 5702
+    prompt_tokens: 4759
+    completion_tokens: 943
+  data_flow_inspection:
+    cost: 0.08505875
+    total_tokens: 68128
+    prompt_tokens: 28515
+    completion_tokens: 39613
+  column_correlation_discovery:
+    cost: 0.0055455
+    total_tokens: 5186
+    prompt_tokens: 2758
+    completion_tokens: 2428
+  multi_column_data_flow_inspection:
+    cost: 0.052452
+    total_tokens: 43978
+    prompt_tokens: 20288
+    completion_tokens: 23690
+  multi_column_assumption_generation:
+    cost: 0.06701199999999999
+    total_tokens: 54485
+    prompt_tokens: 23976
+    completion_tokens: 30509
+  multi_column_code_generation:
+    cost: 0.06902
+    total_tokens: 71594
+    prompt_tokens: 41888
+    completion_tokens: 29706
+  single_column_assumption_generation:
+    cost: 0.07905225
+    total_tokens: 75073
+    prompt_tokens: 40625
+    completion_tokens: 34448
+  single_column_code_generation:
+    cost: 0.07069980000000001
+    total_tokens: 109570
+    prompt_tokens: 84428
+    completion_tokens: 25142
+  code_fixing:
+    cost: 0.012171250000000002
+    total_tokens: 12642
+    prompt_tokens: 7493
+    completion_tokens: 5149
+  consolidate_constraints:
+    cost: 0.03270675
+    total_tokens: 31259
+    prompt_tokens: 17035
+    completion_tokens: 14224

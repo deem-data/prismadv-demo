@@ -1,0 +1,2893 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5-mini
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  YearsAtCompany:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN try_cast(YearsAtCompany AS DOUBLE) IS NOT
+        NULL THEN 1 ELSE 0 END'', ''YearsAtCompany_parseable'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 071c1119-2b11-41ed-b0e6-c3c2390ac606
+      source_assumptions:
+      - d06fefb3-ff15-45e1-8ec7-2940f5e7544b
+    - suggestion: '.satisfies(''CASE WHEN `YearsAtCompany` IS NOT NULL THEN 1 ELSE
+        0 END'', ''YearsAtCompany_not_null'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: def72784-9565-4c05-a6ec-c1943ff9c27b
+      source_assumptions:
+      - c70b0dce-d6d2-46fc-a506-9a7bbacf4fd6
+    - suggestion: '.satisfies(''CASE WHEN `YearsAtCompany` >= 0 THEN 1 ELSE 0 END'',
+        ''YearsAtCompany_non_negative'', lambda x: x >= 0.995)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: aac801ba-919f-48df-b159-0a6671417436
+      source_assumptions:
+      - 30a8a497-3dc2-41f7-86e0-1dd61f1b4e95
+    - suggestion: '.satisfies(''CASE WHEN `YearsInCurrentRole` <= `YearsAtCompany`
+        THEN 1 ELSE 0 END'', ''Role_vs_Company'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ae96419a-3828-4052-9a87-97826a1a79ab
+      source_assumptions:
+      - 3ec264c9-cbd0-42ef-b09a-62e8b7202925
+    - suggestion: '.satisfies(''CASE WHEN `YearsAtCompany` <= `TotalWorkingYears`
+        THEN 1 ELSE 0 END'', ''Company_vs_TotalWorkingYears'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 07697133-8dd4-4b0e-bdbf-7a1965c73b41
+      source_assumptions:
+      - 3ec264c9-cbd0-42ef-b09a-62e8b7202925
+    - suggestion: '.satisfies(''CASE WHEN `YearsAtCompany` = 0 THEN 1 ELSE 0 END'',
+        ''YearsAtCompany_zero_share'', lambda x: x <= 0.20)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ceb0d53e-d3db-4a71-a663-d8def25adddf
+      source_assumptions:
+      - 18da4429-6c6e-4aa9-9768-3d29a345c425
+    assumptions:
+    - text: 'The ''YearsAtCompany'' column must be parseable as numeric (integer/float).
+        The pipeline calls pd.to_numeric(..., errors=''coerce''), so non-numeric values
+        would become null and affect downstream ratios and metrics. Represent this
+        as a validation rule, e.g. a Deequ/GRE check that at least 95% (or configurable
+        threshold) of values are numeric: .satisfies("CASE WHEN try_cast(YearsAtCompany
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "YearsAtCompany_parseable", lambda
+        x: x >= 0.95).'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      uid: d06fefb3-ff15-45e1-8ec7-2940f5e7544b
+    - text: 'The input should not contain nulls for ''YearsAtCompany'' (or should
+        contain very few). The script converts the column to numeric and then uses
+        it as a denominator for ratios; many nulls will lead to many filled zeros
+        in derived features and corrupt risk calculations. A validation rule: fraction
+        of non-null YearsAtCompany should be ~1.0 (e.g. >= 0.99): .satisfies("CASE
+        WHEN `YearsAtCompany` IS NOT NULL THEN 1 ELSE 0 END", "YearsAtCompany_not_null",
+        lambda x: x >= 0.99).'
+      sources:
+      - start_line: 16
+        end_line: 26
+        file: ''
+      uid: c70b0dce-d6d2-46fc-a506-9a7bbacf4fd6
+    - text: 'YearsAtCompany should be non-negative. The code treats 0 specially (replace
+        0 with NaN to avoid division by zero) and uses the column as a denominator;
+        negative tenures are semantically invalid and will produce misleading ratios.
+        Validate: all values >= 0 (or allow a tiny fraction of invalid negatives):
+        .satisfies("CASE WHEN `YearsAtCompany` >= 0 THEN 1 ELSE 0 END", "YearsAtCompany_non_negative",
+        lambda x: x >= 0.995).'
+      sources:
+      - start_line: 61
+        end_line: 63
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      uid: 30a8a497-3dc2-41f7-86e0-1dd61f1b4e95
+    - text: 'Logical consistency with related tenure columns: YearsInCurrentRole should
+        generally be <= YearsAtCompany, and YearsAtCompany should be <= TotalWorkingYears.
+        The role_ratio calculation assumes YearsInCurrentRole is a subset of YearsAtCompany;
+        invalid relationships indicate bad input data. Example validations: .satisfies("CASE
+        WHEN `YearsInCurrentRole` <= `YearsAtCompany` THEN 1 ELSE 0 END", "Role_vs_Company",
+        lambda x: x >= 0.99) and .satisfies("CASE WHEN `YearsAtCompany` <= `TotalWorkingYears`
+        THEN 1 ELSE 0 END", "Company_vs_TotalWorkingYears", lambda x: x >= 0.99).'
+      sources:
+      - start_line: 61
+        end_line: 63
+        file: ''
+      - start_line: 141
+        end_line: 143
+        file: ''
+      uid: 3ec264c9-cbd0-42ef-b09a-62e8b7202925
+    - text: 'Zero years at company (YearsAtCompany == 0) are explicitly handled (replaced
+        with NaN) but should not dominate the dataset. If a large fraction of records
+        have YearsAtCompany == 0, many ratios will be defaulted to 0 and risk signals
+        will be distorted. Recommend asserting that proportion of zeros is small (configurable),
+        e.g. <= 20%: .satisfies("CASE WHEN `YearsAtCompany` = 0 THEN 1 ELSE 0 END",
+        "YearsAtCompany_zero_share", lambda x: x <= 0.20).'
+      sources:
+      - start_line: 61
+        end_line: 63
+        file: ''
+      uid: 18da4429-6c6e-4aa9-9768-3d29a345c425
+  AgeGroup:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRIM(`AgeGroup`) IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')
+        THEN 1 ELSE 0 END", "Trimmed Valid AgeGroup", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5d643527-90f4-4a66-bbd2-a4c146d4d73c
+      source_assumptions:
+      - 249c33fa-8708-4ae9-ba67-4fe504d7068b
+      - 6dfaf0f8-1b1f-42bc-8cec-2f2522879b68
+    - suggestion: '.satisfies("CASE WHEN `AgeGroup` IS NOT NULL THEN 1 ELSE 0 END",
+        "AgeGroup non-null fraction", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 0b1cb872-a1af-4d87-9751-415794ba405c
+      source_assumptions:
+      - a67866a9-7d51-4679-9a00-96e802cef29f
+    - suggestion: '.hasNumberOfDistinctValues("AgeGroup", lambda x: x == 5)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues("AgeGroup",
+        lambda x: x == 5)'': Check.hasNumberOfDistinctValues() missing 2 required
+        positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 8a36fa40-9800-4e07-b238-683b354240f7
+      source_assumptions:
+      - 279d1206-a56d-43b6-87d0-ed75226db035
+    assumptions:
+    - text: 'AgeGroup should be one of the expected categories: ''18-25'', ''26-35'',
+        ''36-45'', ''46-55'', or ''55+''. The code maps AgeGroup to risk values using
+        an explicit dictionary of these five keys; unexpected values will not match
+        the map (producing a missing mapping) and will be treated as zero risk, which
+        is likely unintended. Example validation (Deequ-like): .satisfies("CASE WHEN
+        `AgeGroup` IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'') THEN 1 ELSE
+        0 END", "Valid AgeGroup", lambda x: x >= 0.95)'
+      sources:
+      - start_line: 73
+        end_line: 79
+        file: ''
+      - start_line: 80
+        end_line: 80
+        file: ''
+      - start_line: 165
+        end_line: 165
+        file: ''
+      uid: 249c33fa-8708-4ae9-ba67-4fe504d7068b
+    - text: 'AgeGroup values should be non-null (or nearly so). The code relies on
+        AgeGroup to compute risk_age_band and to include AgeGroup in final outputs
+        and metrics; while map().fillna(0.0) will tolerate missing values, missing
+        AgeGroup will change risk semantics and downstream reporting. Example validation:
+        .satisfies("CASE WHEN `AgeGroup` IS NOT NULL THEN 1 ELSE 0 END", "AgeGroup
+        non-null fraction", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 80
+        end_line: 80
+        file: ''
+      - start_line: 141
+        end_line: 146
+        file: ''
+      uid: a67866a9-7d51-4679-9a00-96e802cef29f
+    - text: 'AgeGroup values must match the expected string formatting exactly (no
+        extra leading/trailing whitespace and exact punctuation/capitalization). The
+        mapping uses exact string keys, so values like '' 26-35'', ''26 - 35'' or
+        different casing will not map to the intended risk. Example validation (trim
+        + membership): .satisfies("CASE WHEN TRIM(`AgeGroup`) IN (''18-25'',''26-35'',''36-45'',''46-55'',''55+'')
+        THEN 1 ELSE 0 END", "Trimmed Valid AgeGroup", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 73
+        end_line: 80
+        file: ''
+      uid: 6dfaf0f8-1b1f-42bc-8cec-2f2522879b68
+    - text: 'The AgeGroup column should contain exactly the expected set of 5 distinct
+        categories (distinct count == 5). The risk mapping and metrics assume these
+        five groups; extra distinct values indicate unexpected categories. Example
+        validation: assert distinct_count(`AgeGroup`) == 5 (or Deequ-like wrapper
+        that checks distinct count equals 5).'
+      sources:
+      - start_line: 73
+        end_line: 79
+        file: ''
+      - start_line: 165
+        end_line: 165
+        file: ''
+      uid: 279d1206-a56d-43b6-87d0-ed75226db035
+  Age:
+    code:
+    - suggestion: 'assert ''Age'' in df.columns, ''Missing required column: Age'''
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''assert ''Age'' in df.columns,
+        ''Missing required column: Age'''': invalid syntax (<string>, line 1)'
+      level: error
+      uid: ba0cfa93-c7cf-4834-b603-700c73ad475c
+      source_assumptions:
+      - 40a268bd-0165-4435-9c92-580836168df0
+    - suggestion: .isComplete('Age')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: bef26c96-4a13-4ed8-9a9f-3fc5bf1257b7
+      source_assumptions:
+      - 832885fc-965f-4958-b7ac-32a3408c1df4
+    - suggestion: '.satisfies(''TRY_CAST(`Age` AS DOUBLE) IS NOT NULL'', ''Age is
+        numeric'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dd8f40ed-c938-4e03-aa6d-72c88da77843
+      source_assumptions:
+      - 3d6e7711-4809-498b-b17e-bcb8f5148b59
+    - suggestion: '.satisfies(''CASE WHEN `Age` BETWEEN 18 AND 100 AND FLOOR(`Age`)
+        = `Age` THEN 1 ELSE 0 END'', ''Age range & integer'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 03920c01-1ca7-4d8f-a540-a97e5114dcd8
+      source_assumptions:
+      - 3d282efe-a284-468d-8209-47a14ccdd26f
+    assumptions:
+    - text: 'The input must contain an ''Age'' column. The script reads a CSV and
+        later selects ''Age'' into the output columns, so missing the ''Age'' column
+        would cause a failure (KeyError). Example validation: require the column exists
+        (e.g., Great Expectations expect_column_to_exist or Deequ HasColumn).'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: 40a268bd-0165-4435-9c92-580836168df0
+    - text: 'All rows must have non-null ''Age'' values. The code casts numeric columns
+        with pd.to_numeric(errors=''coerce'') but does not fill or otherwise handle
+        missing values for ''Age'' before writing it out, so the input should not
+        contain nulls. Deequ-style constraint: .satisfies("CASE WHEN `Age` IS NOT
+        NULL THEN 1 ELSE 0 END", "Null Age Values", lambda x: x == 1).'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: 832885fc-965f-4958-b7ac-32a3408c1df4
+    - text: 'All ''Age'' values must be numeric / convertible to a number. The code
+        calls pd.to_numeric(..., errors=''coerce'') for ''Age'', so non-numeric strings
+        would become NaN; because the code does not recover those, the input should
+        contain only numeric (or numeric-string) values. Deequ-style constraint: .satisfies("CASE
+        WHEN TRY_CAST(`Age` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Age is numeric",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      uid: 3d6e7711-4809-498b-b17e-bcb8f5148b59
+    - text: 'Age should be an integer-valued human working age (no fractional ages)
+        and fall within a reasonable range. The business age groups start at 18 (e.g.,
+        ''18-25''), so input ages < 18 are unexpected; also extremely large ages are
+        unlikely. A reasonable validation: require 18 <= Age <= 100 and Age is whole.
+        Deequ-style constraint: .satisfies("CASE WHEN `Age` BETWEEN 18 AND 100 AND
+        FLOOR(`Age`) = `Age` THEN 1 ELSE 0 END", "Age range & integer", lambda x:
+        x == 1).'
+      sources:
+      - start_line: 72
+        end_line: 79
+        file: ''
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: 3d282efe-a284-468d-8209-47a14ccdd26f
+  Attrition:
+    code:
+    - suggestion: .isComplete('Attrition')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: dca80ffa-5715-414d-b727-5d7d1bfd502a
+      source_assumptions:
+      - 4bade74f-7d32-42c8-8f8a-a97dea5d690d
+    - suggestion: .isContainedIn('Attrition', ['Yes', 'No'])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f96f5e0e-fe27-42f1-8197-a6c606ce5354
+      source_assumptions:
+      - 271a2567-ad01-43e2-8ff2-86ac2eb45fcf
+    - suggestion: '.satisfies("CASE WHEN `Attrition` = ''No'' THEN 1 ELSE 0 END",
+        "Has at least one No", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9c9abbcd-513e-4b71-a778-94ec2f3b1dc6
+      source_assumptions:
+      - 7d730677-cfb0-4141-b528-b12b989ba02f
+    - suggestion: '.satisfies("CASE WHEN `Attrition` = ''Yes'' THEN 1 ELSE 0 END",
+        "Has at least one Yes", lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4b664eff-2bbb-4a76-80e7-55387ef66d60
+      source_assumptions:
+      - 3c5ddd74-0312-4001-b9b7-8cdf2c63fd55
+    assumptions:
+    - text: 'The ''Attrition'' column must not contain null/missing values in the
+        input data. The code computes rates like (df[''Attrition''] == ''Yes'').mean()
+        and uses overall_attr_rate for threshold calibration, which assumes Attrition
+        is present for all rows. You can express this as a Deequ/GE rule, e.g.: .satisfies("CASE
+        WHEN `Attrition` IS NOT NULL THEN 1 ELSE 0 END", "Attrition not null", lambda
+        x: x == 1).'
+      sources:
+      - start_line: 46
+        end_line: 47
+        file: ''
+      - start_line: 113
+        end_line: 113
+        file: ''
+      uid: 4bade74f-7d32-42c8-8f8a-a97dea5d690d
+    - text: 'The ''Attrition'' column uses the exact string labels ''Yes'' and ''No''
+        (case-sensitive), with ''Yes'' indicating the positive/attrition class. The
+        code relies on equality checks (== ''Yes'') to compute rates. Represent as:
+        .satisfies("CASE WHEN `Attrition` IN (''Yes'',''No'') THEN 1 ELSE 0 END",
+        "Valid Attrition Labels", lambda x: x == 1).'
+      sources:
+      - start_line: 46
+        end_line: 47
+        file: ''
+      - start_line: 113
+        end_line: 113
+        file: ''
+      uid: 271a2567-ad01-43e2-8ff2-86ac2eb45fcf
+    - text: 'There should be at least one ''No'' value (negative class) in the data
+        (and ideally at least one ''No'' within the OverTime== ''No'' subgroup) so
+        that rate_ot_no is not zero. If rate_ot_no == 0 the code sets uplift_ot to
+        0.0 and the uplift calculation is not informative. A Deequ rule could be:
+        .satisfies("CASE WHEN `Attrition` = ''No'' THEN 1 ELSE 0 END", "Has at least
+        one No", lambda x: x > 0).'
+      sources:
+      - start_line: 44
+        end_line: 48
+        file: ''
+      uid: 7d730677-cfb0-4141-b528-b12b989ba02f
+    - text: 'There should be at least one ''Yes'' (positive) example in the dataset
+        so overall_attr_rate > 0 and the threshold calibration reflects observed prevalence
+        (otherwise overall_attr_rate == 0 and thresholds fall back to the code''s
+        fixed lower bound). Express as: .satisfies("CASE WHEN `Attrition` = ''Yes''
+        THEN 1 ELSE 0 END", "Has at least one Yes", lambda x: x > 0).'
+      sources:
+      - start_line: 113
+        end_line: 115
+        file: ''
+      uid: 3c5ddd74-0312-4001-b9b7-8cdf2c63fd55
+  '["Age","AgeGroup"]':
+    code: []
+    assumptions:
+    - text: 'The categorical AgeGroup labels correspond to concrete Age intervals
+        and are used downstream to compute risk. Concretely: ''18-25'' => Age between
+        18 and 25 inclusive; ''26-35'' => Age between 26 and 35; ''36-45'' => Age
+        between 36 and 45; ''46-55'' => Age between 46 and 55; ''55+'' => Age >= 55.
+        Enforceable as row-level predicates (one per group) or a single compound predicate.
+        Example Deequ-style checks: .satisfies("Age >= 18 AND Age <= 25", "agegroup_18_25").where("AgeGroup
+        = ''18-25''") and similarly for other groups, or a single .satisfies(...)
+        expression that encodes all branches.'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 73
+        end_line: 80
+        file: ''
+      - start_line: 97
+        end_line: 106
+        file: ''
+      uid: 25c85651-2cae-4577-9aa6-8ab1bb42482c
+    - text: 'There should be no records where Age and AgeGroup disagree: for every
+        row the Age value must fall into the interval implied by the AgeGroup label.
+        This is important because AgeGroup is directly mapped to risk_age_band and
+        used in summary metrics (e.g., ''age_26_35_share''); violations indicate inconsistent
+        data and will bias risk calculations. Implement as a multi-column constraint
+        that fails when AgeGroup = ''18-25'' AND (Age < 18 OR Age > 25), etc., or
+        as a single predicate combining all groups.'
+      sources:
+      - start_line: 73
+        end_line: 80
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      - start_line: 165
+        end_line: 165
+        file: ''
+      uid: ec16f6f7-00db-468a-8bca-92034db0e428
+  '["Age","TotalWorkingYears"]':
+    code:
+    - suggestion: '.satisfies("Age IS NOT NULL AND TotalWorkingYears IS NOT NULL",
+        "age_and_totalworkingyears_complete", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 641e564a-8015-4786-af26-8266f3ecc11d
+      source_assumptions:
+      - c9864a19-e60b-468d-bda2-f8ba13fae106
+    - suggestion: '.satisfies("TotalWorkingYears <= Age - 18", "totalworkingyears_le_age_minus_18",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 659e0f4a-ba11-43c7-bec9-09ce974483d8
+      source_assumptions:
+      - 9a1c74ac-3bd0-4d5b-97a8-67bd8273cdaa
+    - suggestion: '.satisfies("TotalWorkingYears >= YearsAtCompany", "totalworkingyears_ge_yearsatcompany",
+        lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 789001a8-c0e2-4b3f-acd4-a2a2132e7b9b
+      source_assumptions:
+      - 1c5ddd78-1aae-4829-a324-cadc13328d3c
+    assumptions:
+    - text: 'Both ''Age'' and ''TotalWorkingYears'' must be present (non-null) for
+        every record. The code converts these columns to numeric and then includes
+        them in the final output without null-handling, so downstream logic expects
+        completeness. Example Deequ constraint: .isComplete(["Age", "TotalWorkingYears"])
+        or .satisfies("Age IS NOT NULL AND TotalWorkingYears IS NOT NULL", "age_and_totalworkingyears_complete").'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      uid: c9864a19-e60b-468d-bda2-f8ba13fae106
+    - text: 'For every row, ''TotalWorkingYears'' should be less than or equal to
+        (Age - 18). The code uses AgeGroup values starting at 18 and treats TotalWorkingYears
+        as a lifetime measure; therefore we assume employees started working at or
+        after age 18. Example Deequ-style check: .satisfies("TotalWorkingYears <=
+        Age - 18", "totalworkingyears_le_age_minus_18").'
+      sources:
+      - start_line: 72
+        end_line: 80
+        file: ''
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      uid: 9a1c74ac-3bd0-4d5b-97a8-67bd8273cdaa
+    - text: 'Per-record logical consistency: ''TotalWorkingYears'' should be greater
+        than or equal to ''YearsAtCompany'' (an employee''s total career years must
+        be at least their tenure at the current company). Example Deequ-style check:
+        .satisfies("TotalWorkingYears >= YearsAtCompany", "totalworkingyears_ge_yearsatcompany").'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 60
+        end_line: 63
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      uid: 1c5ddd78-1aae-4829-a324-cadc13328d3c
+  '["Attrition","OverTime"]':
+    code: []
+    assumptions:
+    - text: "Both 'OverTime' and 'Attrition' are categorical with only the values\
+        \ 'Yes' and 'No' and no missing values. The code treats these columns as binary\
+        \ flags (df['OverTime'] == 'Yes', df['Attrition'] == 'Yes') and computes group\
+        \ rates and an overall attrition rate from them. Representable as actionable\
+        \ constraints, for example:\n- Deequ: .isContainedIn(\"OverTime\", [\"Yes\"\
+        ,\"No\"]) and .isContainedIn(\"Attrition\", [\"Yes\",\"No\"]) \n- Deequ completeness:\
+        \ .hasCompleteness(\"OverTime\", 1.0) and .hasCompleteness(\"Attrition\",\
+        \ 1.0)\n(These constraints ensure the boolean comparisons and rate computations\
+        \ behave as expected.)"
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 113
+        end_line: 115
+        file: ''
+      uid: b8b02e1c-3364-4ba7-9739-d842d06450d9
+    - text: 'There must be at least one row for each OverTime category (''Yes'' and
+        ''No'') and, for each category, there should be at least one row with a non-null
+        Attrition value. The code computes rate_ot_yes and rate_ot_no by subsetting
+        on OverTime and taking the mean of (Attrition == ''Yes''), so these group
+        counts must be present to produce meaningful uplift estimates. Actionable
+        checks:
+
+        - Ensure count(OverTime == ''Yes'') > 0 and count(OverTime == ''No'') > 0
+
+        - Ensure conditional completeness: completeness(Attrition | OverTime == ''Yes'')
+        > 0 and completeness(Attrition | OverTime == ''No'') > 0
+
+        (Deequ/SQL-style assertions can be used to implement these.)'
+      sources:
+      - start_line: 44
+        end_line: 48
+        file: ''
+      uid: dc76f917-cbe3-4e37-8534-c3b965b1578a
+    - text: 'Tenure-related columns satisfy logical ordering relative to YearsAtCompany:
+        YearsAtCompany is non-negative and (typically) > 0 for most rows, and the
+        per-role/manager/promotion durations do not exceed total tenure. Concretely:
+        YearsInCurrentRole <= YearsAtCompany, YearsWithCurrManager <= YearsAtCompany,
+        YearsSinceLastPromotion <= YearsAtCompany, and YearsAtCompany >= 0. These
+        relationships are relied on when computing ratios (YearsInCurrentRole / YearsAtCompany,
+        YearsWithCurrManager / YearsAtCompany) and when replacing zero denominators.
+        Actionable constraints:
+
+        - For all rows: YearsAtCompany >= 0
+
+        - For all rows: YearsInCurrentRole <= YearsAtCompany
+
+        - For all rows: YearsWithCurrManager <= YearsAtCompany
+
+        - For all rows: YearsSinceLastPromotion <= YearsAtCompany
+
+        (Implementable via Deequ .satisfies expressions or row-level assertions.)'
+      sources:
+      - start_line: 61
+        end_line: 70
+        file: ''
+      uid: f6fa03cb-7875-461f-9035-db6de1f5dad2
+    - text: 'For conditional action logic, when OverTime == ''Yes'' the WorkLifeBalance
+        value must be numeric, non-null and within the expected ordinal range (1..4).
+        The recommend_action function uses (row[''OverTime''] == ''Yes'') and (row[''WorkLifeBalance'']
+        <= 2) to return ''FlexibleSchedule'', so WorkLifeBalance must be comparable
+        to integer thresholds for rows with OverTime == ''Yes''. Actionable checks:
+
+        - isNumeric(WorkLifeBalance) and completeness(WorkLifeBalance | OverTime ==
+        ''Yes'') == 1.0
+
+        - values(WorkLifeBalance) subset of {1,2,3,4}
+
+        (These can be enforced via Deequ .isContainedIn and conditional completeness
+        constraints.)'
+      sources:
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 122
+        end_line: 130
+        file: ''
+      uid: 31cf663d-41d6-4232-b483-a7f3762d8625
+    - text: 'When evaluating compensation-driven actions the code checks both risk_income
+        and JobSatisfaction together: if risk_income >= 0.8 and JobSatisfaction <=
+        2 then it returns ''CompensationReview''. Therefore JobSatisfaction must be
+        numeric and non-null for rows where risk_income is high (>= 0.8). Actionable
+        constraint:
+
+        - completeness(JobSatisfaction | risk_income >= 0.8) == 1.0 and isNumeric(JobSatisfaction)
+        for those rows
+
+        (Implement via Deequ conditional completeness or a custom check that verifies
+        JobSatisfaction is present and within expected numeric bounds for high risk_income
+        rows.)'
+      sources:
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 126
+        end_line: 128
+        file: ''
+      uid: 2667ef48-bc7d-47da-985a-62f07cd0d224
+  WorkLifeBalance:
+    code:
+    - suggestion: '.satisfies("CASE WHEN regexp_like(CAST(`WorkLifeBalance` AS STRING),
+        ''^[0-9]+$'') THEN 1 ELSE 0 END", "WorkLifeBalance_is_numeric", lambda x:
+        x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 4b98ae4d-a2e8-4903-9214-6329eca0877b
+      source_assumptions:
+      - e6b7e2b1-e447-412e-ac30-f32ca44e5e68
+    - suggestion: '.satisfies("CASE WHEN `WorkLifeBalance` IN (1,2,3,4) THEN 1 ELSE
+        0 END", "Valid_WorkLifeBalance_Categories", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f1ac36f5-1551-497e-a3cd-66ba0e866769
+      source_assumptions:
+      - 33d31325-c9c6-4b22-b700-22a0c680484a
+    - suggestion: '.hasCompleteness(''WorkLifeBalance'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 8d2c21ed-eb6e-4d4a-ae1c-f9698bc88f34
+      source_assumptions:
+      - 4163a79d-c286-4077-86ed-0d1491ecba7b
+    assumptions:
+    - text: 'WorkLifeBalance should be numeric (or string representations of integers)
+        so pd.to_numeric(..., errors=''coerce'') produces a valid numeric value. If
+        many values are non-numeric they will become NaN and downstream numeric comparisons
+        and mappings will not behave as expected. Example validation (Deequ-like):
+        .satisfies("CASE WHEN regexp_like(CAST(`WorkLifeBalance` AS STRING), ''^[0-9]+$'')
+        THEN 1 ELSE 0 END", "WorkLifeBalance_is_numeric", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      uid: e6b7e2b1-e447-412e-ac30-f32ca44e5e68
+    - text: 'WorkLifeBalance is expected to be an ordinal category in the set {1,
+        2, 3, 4}. The code maps these exact values to risk contributions (1->1.0,
+        2->0.5, 3->0.0, 4->-0.05). Inputs outside this set will be treated as unknown
+        (risk mapped to 0.0) which may hide data issues. Represent this as a constraint:
+        .satisfies("CASE WHEN `WorkLifeBalance` IN (1,2,3,4) THEN 1 ELSE 0 END", "Valid_WorkLifeBalance_Categories",
+        lambda x: x >= 0.99)'
+      sources:
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 97
+        end_line: 101
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: 33d31325-c9c6-4b22-b700-22a0c680484a
+    - text: 'WorkLifeBalance should have very few (ideally zero) missing values after
+        coercion to numeric. Missing WorkLifeBalance values will make comparisons
+        like (WorkLifeBalance <= 2) evaluate false and can change recommended actions
+        and risk tiers. Example validation: .satisfies("CASE WHEN `WorkLifeBalance`
+        IS NOT NULL THEN 1 ELSE 0 END", "NonNull_WorkLifeBalance", lambda x: x >=
+        0.99)'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 123
+        end_line: 129
+        file: ''
+      uid: 4163a79d-c286-4077-86ed-0d1491ecba7b
+    - text: 'The numeric ordering of WorkLifeBalance conveys semantics: lower values
+        mean worse work-life balance (higher attrition risk) and higher values mean
+        better balance (lower or slightly negative risk). The mapping and the conditional
+        check (<= 2) rely on this ordering. Validation can be manual/semantic (ensure
+        documentation matches code) or checked by verifying mapping correctness on
+        a sample: e.g. ensure mean Attrition rate decreases as WorkLifeBalance increases.'
+      sources:
+      - start_line: 51
+        end_line: 53
+        file: ''
+      - start_line: 123
+        end_line: 129
+        file: ''
+      - start_line: 46
+        end_line: 49
+        file: ''
+      uid: e6b82044-27de-446b-8142-d292616d0266
+  YearsInCurrentRole:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`YearsInCurrentRole` AS double)
+        IS NOT NULL THEN 1 ELSE 0 END", "YearsInCurrentRole parseable as numeric",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d8450b40-bec4-49be-95c5-9282a3557bff
+      source_assumptions:
+      - 7925307d-166d-4658-8226-b1d269cec0c1
+    - suggestion: '.hasCompleteness(''YearsInCurrentRole'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 019529b9-922b-4aa6-8b26-22ff8b2ad2ad
+      source_assumptions:
+      - e036cd44-9839-4634-aedf-25275a11e3f0
+    - suggestion: '.satisfies("CASE WHEN `YearsInCurrentRole` IS NOT NULL AND `YearsInCurrentRole`
+        >= 0 AND CAST(`YearsInCurrentRole` AS INT) = `YearsInCurrentRole` THEN 1 ELSE
+        0 END", "Non-negative integer YearsInCurrentRole", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 41d411a7-c465-4700-8274-56e649a17c0a
+      source_assumptions:
+      - c1d82437-d44d-4de4-87b0-6f51f4960859
+    - suggestion: '.satisfies("CASE WHEN `YearsAtCompany` IS NOT NULL AND `YearsInCurrentRole`
+        <= `YearsAtCompany` THEN 1 ELSE 0 END", "YearsInCurrentRole <= YearsAtCompany",
+        lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 07b0eccf-e65e-4185-9636-9801f53454e6
+      source_assumptions:
+      - 00b406ac-f7f5-436f-9ceb-23647e8fc2e9
+    assumptions:
+    - text: 'The ''YearsInCurrentRole'' column must be numeric (convertible to integer/float).
+        The code calls pd.to_numeric(..., errors=''coerce'') on this column before
+        downstream arithmetic, so values that are non-numeric in the input will be
+        coerced to nulls and can break expected behavior. A validation rule could
+        require that after coercion the share of non-null values is high (for example
+        >= 0.99).
+
+        We could represent this as a deequ/Greatex expectations style constraint like:
+
+        .satisfies("CASE WHEN TRY_CAST(`YearsInCurrentRole` AS double) IS NOT NULL
+        THEN 1 ELSE 0 END", "YearsInCurrentRole parseable as numeric", lambda x: x
+        >= 0.99)'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      uid: 7925307d-166d-4658-8226-b1d269cec0c1
+    - text: 'The ''YearsInCurrentRole'' column should not contain nulls (or only a
+        negligible fraction). The pipeline assumes these values are present for reporting
+        and for computing the role_ratio (even though role_ratio handles some NaNs,
+        missing YearsInCurrentRole will affect risk calculation and output). Enforce
+        that the completeness of this column is high (e.g., 100% or >= 0.99).
+
+        Example constraint:
+
+        .satisfies("CASE WHEN `YearsInCurrentRole` IS NOT NULL THEN 1 ELSE 0 END",
+        "Non-null YearsInCurrentRole", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 16
+        end_line: 26
+        file: ''
+      - start_line: 142
+        end_line: 145
+        file: ''
+      uid: e036cd44-9839-4634-aedf-25275a11e3f0
+    - text: 'Values in ''YearsInCurrentRole'' should be non-negative integers (>=
+        0). Negative values are not meaningful in this context and would distort ratios
+        and risk calculations.
+
+        Example constraint:
+
+        .satisfies("CASE WHEN `YearsInCurrentRole` >= 0 AND `YearsInCurrentRole` =
+        CAST(`YearsInCurrentRole` AS INT) THEN 1 ELSE 0 END", "Non-negative integer
+        YearsInCurrentRole", lambda x: x == 1.0)'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 61
+        end_line: 63
+        file: ''
+      uid: c1d82437-d44d-4de4-87b0-6f51f4960859
+    - text: 'Logical consistency: ''YearsInCurrentRole'' should not exceed ''YearsAtCompany''
+        (and usually should be <= ''TotalWorkingYears''). The code computes role_ratio
+        = YearsInCurrentRole / YearsAtCompany and expects a meaningful ratio (it later
+        clips to [0,1]). Inputs where YearsInCurrentRole > YearsAtCompany indicate
+        bad/invalid data and should be flagged.
+
+        Example constraint:
+
+        .satisfies("CASE WHEN `YearsAtCompany` IS NOT NULL AND `YearsInCurrentRole`
+        <= `YearsAtCompany` THEN 1 ELSE 0 END", "YearsInCurrentRole <= YearsAtCompany",
+        lambda x: x == 1.0)'
+      sources:
+      - start_line: 61
+        end_line: 63
+        file: ''
+      - start_line: 142
+        end_line: 144
+        file: ''
+      uid: 00b406ac-f7f5-436f-9ceb-23647e8fc2e9
+  YearsWithCurrManager:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`YearsWithCurrManager` AS DOUBLE)
+        IS NOT NULL THEN 1 ELSE 0 END", "Numeric YearsWithCurrManager", lambda x:
+        x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a4d9b11f-15ab-4c1a-bd8b-8a2f1d066032
+      source_assumptions:
+      - 7265ee66-3e36-4ee3-a2b3-e5f15d3b56bf
+    - suggestion: '.satisfies("CASE WHEN `YearsWithCurrManager` IS NOT NULL THEN 1
+        ELSE 0 END", "Non-null YearsWithCurrManager", lambda x: x >= 0.90)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 69cc983f-fa92-4236-ac2b-a5987e560a24
+      source_assumptions:
+      - 299f834d-bbbf-4afe-aeb3-9e0a8e6ec4fe
+    - suggestion: '.satisfies("CASE WHEN `YearsWithCurrManager` IS NULL OR `YearsWithCurrManager`
+        >= 0 THEN 1 ELSE 0 END", "Non-negative YearsWithCurrManager (nulls allowed)",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6450b97b-e175-4885-a5ca-98079651e8e2
+      source_assumptions:
+      - 1061479a-d75c-4b6a-bbcb-9cbc24bea8d7
+    - suggestion: '.satisfies("CASE WHEN `YearsWithCurrManager` IS NULL OR `YearsAtCompany`
+        IS NULL OR `YearsWithCurrManager` <= `YearsAtCompany` THEN 1 ELSE 0 END",
+        "YearsWithCurrManager <= YearsAtCompany (or missing)", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4ad2dd53-e05b-4868-9bf0-fd8a8bcc0515
+      source_assumptions:
+      - 1061479a-d75c-4b6a-bbcb-9cbc24bea8d7
+    - suggestion: '.satisfies("CASE WHEN `YearsWithCurrManager` IS NULL OR (`YearsWithCurrManager`
+        BETWEEN 0 AND 50) THEN 1 ELSE 0 END", "Reasonable YearsWithCurrManager range
+        (0-50)", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e901252d-0f37-4a32-95ad-5dc27f9a2ef4
+      source_assumptions:
+      - 54f47aec-742e-4b8a-ae94-942fa6256f1f
+    assumptions:
+    - text: 'YearsWithCurrManager must be numeric (or coercible to a number). The
+        code calls pd.to_numeric(..., errors=''coerce'') on this column, so non-numeric
+        values will be converted to NaN which will affect downstream ratio/risk calculations.
+        Validation rule example: assert that the fraction of rows where YearsWithCurrManager
+        IS NULL after coercion is equal to the fraction of non-coercible values (i.e.
+        prefer none). As a Deequ/Great Expectations check: .satisfies("CASE WHEN TRY_CAST(`YearsWithCurrManager`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END", "Numeric YearsWithCurrManager",
+        lambda x: x >= 0.95) or require 1.0 if you expect no non-numeric values.'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      uid: 7265ee66-3e36-4ee3-a2b3-e5f15d3b56bf
+    - text: "Missing (null/NA) values in YearsWithCurrManager are allowed by the code\
+        \ but will be treated as 0 in the manager-ratio calculation (coercion -> NaN\
+        \ -> fillna(0.0)). Because missingness inflates risk (treated as very short\
+        \ time with manager), the input should have a low missing rate. Based on observed\
+        \ completeness (~95%), a suitable expectation is: non-null fraction >= 0.90\u2013\
+        0.95. Validation example: .satisfies(\"CASE WHEN `YearsWithCurrManager` IS\
+        \ NOT NULL THEN 1 ELSE 0 END\", \"Non-null YearsWithCurrManager\", lambda\
+        \ x: x >= 0.90)."
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 69
+        end_line: 69
+        file: ''
+      uid: 299f834d-bbbf-4afe-aeb3-9e0a8e6ec4fe
+    - text: 'YearsWithCurrManager should be non-negative and (logically) less than
+        or equal to YearsAtCompany. Negative values are invalid; values greater than
+        YearsAtCompany are logically inconsistent and will produce mgr_ratio > 1 (which
+        the code effectively maps to zero churn risk). Validation examples: .satisfies("CASE
+        WHEN `YearsWithCurrManager` >= 0 THEN 1 ELSE 0 END", "Non-negative YearsWithCurrManager",
+        lambda x: x == 1.0) and .satisfies("CASE WHEN `YearsWithCurrManager` <= `YearsAtCompany`
+        OR `YearsAtCompany` IS NULL THEN 1 ELSE 0 END", "YearsWithCurrManager <= YearsAtCompany",
+        lambda x: x >= 0.99).'
+      sources:
+      - start_line: 61
+        end_line: 63
+        file: ''
+      - start_line: 69
+        end_line: 70
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      uid: 1061479a-d75c-4b6a-bbcb-9cbc24bea8d7
+    - text: 'Large values in YearsWithCurrManager (much greater than YearsAtCompany)
+        can mask churn risk because mgr_ratio > 1 leads to (1 - mgr_ratio) being clipped
+        to 0. Therefore the input should not contain implausibly large values relative
+        to tenure. A practical check: YearsWithCurrManager <= YearsAtCompany and YearsWithCurrManager
+        <= reasonable_upper_bound (e.g., 50). Deequ/GE examples: .satisfies("CASE
+        WHEN `YearsWithCurrManager` <= `YearsAtCompany` THEN 1 ELSE 0 END", "Consistent
+        manager-tenure", lambda x: x >= 0.99) and .satisfies("CASE WHEN `YearsWithCurrManager`
+        BETWEEN 0 AND 50 THEN 1 ELSE 0 END", "Reasonable YearsWithCurrManager range",
+        lambda x: x == 1.0).'
+      sources:
+      - start_line: 69
+        end_line: 70
+        file: ''
+      - start_line: 97
+        end_line: 107
+        file: ''
+      - start_line: 133
+        end_line: 134
+        file: ''
+      uid: 54f47aec-742e-4b8a-ae94-942fa6256f1f
+  EmpID:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `EmpID` IS NOT NULL THEN 1 ELSE 0 END", "EmpID
+        present", lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 00127faf-d967-4c93-832d-d8055684632f
+      source_assumptions:
+      - 1873dc6c-5059-4881-b373-509e5b336b7c
+    - suggestion: .isComplete('EmpID')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0d982215-7df3-4edb-b281-a7b9ac4c63d6
+      source_assumptions:
+      - 12700aae-7765-4e54-b1fc-a673c914af96
+    - suggestion: .isUnique('EmpID')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 5d062cf9-1e9a-4c30-a6b2-d363fe6a2379
+      source_assumptions:
+      - c62e8082-8349-4d0e-bbba-a409ed61f4d8
+    - suggestion: '.satisfies("CASE WHEN `EmpID` IS NOT NULL AND TRIM(`EmpID`) <>
+        '''' THEN 1 ELSE 0 END", "EmpID non-empty / non-whitespace", lambda x: x ==
+        1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 696a64e7-16be-4e15-a114-0f53b5b5fdf4
+      source_assumptions:
+      - 4ae7781a-5e19-4ce1-9708-28951856e1c8
+    - suggestion: '.hasDataType(''EmpID'', ''String'', lambda x: x >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''EmpID'', ''String'',
+        lambda x: x >= 0.99)'
+      level: warning
+      uid: c71b7bb8-affd-4c8d-ba3f-e2275c843959
+      source_assumptions:
+      - 4ae7781a-5e19-4ce1-9708-28951856e1c8
+    assumptions:
+    - text: 'The input dataset must contain a column named ''EmpID''. The code calls
+        pd.read_csv and then uses df.set_index(''EmpID'', ...) and later explicitly
+        selects ''EmpID'' when building outputs, so the column name must exist exactly
+        as ''EmpID''.
+
+        Example validation (Great Expectations): expect_column_to_exist(''EmpID'')
+
+        Example validation (Deequ-like): .satisfies("CASE WHEN `EmpID` IS NOT NULL
+        THEN 1 ELSE 0 END", "EmpID present", lambda x: x >= 0.0) combined with an
+        existence check.'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 141
+        end_line: 146
+        file: ''
+      - start_line: 148
+        end_line: 148
+        file: ''
+      - start_line: 153
+        end_line: 154
+        file: ''
+      uid: 1873dc6c-5059-4881-b373-509e5b336b7c
+    - text: 'Every row must have a non-null EmpID. The code sets the index to EmpID
+        and preserves the column (drop=False) and writes EmpID out to CSV; missing
+        EmpID values would break the assumption that each row represents an identifiable
+        employee.
+
+        Example validation (Great Expectations): expect_column_values_to_not_be_null(''EmpID'')
+
+        Example validation (Deequ-like): .satisfies("CASE WHEN `EmpID` IS NOT NULL
+        THEN 1 ELSE 0 END", "Non-null EmpID", lambda x: x == 1.0)'
+      sources:
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 153
+        end_line: 154
+        file: ''
+      - start_line: 157
+        end_line: 161
+        file: ''
+      uid: 12700aae-7765-4e54-b1fc-a673c914af96
+    - text: 'EmpID is expected to be a stable unique identifier for each employee
+        (one EmpID per employee / one row). Downstream outputs (employee_risk_scores.csv
+        and retention_actions.csv) and the interpretation of n_employees assume EmpID
+        corresponds to distinct employees. Validate that the number of distinct EmpIDs
+        equals the number of rows (or is very close to it).
+
+        Example validation (Great Expectations): expect_column_unique_value_count_to_equal(''EmpID'',
+        <row_count>) or expect_column_values_to_be_unique(''EmpID'')
+
+        Example validation (Deequ-like): .satisfies("COUNT(DISTINCT `EmpID`) / COUNT(*)",
+        "EmpID uniqueness ratio", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 148
+        end_line: 148
+        file: ''
+      - start_line: 157
+        end_line: 161
+        file: ''
+      uid: c62e8082-8349-4d0e-bbba-a409ed61f4d8
+    - text: 'EmpID values should be string-like (or reliably convertible to string)
+        and non-empty. The code does not coerce or clean EmpID, and it is exported
+        as-is; therefore values should not be empty strings or types that would be
+        lost/misinterpreted on read/write.
+
+        Example validation (Great Expectations): expect_column_values_to_match_regex(''EmpID'',
+        ''.*\S.*'') (non-empty / contains a non-whitespace character)
+
+        Example validation (Deequ-like): .satisfies("CASE WHEN `EmpID` IS NOT NULL
+        AND TRIM(`EmpID`) != '''' THEN 1 ELSE 0 END", "EmpID non-empty", lambda x:
+        x == 1.0)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 27
+        end_line: 27
+        file: ''
+      - start_line: 141
+        end_line: 146
+        file: ''
+      uid: 4ae7781a-5e19-4ce1-9708-28951856e1c8
+  DistanceFromHome:
+    code:
+    - suggestion: '.satisfies("CASE WHEN try_cast(`DistanceFromHome` AS double) IS
+        NOT NULL THEN 1 ELSE 0 END", "DistanceFromHome is numeric/parseable", lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 988ab30e-8e95-41db-b5ca-0b2e7cdc1d69
+      source_assumptions:
+      - 5c799709-7372-48ba-8b3e-9292f60262e9
+    - suggestion: .isComplete("DistanceFromHome")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f8e90f8d-da62-4415-9315-12b54c5fb14a
+      source_assumptions:
+      - 4d458103-f7be-498c-9901-2565de15fbd5
+    - suggestion: '.isNonNegative("DistanceFromHome", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6c4ef44b-fbb4-437a-9ba0-98d741f9290b
+      source_assumptions:
+      - 778a882f-9f5a-47b6-8c3a-8161ad5986aa
+    - suggestion: '.satisfies("CASE WHEN `DistanceFromHome` <= 30 THEN 1 ELSE 0 END",
+        "DistanceFromHome within expected scale (<=30)", lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9414194f-9cd9-4551-b09a-521f4b9f41e6
+      source_assumptions:
+      - 53a69646-0adf-4058-bcac-a32d3ee7d904
+    assumptions:
+    - text: 'DistanceFromHome must be numeric / parseable as a number for all input
+        rows. The code calls pd.to_numeric(..., errors=''coerce'') on DistanceFromHome
+        (so non-numeric values would become NaN) and there is no subsequent imputation;
+        such coercion would produce NaNs that break downstream risk calculations.
+        Example validation (Deequ-style): .satisfies("CASE WHEN try_cast(`DistanceFromHome`
+        AS double) IS NOT NULL THEN 1 ELSE 0 END", "DistanceFromHome is numeric",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      uid: 5c799709-7372-48ba-8b3e-9292f60262e9
+    - text: 'DistanceFromHome should not be null/missing in the input. The code does
+        not fill or drop NaNs after numeric conversion, and uses DistanceFromHome
+        directly to compute risk_commute; missing values would cause NaNs to propagate
+        into risk_score. Example validation: .satisfies("CASE WHEN `DistanceFromHome`
+        IS NOT NULL THEN 1 ELSE 0 END", "Non-null DistanceFromHome", lambda x: x ==
+        1).'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 83
+        end_line: 83
+        file: ''
+      uid: 4d458103-f7be-498c-9901-2565de15fbd5
+    - text: 'DistanceFromHome should be non-negative (>= 0). The code computes (DistanceFromHome
+        / 30.0) and clips the result to [0,1]; negative distances are semantically
+        invalid and will be clipped to zero, which can misrepresent risk. Example
+        validation: .satisfies("CASE WHEN `DistanceFromHome` >= 0 THEN 1 ELSE 0 END",
+        "Non-negative DistanceFromHome", lambda x: x == 1).'
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      uid: 778a882f-9f5a-47b6-8c3a-8161ad5986aa
+    - text: "DistanceFromHome is expected to be on the same scale the code assumes\
+        \ (30 units corresponds to maximum commute risk). Inputs should generally\
+        \ be <= 30 (values >30 will be clipped to maximum commute risk by the code\
+        \ and may indicate a different unit/scale). Example validation: .satisfies(\"\
+        CASE WHEN `DistanceFromHome` <= 30 THEN 1 ELSE 0 END\", \"DistanceFromHome\
+        \ within expected scale (<=30)\", lambda x: x == 1) \u2014 or, if some outliers\
+        \ are acceptable, assert that a high fraction (e.g. >= 0.95) of values are\
+        \ <= 30."
+      sources:
+      - start_line: 83
+        end_line: 83
+        file: ''
+      uid: 53a69646-0adf-4058-bcac-a32d3ee7d904
+  Department:
+    code:
+    - suggestion: .isComplete('Department')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: ce3e2d3c-77e3-4542-99e3-6ca2c322c41a
+      source_assumptions:
+      - e4dcd029-7cc6-4132-8adf-6070df3b33b0
+    - suggestion: .isContainedIn('Department', ['Sales', 'Research & Development',
+        'Human Resources'])
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0467adb6-bcdb-4775-a100-580067aa3ddb
+      source_assumptions:
+      - dd4f82a2-9861-4d33-84e3-2406bb309965
+    - suggestion: '.satisfies(''CASE WHEN TRIM(`Department`) = `Department` THEN 1
+        ELSE 0 END'', ''Department Trimmed'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ff28750a-92a0-4192-a7eb-a85a97c3d90b
+      source_assumptions:
+      - 89a5e4c0-0110-4d64-bb36-2ded47d339f3
+    - suggestion: '.hasDataType(''Department'', ''String'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Department'',
+        ''String'', lambda x: x == 1)'
+      level: warning
+      uid: 961d9f48-5521-4b00-87f9-fd02c08ddf12
+      source_assumptions:
+      - 89a5e4c0-0110-4d64-bb36-2ded47d339f3
+    assumptions:
+    - text: 'The ''Department'' column must be present and non-null for every input
+        row because the code selects it into the output scores file and into the high-risk
+        actions file (a missing/null Department would cause incomplete outputs or
+        downstream confusion). Example validation (Deequ-style): .satisfies(''CASE
+        WHEN `Department` IS NOT NULL THEN 1 ELSE 0 END'', ''Non-null Department'',
+        lambda x: x == 1)'
+      sources:
+      - start_line: 141
+        end_line: 148
+        file: ''
+      uid: e4dcd029-7cc6-4132-8adf-6070df3b33b0
+    - text: 'The ''Department'' values are expected to come from a small known set.
+        Based on the observed data the allowed categories are: ''Sales'', ''Research
+        & Development'', ''Human Resources''. Validate that input values belong to
+        this set. Example validation (Deequ-style): .satisfies(''CASE WHEN `Department`
+        IN (''''Sales'''',''''Research & Development'''',''''Human Resources'''')
+        THEN 1 ELSE 0 END'', ''Valid Department'', lambda x: x == 1)'
+      sources:
+      - start_line: 141
+        end_line: 148
+        file: ''
+      uid: dd4f82a2-9861-4d33-84e3-2406bb309965
+    - text: 'Department should be canonical text (no unexpected whitespace or hidden
+        characters) and treated as a string. Recommend enforcing that TRIM(Department)
+        == Department and values are strings to avoid mismatches in outputs/reports.
+        Example validations: .satisfies(''CASE WHEN TRIM(`Department`) = `Department`
+        THEN 1 ELSE 0 END'', ''Department Trimmed'', lambda x: x == 1) and .satisfies(''CASE
+        WHEN `Department` IS NOT NULL AND typeof(`Department`) = ''''string'''' THEN
+        1 ELSE 0 END'', ''Department Type String'', lambda x: x == 1)'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 141
+        end_line: 148
+        file: ''
+      uid: 89a5e4c0-0110-4d64-bb36-2ded47d339f3
+  '["Department","JobRole"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN concat(`Department`, ''||'', `JobRole`) IN
+        (''Sales||Sales Representative'', ''Sales||Sales Executive'', ''Sales||Healthcare
+        Representative'', ''Sales||Manager'', ''Research & Development||Research Director'',
+        ''Research & Development||Research Scientist'', ''Research & Development||Laboratory
+        Technician'', ''Research & Development||Manufacturing Director'', ''Research
+        & Development||Manager'', ''Human Resources||Human Resources'', ''Human Resources||Manager'')
+        THEN 1 ELSE 0 END", "Valid Department-JobRole pairs", lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN concat(`Department`,
+        ''||'', `JobRole`) IN (''Sales||Sales Representative'', ''Sales||Sales Executive'',
+        ''Sales||Healthcare Representative'', ''Sales||Manager'', ''Research & Development||Research
+        Director'', ''Research & Development||Research Scientist'', ''Research & Development||Laboratory
+        Technician'', ''Research & Development||Manufacturing Director'', ''Research
+        & Development||Manager'', ''Human Resources||Human Resources'', ''Human Resources||Manager'')
+        THEN 1 ELSE 0 END", "Valid Department-JobRole pairs", lambda x: x == 1)''
+        failed on data sample: Value: 0.9206349206349206 does not meet the constraint
+        requirement!'
+      level: warning
+      uid: e14d170a-76aa-44c2-a264-960375a1ceae
+      source_assumptions:
+      - 33553760-41a3-4082-8463-0c8a5fa05766
+      - 2a2fa965-ddfc-4c92-8003-a41473a13072
+    - suggestion: '.satisfies("CASE WHEN `JobRole` = ''Human Resources'' THEN CASE
+        WHEN `Department` = ''Human Resources'' THEN 1 ELSE 0 END ELSE 1 END", "Human
+        Resources role must map to Human Resources department", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3a0b5bff-1bcd-4d6b-85db-e1ce57d6882b
+      source_assumptions:
+      - f39a0cab-8f8e-485f-83e8-03daae92d10f
+    assumptions:
+    - text: 'The (Department, JobRole) combinations in the dataset should be limited
+        to a known set of valid pairs. Based on the observed domain values, acceptable
+        pairs are: ("Sales", "Sales Representative"), ("Sales", "Sales Executive"),
+        ("Sales", "Healthcare Representative"), ("Sales", "Manager"), ("Research &
+        Development", "Research Director"), ("Research & Development", "Research Scientist"),
+        ("Research & Development", "Laboratory Technician"), ("Research & Development",
+        "Manufacturing Director"), ("Research & Development", "Manager"), ("Human
+        Resources", "Human Resources"), ("Human Resources", "Manager").
+
+        This assumption can be enforced as a multi-column constraint by creating a
+        derived column like concat(Department, ''||'', JobRole) and asserting that
+        its values are contained in the allowed set (i.e. all observed pairs must
+        be a subset of the allowed pairs).'
+      sources:
+      - start_line: 140
+        end_line: 146
+        file: ''
+      - start_line: 148
+        end_line: 148
+        file: ''
+      uid: 33553760-41a3-4082-8463-0c8a5fa05766
+    - text: JobRole == "Human Resources" must always be paired with Department ==
+        "Human Resources". In other words, rows where JobRole is the explicit HR role
+        should not appear under other departments. This is a strict one-to-one mapping
+        for that JobRole and can be checked as a multi-column membership or by asserting
+        all rows with JobRole == "Human Resources" have Department == "Human Resources".
+      sources:
+      - start_line: 140
+        end_line: 146
+        file: ''
+      - start_line: 148
+        end_line: 148
+        file: ''
+      uid: f39a0cab-8f8e-485f-83e8-03daae92d10f
+    - text: 'Except for the generic JobRole "Manager" (which may legitimately appear
+        across departments), each JobRole should deterministically map to a single
+        Department. Practically: for every JobRole != "Manager", the number of distinct
+        Department values for that JobRole must be 1. This can be implemented as a
+        multi-column functional-dependency check (JobRole -> Department) excluding
+        the exempt role(s).'
+      sources:
+      - start_line: 140
+        end_line: 146
+        file: ''
+      - start_line: 148
+        end_line: 148
+        file: ''
+      uid: 2a2fa965-ddfc-4c92-8003-a41473a13072
+  MonthlyIncome:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN try_cast(`MonthlyIncome` AS double) IS NOT
+        NULL THEN 1 ELSE 0 END'', ''MonthlyIncome_parseable'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 621e0282-17b3-49b3-bd83-1ba4ab381069
+      source_assumptions:
+      - bc66e9f0-aaed-4cb2-ad04-9b9a2094ea35
+    - suggestion: .isComplete('MonthlyIncome')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: addbc322-13d3-46c2-9c5c-ad9f2c1363f2
+      source_assumptions:
+      - 6ab10221-41f5-4c50-807c-db5c356010b9
+    - suggestion: '.isNonNegative(''MonthlyIncome'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0c88d5c1-fdc8-4235-98a9-6f6ab5e22adc
+      source_assumptions:
+      - dcaf6833-50ac-449c-8323-b308fd8a2313
+    - suggestion: '.satisfies(''CASE WHEN floor(`MonthlyIncome`) = `MonthlyIncome`
+        THEN 1 ELSE 0 END'', ''MonthlyIncome_integer'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: cb0cea4d-ddab-4fdc-b5b8-138f7a38201f
+      source_assumptions:
+      - dcaf6833-50ac-449c-8323-b308fd8a2313
+    assumptions:
+    - text: 'The ''MonthlyIncome'' column must be numeric (integer or float) or parsable
+        to a number. The code explicitly converts MonthlyIncome via pd.to_numeric(...,
+        errors=''coerce''), which will turn non-parsable values into nulls; therefore
+        the input should have the vast majority of values parsable as numbers (e.g.
+        >= 95%).
+
+        Representable as a validation rule (Deequ/SQL-like): .satisfies("CASE WHEN
+        try_cast(`MonthlyIncome` AS double) IS NOT NULL THEN 1 ELSE 0 END", "MonthlyIncome_parseable",
+        lambda x: x >= 0.95)'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      uid: bc66e9f0-aaed-4cb2-ad04-9b9a2094ea35
+    - text: 'The ''MonthlyIncome'' column should not contain nulls in the input (completeness).
+        The pipeline reads the CSV and converts MonthlyIncome to numeric but does
+        not fill or impute missing MonthlyIncome values before writing them to outputs,
+        so the input should provide MonthlyIncome for all rows.
+
+        Representable as a validation rule: .satisfies("CASE WHEN `MonthlyIncome`
+        IS NOT NULL THEN 1 ELSE 0 END", "MonthlyIncome_not_null", lambda x: x == 1.0)'
+      sources:
+      - start_line: 15
+        end_line: 16
+        file: ''
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: 6ab10221-41f5-4c50-807c-db5c356010b9
+    - text: 'The ''MonthlyIncome'' values should be non-negative and effectively integral
+        (no unexpected fractional cents). The dataset and downstream usage imply salaries
+        are non-negative integers; negative or highly fractional values are likely
+        invalid and may indicate parsing issues.
+
+        Representable as validation rules:
+
+        .satisfies("CASE WHEN `MonthlyIncome` >= 0 THEN 1 ELSE 0 END", "MonthlyIncome_non_negative",
+        lambda x: x == 1.0)
+
+        .satisfies("CASE WHEN floor(`MonthlyIncome`) = `MonthlyIncome` THEN 1 ELSE
+        0 END", "MonthlyIncome_integer", lambda x: x >= 0.99)'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: dcaf6833-50ac-449c-8323-b308fd8a2313
+  JobRole:
+    code:
+    - suggestion: .isComplete("JobRole")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: d54bf040-6d17-41c3-add6-f55e5d68062f
+      source_assumptions:
+      - 9ad5d0d7-8226-4572-b231-89600b1714d2
+      - 85c74f60-fefa-43da-b62c-df5115dd73f9
+    - suggestion: '.satisfies("CASE WHEN `JobRole` IN (''Research Director'',''Sales
+        Representative'',''Research Scientist'',''Manufacturing Director'',''Healthcare
+        Representative'',''Sales Executive'',''Manager'',''Human Resources'',''Laboratory
+        Technician'') THEN 1 ELSE 0 END", "JobRole in expected set", lambda x: x >=
+        0.98)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: dd69bab8-f227-4ee3-b6aa-03e7507d2974
+      source_assumptions:
+      - 503e6c48-7f31-4544-a9b0-805f84cef4df
+    - suggestion: '.satisfies("CASE WHEN TRIM(`JobRole`) = `JobRole` AND length(`JobRole`)
+        <= 50 THEN 1 ELSE 0 END", "JobRole canonical formatting", lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ea491e2a-7f00-4bba-b1d3-276e781a3151
+      source_assumptions:
+      - 574fc343-512d-4b82-b318-786e60e2bfde
+    assumptions:
+    - text: The input must contain a column named 'JobRole' (i.e., the column is present
+        in the CSV). The code reads the CSV and later selects 'JobRole' for outputs
+        and downstream action generation, so the column name must match exactly.
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 140
+        end_line: 148
+        file: ''
+      uid: 9ad5d0d7-8226-4572-b231-89600b1714d2
+    - text: 'The ''JobRole'' column should be non-null for all rows. The script copies
+        this column into output CSVs and uses it in the high-risk actions file; null/missing
+        JobRole values will produce incomplete output rows. Represent as a data-quality
+        rule such as: .satisfies("CASE WHEN `JobRole` IS NOT NULL THEN 1 ELSE 0 END",
+        "JobRole not null", lambda x: x == 1.0).'
+      sources:
+      - start_line: 140
+        end_line: 146
+        file: ''
+      - start_line: 148
+        end_line: 154
+        file: ''
+      uid: 85c74f60-fefa-43da-b62c-df5115dd73f9
+    - text: 'JobRole values are expected to be one of a fixed set of categorical roles
+        (observed values: ''Research Director'', ''Sales Representative'', ''Research
+        Scientist'', ''Manufacturing Director'', ''Healthcare Representative'', ''Sales
+        Executive'', ''Manager'', ''Human Resources'', ''Laboratory Technician'').
+        Validate membership explicitly. Example rule: .satisfies("CASE WHEN `JobRole`
+        IN (''Research Director'',''Sales Representative'',''Research Scientist'',''Manufacturing
+        Director'',''Healthcare Representative'',''Sales Executive'',''Manager'',''Human
+        Resources'',''Laboratory Technician'') THEN 1 ELSE 0 END", "JobRole in expected
+        set", lambda x: x >= 0.98) to allow small new-value noise, or require == 1.0
+        if strict.'
+      sources:
+      - start_line: 140
+        end_line: 148
+        file: ''
+      uid: 503e6c48-7f31-4544-a9b0-805f84cef4df
+    - text: 'JobRole values should be canonical (no unexpected leading/trailing whitespace
+        or inconsistent casing). The output files expect readable, consistent role
+        names. Validation can be: .satisfies("CASE WHEN TRIM(`JobRole`) = `JobRole`
+        AND `JobRole` = UPPER(LEFT(`JobRole`,1)) || LOWER(SUBSTRING(`JobRole`,2))
+        THEN 1 ELSE 0 END", "JobRole canonical formatting", lambda x: x == 1.0) or
+        simpler: check that TRIM(`JobRole`) == `JobRole` and length(`JobRole`) <=
+        50.'
+      sources:
+      - start_line: 140
+        end_line: 148
+        file: ''
+      uid: 574fc343-512d-4b82-b318-786e60e2bfde
+  JobSatisfaction:
+    code:
+    - suggestion: '.satisfies("CASE WHEN TRY_CAST(`JobSatisfaction` AS DOUBLE) IS
+        NOT NULL THEN 1 ELSE 0 END", "JobSatisfaction is numeric/convertible", lambda
+        x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 20f28f17-166c-4832-a774-5ff04e1b3803
+      source_assumptions:
+      - 45b6c40c-2761-4ff1-a980-18f97ca7c942
+    - suggestion: '.satisfies("CASE WHEN `JobSatisfaction` IN (1, 2, 3, 4) THEN 1
+        ELSE 0 END", "JobSatisfaction in {1,2,3,4}", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 495c5902-23de-4203-8e19-d620c66d1ba0
+      source_assumptions:
+      - 4590be4f-c5e4-4f4f-975b-50b4bccae384
+    - suggestion: .isComplete('JobSatisfaction')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: c28971d6-5448-4864-a030-307043822998
+      source_assumptions:
+      - c77435fb-9c6b-461b-b95c-7374cb34c223
+    - suggestion: '.satisfies("CASE WHEN `JobSatisfaction` BETWEEN 1 AND 4 AND `JobSatisfaction`
+        = FLOOR(`JobSatisfaction`) THEN 1 ELSE 0 END", "JobSatisfaction is integer
+        in [1,4]", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e0140971-4b0f-451f-b9f4-9b0261c417f5
+      source_assumptions:
+      - e9853219-f17f-401a-b16e-bb9898f7a4aa
+    assumptions:
+    - text: 'JobSatisfaction must be numeric (or convertible to numeric). The code
+        calls pd.to_numeric(..., errors=''coerce'') on JobSatisfaction (so non-numeric
+        input will become NaN) and later performs arithmetic (4 - JobSatisfaction)
+        and numeric comparisons. Represent as a validation rule: .satisfies("CASE
+        WHEN TRY_CAST(`JobSatisfaction` AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END",
+        "JobSatisfaction is numeric/convertible", lambda x: x == 1.0)'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 56
+        end_line: 57
+        file: ''
+      uid: 45b6c40c-2761-4ff1-a980-18f97ca7c942
+    - text: 'JobSatisfaction must use an ordinal 1-to-4 scale (integers 1, 2, 3, 4)
+        where 1 = lowest satisfaction and 4 = highest satisfaction. The risk calculation
+        (risk_js = (4 - JobSatisfaction) / 3.0) and logic that tests JobSatisfaction
+        <= 2 rely on this ordering and domain. Represent as a validation rule: .satisfies("CASE
+        WHEN `JobSatisfaction` IN (1, 2, 3, 4) THEN 1 ELSE 0 END", "JobSatisfaction
+        in {1,2,3,4}", lambda x: x == 1.0)'
+      sources:
+      - start_line: 56
+        end_line: 57
+        file: ''
+      - start_line: 127
+        end_line: 127
+        file: ''
+      uid: 4590be4f-c5e4-4f4f-975b-50b4bccae384
+    - text: 'JobSatisfaction should be complete (no nulls). The code does not fill
+        missing JobSatisfaction values before using them to compute risk_js, to clip
+        risk_score, and to form outputs; missing values would produce NaNs and can
+        break downstream comparisons and tiering. Represent as a validation rule:
+        .satisfies("CASE WHEN `JobSatisfaction` IS NOT NULL THEN 1 ELSE 0 END", "Non-null
+        JobSatisfaction", lambda x: x == 1.0)'
+      sources:
+      - start_line: 24
+        end_line: 26
+        file: ''
+      - start_line: 56
+        end_line: 57
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: c77435fb-9c6b-461b-b95c-7374cb34c223
+    - text: 'JobSatisfaction values should not contain unexpected out-of-range integers
+        (e.g., 0 or >4) or decimals that change interpretation. The logic assumes
+        the canonical 1..4 integer scale; out-of-range/decimal values could distort
+        risk_js and the recommend_action branch that checks <= 2. Represent as a validation
+        rule: .satisfies("CASE WHEN `JobSatisfaction` BETWEEN 1 AND 4 AND `JobSatisfaction`
+        = FLOOR(`JobSatisfaction`) THEN 1 ELSE 0 END", "JobSatisfaction is integer
+        in [1,4]", lambda x: x == 1.0)'
+      sources:
+      - start_line: 56
+        end_line: 57
+        file: ''
+      - start_line: 127
+        end_line: 127
+        file: ''
+      uid: e9853219-f17f-401a-b16e-bb9898f7a4aa
+  ? '["JobSatisfaction","OverTime","SalarySlab","WorkLifeBalance","YearsAtCompany","YearsInCurrentRole","YearsSinceLastPromotion","YearsWithCurrManager"]'
+  : code:
+    - suggestion: .satisfies("YearsInCurrentRole <= YearsAtCompany", "role_not_longer_than_tenure")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7733a282-37ba-4198-b483-d63830d10710
+      source_assumptions:
+      - 15db705b-da02-4bf3-8c02-67a7d02b9212
+    - suggestion: .satisfies("YearsWithCurrManager <= YearsAtCompany", "manager_tenure_le_company_tenure")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("YearsWithCurrManager <= YearsAtCompany",
+        "manager_tenure_le_company_tenure")'' failed on data sample: Value: 0.953514739229025
+        does not meet the constraint requirement!'
+      level: error
+      uid: 1dd8b2e8-b2a2-4a11-9c48-e5018f7c7e3e
+      source_assumptions:
+      - 97d916f8-8738-4e0d-87fc-851154915a50
+    - suggestion: .satisfies("YearsSinceLastPromotion <= YearsAtCompany", "promotion_lag_le_tenure")
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 20f5687f-afc3-4685-aa17-3babb21a7e62
+      source_assumptions:
+      - 6ccba215-283b-4e8a-afed-a7baa146e545
+    - suggestion: .satisfies("SalarySlab IN ('Upto 5k','5k-10k','10k-15k','15k+')",
+        "salaryslab_in_expected_values")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ed55653c-cb07-4d4b-9999-057d97869465
+      source_assumptions:
+      - eb2789e9-dadc-413f-833f-eed1bd851439
+    - suggestion: .satisfies("(SalarySlab != 'Upto 5k') OR (JobSatisfaction >= 1 AND
+        JobSatisfaction <= 4)", "low_salary_has_js")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fcc15c42-7389-4895-a714-475f5e8e1897
+      source_assumptions:
+      - eb2789e9-dadc-413f-833f-eed1bd851439
+    - suggestion: .satisfies("OverTime IN ('Yes','No')", "overtime_in_expected_values")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: fc398510-1a91-41ae-b651-62a2122e1c3b
+      source_assumptions:
+      - d97b6c85-d8f6-430d-ab64-fda01549f571
+    - suggestion: .satisfies("Attrition IN ('Yes','No')", "attrition_in_expected_values")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e2aa15b4-313d-4865-9732-d9c57879d5eb
+      source_assumptions:
+      - d97b6c85-d8f6-430d-ab64-fda01549f571
+    - suggestion: .satisfies("sum(CASE WHEN OverTime = 'Yes' AND Attrition IS NOT
+        NULL THEN 1 ELSE 0 END) >= 1 AND sum(CASE WHEN OverTime = 'No' AND Attrition
+        IS NOT NULL THEN 1 ELSE 0 END) >= 1", "overtime_groups_have_attrition_samples")
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("sum(CASE WHEN OverTime = ''Yes''
+        AND Attrition IS NOT NULL THEN 1 ELSE 0 END) >= 1 AND sum(CASE WHEN OverTime
+        = ''No'' AND Attrition IS NOT NULL THEN 1 ELSE 0 END) >= 1", "overtime_groups_have_attrition_samples")''
+        failed on data sample: org.apache.spark.sql.AnalysisException: [NESTED_AGGREGATE_FUNCTION]
+        It is not allowed to use an aggregate function in the argument of another
+        aggregate function. Please use the inner aggregate function in a sub-query.;
+        line 1 pos 0;
+
+        Aggregate [sum(cast(((sum(CASE WHEN ((OverTime#416 = Yes) AND isnotnull(Attrition#394))
+        THEN 1 ELSE 0 END) >= cast(1 as bigint)) AND (sum(CASE WHEN ((OverTime#416
+        = No) AND isnotnull(Attrition#394)) THEN 1 ELSE 0 END) >= cast(1 as bigint)))
+        as int)) AS sum(CAST(((sum(CASE WHEN ((OverTime = Yes) AND (Attrition IS NOT
+        NULL)) THEN 1 ELSE 0 END) >= 1) AND (sum(CASE WHEN ((OverTime = No) AND (Attrition
+        IS NOT NULL)) THEN 1 ELSE 0 END) >= 1)) AS INT))#1450594L, count(1) AS count(1)#1450595L]
+
+        +- LogicalRDD [id#390L, EmpID#391, Age#392L, AgeGroup#393, Attrition#394,
+        BusinessTravel#395, DailyRate#396L, Department#397, DistanceFromHome#398L,
+        Education#399L, EducationField#400, EmployeeCount#401L, EmployeeNumber#402L,
+        EnvironmentSatisfaction#403L, Gender#404, HourlyRate#405L, JobInvolvement#406L,
+        JobLevel#407L, JobRole#408, JobSatisfaction#409L, MaritalStatus#410, MonthlyIncome#411L,
+        SalarySlab#412, MonthlyRate#413L, ... 15 more fields], false
+
+        '
+      level: warning
+      uid: 013664d9-fed0-4640-a9f7-f8a8e187eb46
+      source_assumptions:
+      - d97b6c85-d8f6-430d-ab64-fda01549f571
+    - suggestion: .satisfies("(OverTime != 'Yes') OR (WorkLifeBalance >= 1 AND WorkLifeBalance
+        <= 4)", "ot_rows_have_wlb")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e78a12e6-fc92-402d-916b-1e5b1b21d0c5
+      source_assumptions:
+      - bdf6d420-e33c-4579-b676-86d93f35224b
+    - suggestion: '.haveCompleteness([''WorkLifeBalance''], lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 4ec29b7c-619c-487d-b5df-2e92f46732ff
+      source_assumptions:
+      - bdf6d420-e33c-4579-b676-86d93f35224b
+    assumptions:
+    - text: 'Employees cannot have been in their current role longer than their total
+        time at the company. In other words, for every record YearsInCurrentRole <=
+        YearsAtCompany. Actionable check examples:
+
+        - Deequ: .satisfies("YearsInCurrentRole <= YearsAtCompany", "role_not_longer_than_tenure")
+
+        - SQL/assertion: assert (df[''YearsInCurrentRole''] <= df[''YearsAtCompany'']).all()
+
+        '
+      sources:
+      - start_line: 60
+        end_line: 63
+        file: ''
+      uid: 15db705b-da02-4bf3-8c02-67a7d02b9212
+    - text: 'An employee''s reported time with their current manager should not exceed
+        their tenure at the company: YearsWithCurrManager <= YearsAtCompany. Actionable
+        checks:
+
+        - Deequ: .satisfies("YearsWithCurrManager <= YearsAtCompany", "manager_tenure_le_company_tenure")
+
+        - SQL/assertion: assert (df[''YearsWithCurrManager''] <= df[''YearsAtCompany'']).all()
+
+        '
+      sources:
+      - start_line: 68
+        end_line: 70
+        file: ''
+      uid: 97d916f8-8738-4e0d-87fc-851154915a50
+    - text: 'The years since last promotion should not be greater than total years
+        at the company: YearsSinceLastPromotion <= YearsAtCompany. Actionable checks:
+
+        - Deequ: .satisfies("YearsSinceLastPromotion <= YearsAtCompany", "promotion_lag_le_tenure")
+
+        - SQL/assertion: assert (df[''YearsSinceLastPromotion''] <= df[''YearsAtCompany'']).all()
+
+        '
+      sources:
+      - start_line: 65
+        end_line: 66
+        file: ''
+      uid: 6ccba215-283b-4e8a-afed-a7baa146e545
+    - text: "Low salary slab rows (those mapping to high income risk, e.g., 'Upto\
+        \ 5k' \u2192 risk_income high) must have valid JobSatisfaction values present\
+        \ and numeric (expected 1..4) so the compensation-review branch can be evaluated.\
+        \ Actionable checks:\n- Ensure SalarySlab values are within the expected set\
+        \ and that when SalarySlab maps to a high-risk weight (>= 0.8) JobSatisfaction\
+        \ is non-null and in [1,4].\n- Deequ examples: .isContainedIn(\"SalarySlab\"\
+        , [\"Upto 5k\",\"5k-10k\",\"10k-15k\",\"15k+\"]) and .satisfies(\"(SalarySlab\
+        \ != 'Upto 5k') OR (JobSatisfaction >= 1 AND JobSatisfaction <= 4)\", \"low_salary_has_js\"\
+        )\n"
+      sources:
+      - start_line: 35
+        end_line: 41
+        file: ''
+      - start_line: 127
+        end_line: 129
+        file: ''
+      uid: eb2789e9-dadc-413f-833f-eed1bd851439
+    - text: "OverTime and Attrition must be mutually meaningful for uplift calculation:\
+        \ OverTime must take expected values ('Yes'/'No') and Attrition must be present\
+        \ for those groups. Additionally, there should be at least one record in each\
+        \ OverTime group (Yes and No) with non-null Attrition to produce a stable\
+        \ uplift estimate. Actionable checks:\n- Verify OverTime \u2208 {'Yes','No'}\
+        \ and Attrition \u2208 {'Yes','No'}.\n- Verify counts: count(where OverTime='Yes'\
+        \ AND Attrition IS NOT NULL) > 0 and count(where OverTime='No' AND Attrition\
+        \ IS NOT NULL) > 0.\n- Deequ example: .isContainedIn(\"OverTime\", [\"Yes\"\
+        ,\"No\"]) and .satisfies(\"sum(cast((OverTime = 'Yes' AND Attrition IS NOT\
+        \ NULL) as int)) >= 1 AND sum(cast((OverTime = 'No' AND Attrition IS NOT NULL)\
+        \ as int)) >= 1\", \"overtime_groups_have_attrition_samples\")\n"
+      sources:
+      - start_line: 43
+        end_line: 49
+        file: ''
+      uid: d97b6c85-d8f6-430d-ab64-fda01549f571
+    - text: 'WorkLifeBalance must be present and in the expected ordinal range (1..4)
+        when used together with OverTime for action recommendations. In particular,
+        rows with OverTime == ''Yes'' should have non-null WorkLifeBalance so the
+        FlexibleSchedule branch can be evaluated. Actionable checks:
+
+        - Deequ: .satisfies("(OverTime != ''Yes'') OR (WorkLifeBalance >= 1 AND WorkLifeBalance
+        <= 4)", "ot_rows_have_wlb")
+
+        - Also ensure WorkLifeBalance completeness for overall model logic: .hasCompleteness(''WorkLifeBalance'',
+        threshold)
+
+        '
+      sources:
+      - start_line: 127
+        end_line: 130
+        file: ''
+      - start_line: 51
+        end_line: 53
+        file: ''
+      uid: bdf6d420-e33c-4579-b676-86d93f35224b
+  YearsSinceLastPromotion:
+    code:
+    - suggestion: '.satisfies(''CASE WHEN to_double(YearsSinceLastPromotion) IS NOT
+        NULL THEN 1 ELSE 0 END'', ''NumericYearsSinceLastPromotion'', lambda x: x
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CASE WHEN to_double(YearsSinceLastPromotion)
+        IS NOT NULL THEN 1 ELSE 0 END'', ''NumericYearsSinceLastPromotion'', lambda
+        x: x == 1.0)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_ROUTINE] Cannot resolve function `to_double` on search path [`system`.`builtin`,
+        `system`.`session`, `spark_catalog`.`default`].; line 1 pos 10'
+      level: error
+      uid: 552abfd7-eaac-402d-bf89-f2c586bb8fcc
+      source_assumptions:
+      - aa30ac38-b2fb-4892-b245-b38390da141f
+    - suggestion: '.hasCompleteness(''YearsSinceLastPromotion'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7edb14e3-888a-4d6d-9f50-6b5db8650567
+      source_assumptions:
+      - beb8b08d-4e32-4648-9db0-93b0dc9f6e4e
+    - suggestion: '.isNonNegative(''YearsSinceLastPromotion'', lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 2f73460b-a2b9-4234-aba9-ec53c1df364c
+      source_assumptions:
+      - 5aa94a7b-1713-4414-b31c-fe8cfc2b7e00
+    - suggestion: '.hasMax(''YearsSinceLastPromotion'', lambda x: x <= 40)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 16580fb9-fa22-4d3b-a76b-d38e890be368
+      source_assumptions:
+      - 438a77b6-b598-48ad-a69e-41ce102bb98c
+    - suggestion: '.hasDataType(''YearsSinceLastPromotion'', ''Integral'', lambda
+        x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''YearsSinceLastPromotion'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: warning
+      uid: 962c7077-6e57-46dc-a734-29ed26dabd20
+      source_assumptions:
+      - 15bcc4e2-7d56-422c-8e30-d40a4b851fff
+    assumptions:
+    - text: 'The ''YearsSinceLastPromotion'' column must be numeric (integral) and
+        parseable by pd.to_numeric without producing coerced NaNs. In other words,
+        input values should be numbers (ideally integers) or numeric strings so that
+        pd.to_numeric(..., errors=''coerce'') does not create missing values. Example
+        validation (Deequ/GREAT expectations style):
+
+        - Deequ-like: .satisfies("CASE WHEN to_double(YearsSinceLastPromotion) IS
+        NOT NULL THEN 1 ELSE 0 END", "NumericYearsSinceLastPromotion", lambda x: x
+        == 1.0)
+
+        - Great Expectations: expect_column_values_to_be_of_type(''YearsSinceLastPromotion'',
+        ''Integer'') or expect_column_values_to_match_regex to allow numeric strings.
+
+        This assumption is needed because the code coerces these columns to numeric
+        and then uses them numerically in risk calculations.'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 66
+        end_line: 66
+        file: ''
+      uid: aa30ac38-b2fb-4892-b245-b38390da141f
+    - text: 'The ''YearsSinceLastPromotion'' column should not contain nulls (no missing
+        values). The downstream code uses this column in arithmetic to compute risk_promo_lag
+        and sums into risk_raw without any fillna for this column; NaNs would propagate
+        and can lead to incorrect/NaN risk scores or default ''Low'' tiers. Example
+        validations:
+
+        - Deequ-like: .hasCompleteness(''YearsSinceLastPromotion'', lambda x: x ==
+        1.0)
+
+        - Great Expectations: expect_column_values_to_not_be_null(''YearsSinceLastPromotion'')
+
+        '
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 97
+        end_line: 111
+        file: ''
+      uid: beb8b08d-4e32-4648-9db0-93b0dc9f6e4e
+    - text: 'Values in ''YearsSinceLastPromotion'' should be non-negative (>= 0).
+        Negative years are not meaningful here and would be clipped to 0 in the computation;
+        the input should not contain negative values. Example validations:
+
+        - Deequ-like: .satisfies("CASE WHEN YearsSinceLastPromotion >= 0 THEN 1 ELSE
+        0 END", "NonNegativeYearsSinceLastPromotion", lambda x: x == 1.0)
+
+        - Great Expectations: expect_column_values_to_be_between(''YearsSinceLastPromotion'',
+        min_value=0, max_value=None)
+
+        '
+      sources:
+      - start_line: 66
+        end_line: 66
+        file: ''
+      - start_line: 131
+        end_line: 133
+        file: ''
+      uid: 5aa94a7b-1713-4414-b31c-fe8cfc2b7e00
+    - text: 'Years values larger than 5 do not increase the promotion-lag risk beyond
+        the 5-year saturation used in the code (risk_promo_lag = (YearsSinceLastPromotion
+        / 5.0).clip(0,1)). Therefore: (a) inputs > 5 are allowed but will be treated
+        the same as 5 for risk; (b) to avoid surprising outliers, enforce a reasonable
+        upper-bound on the input (for example <= 40). Example validations:
+
+        - Informational check: report share of rows with YearsSinceLastPromotion >
+        5 (should be expected/acceptable per business rules).
+
+        - Deequ-like: .satisfies("CASE WHEN YearsSinceLastPromotion <= 40 THEN 1 ELSE
+        0 END", "ReasonableMaxYearsSinceLastPromotion", lambda x: x == 1.0)  (adjust
+        40 as appropriate for your data)
+
+        '
+      sources:
+      - start_line: 66
+        end_line: 66
+        file: ''
+      - start_line: 97
+        end_line: 110
+        file: ''
+      uid: 438a77b6-b598-48ad-a69e-41ce102bb98c
+    - text: 'Because the code later treats risk_promo_lag >= 0.8 (i.e. YearsSinceLastPromotion
+        >= 4) as a trigger for career progression action, the granularity around small
+        integers (0..6) should be meaningful. In other words, input should preserve
+        integer-year resolution so threshold checks (>=4) are valid. Example validations:
+
+        - Deequ-like: .satisfies("CASE WHEN YearsSinceLastPromotion % 1 = 0 THEN 1
+        ELSE 0 END", "IntegerYearsSinceLastPromotion", lambda x: x == 1.0)
+
+        - Great Expectations: expect_column_values_to_be_in_type(''YearsSinceLastPromotion'',
+        ''Integer'') and/or expect_column_values_to_be_between(''YearsSinceLastPromotion'',
+        min_value=0, max_value=40)
+
+        '
+      sources:
+      - start_line: 131
+        end_line: 133
+        file: ''
+      - start_line: 66
+        end_line: 66
+        file: ''
+      uid: 15bcc4e2-7d56-422c-8e30-d40a4b851fff
+  '["MonthlyIncome","SalarySlab"]':
+    code: []
+    assumptions:
+    - text: 'SalarySlab values must be consistent with MonthlyIncome numeric ranges.
+        Concretely the dataset should satisfy all of:
+
+        - If SalarySlab == ''Upto 5k'' then MonthlyIncome <= 5000
+
+        - If SalarySlab == ''5k-10k'' then MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000
+
+        - If SalarySlab == ''10k-15k'' then MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000
+
+        - If SalarySlab == ''15k+'' then MonthlyIncome > 15000
+
+        This can be expressed as actionable Deequ-style constraints (examples):
+
+        .satisfies("SalarySlab != ''Upto 5k'' OR MonthlyIncome <= 5000", "slab_upto_5k_consistency")
+
+        .satisfies("SalarySlab != ''5k-10k'' OR (MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000)", "slab_5k_10k_consistency")
+
+        .satisfies("SalarySlab != ''10k-15k'' OR (MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000)", "slab_10k_15k_consistency")
+
+        .satisfies("SalarySlab != ''15k+'' OR MonthlyIncome > 15000", "slab_15k_plus_consistency")'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 35
+        end_line: 41
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      uid: e9df8732-79a8-4e79-97f1-53f03d7d1d2a
+    - text: 'MonthlyIncome should imply the correct SalarySlab (the inverse consistency).
+        Concretely the dataset should satisfy:
+
+        - If MonthlyIncome <= 5000 then SalarySlab == ''Upto 5k''
+
+        - If MonthlyIncome > 5000 AND MonthlyIncome <= 10000 then SalarySlab == ''5k-10k''
+
+        - If MonthlyIncome > 10000 AND MonthlyIncome <= 15000 then SalarySlab == ''10k-15k''
+
+        - If MonthlyIncome > 15000 then SalarySlab == ''15k+''
+
+        This prevents mismatches introduced during ingestion or manual edits. Example
+        Deequ-style constraints:
+
+        .satisfies("MonthlyIncome > 0 OR MonthlyIncome IS NOT NULL", "monthly_income_positive")
+
+        .satisfies("MonthlyIncome <= 5000 OR SalarySlab != ''Upto 5k''", "monthly_to_slab_upto5k_inv")
+
+        .satisfies("(MonthlyIncome > 5000 AND MonthlyIncome <= 10000) OR SalarySlab
+        != ''5k-10k''", "monthly_to_slab_5k_10k_inv")
+
+        .satisfies("(MonthlyIncome > 10000 AND MonthlyIncome <= 15000) OR SalarySlab
+        != ''10k-15k''", "monthly_to_slab_10k_15k_inv")
+
+        .satisfies("MonthlyIncome > 15000 OR SalarySlab != ''15k+''", "monthly_to_slab_15k_plus_inv")'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 35
+        end_line: 41
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      uid: c9090ad6-149c-450f-a521-558448538dc6
+  OverTime:
+    code:
+    - suggestion: .isComplete('OverTime')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 73471ac7-a074-49ad-aa08-5aa933ef503b
+      source_assumptions:
+      - ec1a6fb4-8350-483c-bacb-1a5f8e5ed86c
+    - suggestion: '.isContainedIn(''OverTime'', [''Yes'',''No''], lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 95782bbc-3ed9-4532-a1f6-cc487c361fa2
+      source_assumptions:
+      - 737f3386-450c-456b-bfd6-662d8afd4ce7
+    - suggestion: '.hasDataType(''OverTime'', ''String'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''OverTime'',
+        ''String'', lambda x: x == 1)'
+      level: error
+      uid: 11d47aad-058a-4990-9a49-76351e634705
+      source_assumptions:
+      - 7a9cd306-ebb1-4aa8-9759-7f4b951c879d
+    - suggestion: '.satisfies("`OverTime` = ''Yes''", "over_time_has_yes", lambda
+        x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: d5597fbe-f71f-4ae9-a413-1fe4dcccdbe3
+      source_assumptions:
+      - 8f35deaf-f7db-4c91-b7a4-33d5dbe792cc
+    - suggestion: '.satisfies("`OverTime` = ''No''", "over_time_has_no", lambda x:
+        x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9cd69455-c346-46c4-95d6-81655e2dc39a
+      source_assumptions:
+      - 8f35deaf-f7db-4c91-b7a4-33d5dbe792cc
+    assumptions:
+    - text: 'The ''OverTime'' column must not contain null/missing values in the input.
+        The downstream code compares values to ''Yes''/''No'' and uses the column
+        in risk calculation and outputs, so missing values would silently be treated
+        as not-''Yes'' (risk_ot=0.0) or could lead to NaNs during group-level rate
+        computations. Example validation (Deequ/GE): CASE WHEN `OverTime` IS NOT NULL
+        THEN 1 ELSE 0 END should be == 1.0'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 140
+        end_line: 146
+        file: ''
+      uid: ec1a6fb4-8350-483c-bacb-1a5f8e5ed86c
+    - text: 'The ''OverTime'' column should be categorical with only the two expected
+        values ''Yes'' and ''No'' (case-sensitive as used in code). The code directly
+        checks equality to the string literals ''Yes'' and ''No'' and will treat any
+        other value as neither, changing behavior (e.g., those rows get risk_ot =
+        0.0). Example validation: CASE WHEN `OverTime` IN (''Yes'',''No'') THEN 1
+        ELSE 0 END should be >= 0.95 (or == 1.0 if strict).'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 129
+        end_line: 129
+        file: ''
+      - start_line: 140
+        end_line: 146
+        file: ''
+      uid: 737f3386-450c-456b-bfd6-662d8afd4ce7
+    - text: 'Both categories ''Yes'' and ''No'' should be present (non-empty groups)
+        in the input so that the uplift calculation is meaningful. The code computes
+        separate attrition rates for OverTime==''Yes'' and OverTime==''No'' and uses
+        rate_ot_no in a division; while the code guards against division-by-zero,
+        having zero observations in one category will make uplift_ot uninformative
+        (set to 0.0). Example validation: COUNT_IF(`OverTime` == ''Yes'') > 0 AND
+        COUNT_IF(`OverTime` == ''No'') > 0.'
+      sources:
+      - start_line: 44
+        end_line: 48
+        file: ''
+      uid: 8f35deaf-f7db-4c91-b7a4-33d5dbe792cc
+    - text: 'Values in ''OverTime'' should be strings (not numeric or boolean). The
+        dataset and code expect string comparisons to ''Yes''/''No''. If the input
+        encodes OverTime differently (e.g., 1/0 or True/False), the comparisons will
+        fail and risk_ot will be incorrect. Example validation: typeof(`OverTime`)
+        == ''string'' OR assert that mapping 1/0/True/False to ''Yes''/''No'' is applied
+        upstream.'
+      sources:
+      - start_line: 44
+        end_line: 49
+        file: ''
+      - start_line: 48
+        end_line: 49
+        file: ''
+      uid: 7a9cd306-ebb1-4aa8-9759-7f4b951c879d
+  SalarySlab:
+    code:
+    - suggestion: .isComplete('SalarySlab')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e3fbaff8-3601-4a55-9e15-216b77809542
+      source_assumptions:
+      - ec07520c-afb8-4ef9-8642-f9b4c7d86004
+    - suggestion: '.hasPattern(''SalarySlab'', ''^(Upto 5k|5k-10k|10k-15k|15k+)$'',
+        lambda x: x == 1.0, name=''SalarySlab_allowed_and_trimmed'')'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasPattern(''SalarySlab'', ''^(Upto 5k|5k-10k|10k-15k|15k+)$'',
+        lambda x: x == 1.0, name=''SalarySlab_allowed_and_trimmed'')'' failed on data
+        sample: Value: 0.9195011337868481 does not meet the constraint requirement!'
+      level: error
+      uid: bf0eed13-30b9-44a8-9fd1-bc2bc101cfc3
+      source_assumptions:
+      - ac07dbb7-0289-48c8-87e4-2520e6126485
+      - 81583507-5130-4ec5-9967-725af997bea6
+    assumptions:
+    - text: 'The input must contain a SalarySlab column and it must be populated (no
+        NULL / missing values). The script reads the CSV, maps SalarySlab to numeric
+        weights and writes SalarySlab out to the results and computes metrics on it,
+        so missing values would cause mapping to produce NaNs and downstream risk_score
+        / risk_tier calculations or the metric ''upto5k_share'' to be incorrect or
+        NaN. Example validation (Deequ/GE): .satisfies("CASE WHEN `SalarySlab` IS
+        NOT NULL THEN 1 ELSE 0 END", "SalarySlab_present", lambda x: x == 1).'
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 141
+        end_line: 146
+        file: ''
+      - start_line: 164
+        end_line: 164
+        file: ''
+      uid: ec07520c-afb8-4ef9-8642-f9b4c7d86004
+    - text: 'SalarySlab values must be one of the expected categories exactly: ''Upto
+        5k'', ''5k-10k'', ''10k-15k'', or ''15k+''. The code maps these exact strings
+        to numeric slab_weight keys; any other value will map to NaN and break downstream
+        numeric risk aggregation. Example validation: .satisfies("CASE WHEN `SalarySlab`
+        IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'') THEN 1 ELSE 0 END", "SalarySlab_allowed_categories",
+        lambda x: x == 1).'
+      sources:
+      - start_line: 35
+        end_line: 41
+        file: ''
+      - start_line: 41
+        end_line: 41
+        file: ''
+      - start_line: 164
+        end_line: 164
+        file: ''
+      uid: ac07dbb7-0289-48c8-87e4-2520e6126485
+    - text: 'Category string matching is exact and case/whitespace-sensitive (e.g.,
+        ''Upto 5k'' must match that exact spelling, spacing and the ''+'' character
+        for ''15k+''). Trim/normalize inputs before mapping or enforce that input
+        values have no extra leading/trailing whitespace or case differences. Example
+        validation: .satisfies("CASE WHEN TRIM(`SalarySlab`) IN (''Upto 5k'',''5k-10k'',''10k-15k'',''15k+'')
+        THEN 1 ELSE 0 END", "SalarySlab_trimmed_allowed", lambda x: x == 1).'
+      sources:
+      - start_line: 35
+        end_line: 41
+        file: ''
+      - start_line: 41
+        end_line: 41
+        file: ''
+      uid: 81583507-5130-4ec5-9967-725af997bea6
+  TotalWorkingYears:
+    code:
+    - suggestion: .isComplete('TotalWorkingYears')
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 3be49971-2d3c-4ea6-8010-5a3b51775319
+      source_assumptions:
+      - d98d9122-3eef-4477-b541-49a4c8998675
+      - c8f83cc3-71fe-4b35-8190-8a916d56a33e
+    - suggestion: '.hasPattern(''TotalWorkingYears'', ''^[0-9]+$'', lambda x: x ==
+        1.0, name=''TotalWorkingYears_integer_string'')'
+      validity: false
+      reason_if_invalid: 'Constraint ''.hasPattern(''TotalWorkingYears'', ''^[0-9]+$'',
+        lambda x: x == 1.0, name=''TotalWorkingYears_integer_string'')'' failed on
+        data sample: Expected type of column TotalWorkingYears to be StringType, but
+        found LongType instead!'
+      level: error
+      uid: dd0fbbd6-bd44-4898-9e99-2cc660d91581
+      source_assumptions:
+      - 2bbe335b-1022-4ff4-a230-f14429bdb657
+      - 03cd61bc-b448-4fdc-be73-e8b4a170fd24
+    - suggestion: '.hasMin(''TotalWorkingYears'', lambda x: x >= 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 7864e9fa-ed0d-49d1-aa40-9cc48ba52fcf
+      source_assumptions:
+      - 03cd61bc-b448-4fdc-be73-e8b4a170fd24
+    - suggestion: '.hasMax(''TotalWorkingYears'', lambda x: x <= 60)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 89008bc8-6731-432c-a3ae-c4eda10bdd7f
+      source_assumptions:
+      - 03cd61bc-b448-4fdc-be73-e8b4a170fd24
+    - suggestion: '.hasDataType(''TotalWorkingYears'', ''Integral'', lambda x: x ==
+        1.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''TotalWorkingYears'',
+        ''Integral'', lambda x: x == 1.0)'
+      level: warning
+      uid: 6f59e9b0-5cb6-4f32-8938-d0e6ba4da52b
+      source_assumptions:
+      - 03cd61bc-b448-4fdc-be73-e8b4a170fd24
+    assumptions:
+    - text: The input must contain the column 'TotalWorkingYears'. The script reads
+        the CSV, normalizes numeric columns including 'TotalWorkingYears', and includes
+        it in the final output columns, so this column is expected to exist in the
+        input.
+      sources:
+      - start_line: 16
+        end_line: 16
+        file: ''
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: d98d9122-3eef-4477-b541-49a4c8998675
+    - text: '''TotalWorkingYears'' values must be numeric (or numeric strings) and
+        convertible to numeric without coercion to NaN. The code calls pd.to_numeric(...,
+        errors="coerce") but does not impute or otherwise handle resulting NaNs for
+        this column before writing outputs, so the input should already be numeric-convertible.
+        Example Deequ/GX constraint: proportion of rows where to_numeric(`TotalWorkingYears`)
+        IS NOT NULL should be ~1.0.'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 153
+        end_line: 153
+        file: ''
+      uid: 2bbe335b-1022-4ff4-a230-f14429bdb657
+    - text: '''TotalWorkingYears'' should not contain missing/null values. The code
+        does not fill or validate missing values for this column prior to including
+        it in scores and outputs, so the input is expected to be complete for this
+        field. Example Deequ/GX constraint: fraction of non-null `TotalWorkingYears`
+        == 1.0.'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      - start_line: 153
+        end_line: 153
+        file: ''
+      uid: c8f83cc3-71fe-4b35-8190-8a916d56a33e
+    - text: '''TotalWorkingYears'' should be an integral, non-negative value within
+        a plausible range (e.g., 0 <= TotalWorkingYears <= 60). The dataset metadata
+        indicates integral values and the code treats this field as numeric without
+        normalization to fractional values; downstream consumers will expect whole-year
+        counts. Example Deequ/GX constraints: all values integer (value % 1 == 0)
+        and min >= 0 and max <= 60.'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 140
+        end_line: 145
+        file: ''
+      uid: 03cd61bc-b448-4fdc-be73-e8b4a170fd24
+  '["TotalWorkingYears","YearsAtCompany"]':
+    code:
+    - suggestion: '.haveCompleteness(columns=[''TotalWorkingYears'', ''YearsAtCompany''],
+        assertion=lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: a4243721-e3b3-4b5b-9646-d2f1a3a4fc64
+      source_assumptions:
+      - 1eb20f32-29ff-43e4-927e-f7d7b746da64
+    - suggestion: '.satisfies("TotalWorkingYears >= YearsAtCompany", "total_ge_tenure",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: eb9e66c8-7bac-4046-98bb-6169f6408ac8
+      source_assumptions:
+      - 28d4ce2d-b2c6-4bd7-ad30-2bfe8080bb52
+    - suggestion: '.satisfies("YearsAtCompany >= YearsInCurrentRole", "tenure_ge_current_role",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 5460e7a4-e9c4-46f6-ae6e-120e13ab86a9
+      source_assumptions:
+      - 985596a7-c413-43e5-9752-1f78b1f61d28
+    - suggestion: '.satisfies("YearsAtCompany >= YearsWithCurrManager", "tenure_ge_manager_tenure",
+        lambda x: x == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("YearsAtCompany >= YearsWithCurrManager",
+        "tenure_ge_manager_tenure", lambda x: x == 1.0)'' failed on data sample: Value:
+        0.953514739229025 does not meet the constraint requirement!'
+      level: warning
+      uid: 2092d051-ce72-4854-8985-8fe921ffc2ef
+      source_assumptions:
+      - 985596a7-c413-43e5-9752-1f78b1f61d28
+    - suggestion: '.satisfies("YearsAtCompany >= YearsSinceLastPromotion", "tenure_ge_last_promo",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 724b6951-f360-4279-81e3-f97bf75296dc
+      source_assumptions:
+      - 985596a7-c413-43e5-9752-1f78b1f61d28
+    - suggestion: '.satisfies("TotalWorkingYears >= 0 AND YearsAtCompany >= 0", "non_negative_years",
+        lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b0e06d46-a739-44f9-b3fb-efdc6cc97f01
+      source_assumptions:
+      - 1eb20f32-29ff-43e4-927e-f7d7b746da64
+    assumptions:
+    - text: 'For every record, ''TotalWorkingYears'' should be greater than or equal
+        to ''YearsAtCompany''. This enforces that a person''s total career length
+        is at least as large as their tenure at the current company. Actionable constraint
+        example (Deequ-style / pseudo): assert all rows satisfy TotalWorkingYears
+        >= YearsAtCompany (e.g. .satisfies(''TotalWorkingYears >= YearsAtCompany'',
+        ''total_ge_tenure'')).'
+      sources:
+      - start_line: 19
+        end_line: 23
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      uid: 28d4ce2d-b2c6-4bd7-ad30-2bfe8080bb52
+    - text: 'For each record, ''YearsAtCompany'' should be greater than or equal to
+        each of (''YearsInCurrentRole'', ''YearsWithCurrManager'', ''YearsSinceLastPromotion'').
+        This ensures the role_ratio = YearsInCurrentRole / YearsAtCompany and mgr_ratio
+        = YearsWithCurrManager / YearsAtCompany are meaningful and typically <= 1.
+        Actionable constraints: assert YearsAtCompany >= YearsInCurrentRole, assert
+        YearsAtCompany >= YearsWithCurrManager, assert YearsAtCompany >= YearsSinceLastPromotion
+        (each can be expressed as separate Deequ satisfies constraints).'
+      sources:
+      - start_line: 19
+        end_line: 23
+        file: ''
+      - start_line: 61
+        end_line: 63
+        file: ''
+      - start_line: 66
+        end_line: 66
+        file: ''
+      - start_line: 69
+        end_line: 70
+        file: ''
+      - start_line: 140
+        end_line: 144
+        file: ''
+      uid: 985596a7-c413-43e5-9752-1f78b1f61d28
+    - text: '''TotalWorkingYears'' and ''YearsAtCompany'' should be non-negative (>=
+        0) and remain present (non-null) after numeric coercion. This supports downstream
+        arithmetic and ratio computations. Actionable constraint examples: assert
+        completeness of both columns (e.g. .hasCompleteness(''TotalWorkingYears'',
+        1.0) and .hasCompleteness(''YearsAtCompany'', 1.0)) and assert they satisfy
+        TotalWorkingYears >= 0 AND YearsAtCompany >= 0 (or separate non-negativity
+        checks).'
+      sources:
+      - start_line: 24
+        end_line: 26
+        file: ''
+      - start_line: 19
+        end_line: 23
+        file: ''
+      - start_line: 61
+        end_line: 63
+        file: ''
+      uid: 1eb20f32-29ff-43e4-927e-f7d7b746da64
+  '["YearsAtCompany","YearsInCurrentRole","YearsSinceLastPromotion","YearsWithCurrManager"]':
+    code: []
+    assumptions:
+    - text: 'For every record, YearsInCurrentRole should be less than or equal to
+        YearsAtCompany. This is required because the code computes role_ratio = YearsInCurrentRole
+        / YearsAtCompany and treats the ratio as a proportion of tenure. Actionable
+        row-level constraint (Deequ-style): .satisfies(''YearsInCurrentRole <= YearsAtCompany'',
+        ''role_within_tenure'')'
+      sources:
+      - start_line: 61
+        end_line: 63
+        file: ''
+      uid: 456bd0fd-f7e2-4c29-970f-1e37b76af0c2
+    - text: 'For every record, YearsWithCurrManager should be less than or equal to
+        YearsAtCompany and non-negative. The code computes mgr_ratio = YearsWithCurrManager
+        / YearsAtCompany and later uses 1 - mgr_ratio, so YearsWithCurrManager must
+        be in the range [0, YearsAtCompany]. Actionable row-level constraint: .satisfies(''YearsWithCurrManager
+        >= 0 AND YearsWithCurrManager <= YearsAtCompany'', ''mgr_within_tenure'')'
+      sources:
+      - start_line: 61
+        end_line: 70
+        file: ''
+      uid: 990993f4-00af-4d0e-8f22-59b24ed4ef1f
+    - text: 'For every record, YearsSinceLastPromotion should be non-negative and
+        should not exceed YearsAtCompany. The promotion-lag risk is computed as YearsSinceLastPromotion
+        / 5 and is semantically meaningful only if YearsSinceLastPromotion <= total
+        tenure. Actionable row-level constraint: .satisfies(''YearsSinceLastPromotion
+        >= 0 AND YearsSinceLastPromotion <= YearsAtCompany'', ''promo_within_tenure'')'
+      sources:
+      - start_line: 61
+        end_line: 66
+        file: ''
+      uid: 7cf31baf-e560-468b-aab9-595e1eab9ba8
+    - text: 'If YearsAtCompany == 0 then YearsInCurrentRole, YearsWithCurrManager
+        and YearsSinceLastPromotion should be either 0 or null. The code replaces
+        YearsAtCompany==0 with NaN to avoid division-by-zero and then fills NaNs for
+        ratios with 0. To preserve semantics, numerator tenure fields for zero-tenure
+        employees should be zero or missing. Actionable row-level constraint (Deequ-style):
+        .satisfies("NOT (YearsAtCompany = 0) OR (coalesce(YearsInCurrentRole,0) =
+        0 AND coalesce(YearsWithCurrManager,0) = 0 AND coalesce(YearsSinceLastPromotion,0)
+        = 0)", ''zero_tenure_consistency'')'
+      sources:
+      - start_line: 61
+        end_line: 63
+        file: ''
+      - start_line: 66
+        end_line: 70
+        file: ''
+      uid: cfa7e269-a1d5-40f2-b5ac-c09bdede5297
+    - text: 'All tenure-related columns used together (YearsAtCompany, YearsInCurrentRole,
+        YearsWithCurrManager, YearsSinceLastPromotion) should be finite numeric values
+        (no infinite values). The code explicitly replaces infinite results for mgr_ratio
+        and relies on numeric conversion earlier, so upstream data should not contain
+        infinities or non-numeric tokens for these columns. Actionable dataset-level
+        checks: .hasNoNulls on YearsAtCompany (or at least a clear null-policy), and
+        .satisfies(''isFinite(YearsWithCurrManager) AND isFinite(YearsInCurrentRole)
+        AND isFinite(YearsSinceLastPromotion)'', ''tenure_finite'')'
+      sources:
+      - start_line: 19
+        end_line: 26
+        file: ''
+      - start_line: 69
+        end_line: 70
+        file: ''
+      uid: 925cdbfa-ec4a-47b4-9ec9-39f6c6f1ce96
+column_data_flow_locations:
+  '["Age","AgeGroup"]': []
+  '["Department","JobRole"]': []
+  '["MonthlyIncome","SalarySlab"]':
+  - start_line: 15
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 27
+    file: ''
+  - start_line: 35
+    end_line: 41
+    file: ''
+  - start_line: 85
+    end_line: 120
+    file: ''
+  - start_line: 122
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 154
+    file: ''
+  - start_line: 156
+    end_line: 168
+    file: ''
+  '["YearsAtCompany","YearsInCurrentRole","YearsSinceLastPromotion","YearsWithCurrManager"]':
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 61
+    end_line: 63
+    file: ''
+  - start_line: 66
+    end_line: 66
+    file: ''
+  - start_line: 69
+    end_line: 70
+    file: ''
+  - start_line: 85
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 113
+    end_line: 116
+    file: ''
+  - start_line: 117
+    end_line: 120
+    file: ''
+  - start_line: 123
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  - start_line: 150
+    end_line: 154
+    file: ''
+  - start_line: 156
+    end_line: 163
+    file: ''
+  - start_line: 167
+    end_line: 168
+    file: ''
+  - start_line: 171
+    end_line: 172
+    file: ''
+  '["TotalWorkingYears","YearsAtCompany"]':
+  - start_line: 16
+    end_line: 27
+    file: ''
+  - start_line: 61
+    end_line: 63
+    file: ''
+  - start_line: 69
+    end_line: 71
+    file: ''
+  - start_line: 86
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 120
+    file: ''
+  - start_line: 123
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 154
+    file: ''
+  - start_line: 156
+    end_line: 168
+    file: ''
+  '["Age","TotalWorkingYears"]': []
+  '["Attrition","OverTime"]': []
+  ? '["JobSatisfaction","OverTime","SalarySlab","WorkLifeBalance","YearsAtCompany","YearsInCurrentRole","YearsSinceLastPromotion","YearsWithCurrManager"]'
+  : []
+  Age:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 153
+    end_line: 153
+    file: ''
+  MonthlyIncome:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  YearsAtCompany:
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 61
+    end_line: 63
+    file: ''
+  - start_line: 69
+    end_line: 69
+    file: ''
+  - start_line: 97
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 120
+    file: ''
+  - start_line: 123
+    end_line: 135
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 153
+    end_line: 153
+    file: ''
+  YearsSinceLastPromotion:
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 66
+    end_line: 66
+    file: ''
+  - start_line: 97
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 120
+    file: ''
+  - start_line: 123
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 153
+    end_line: 153
+    file: ''
+  - start_line: 161
+    end_line: 163
+    file: ''
+  - start_line: 167
+    end_line: 168
+    file: ''
+  YearsInCurrentRole:
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 62
+    end_line: 63
+    file: ''
+  - start_line: 97
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 120
+    file: ''
+  - start_line: 123
+    end_line: 136
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  - start_line: 153
+    end_line: 154
+    file: ''
+  - start_line: 161
+    end_line: 163
+    file: ''
+  - start_line: 167
+    end_line: 168
+    file: ''
+  TotalWorkingYears:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 153
+    end_line: 153
+    file: ''
+  YearsWithCurrManager:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 69
+    end_line: 70
+    file: ''
+  - start_line: 97
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 120
+    file: ''
+  - start_line: 133
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  - start_line: 153
+    end_line: 154
+    file: ''
+  - start_line: 161
+    end_line: 163
+    file: ''
+  - start_line: 167
+    end_line: 168
+    file: ''
+  WorkLifeBalance:
+  - start_line: 21
+    end_line: 26
+    file: ''
+  - start_line: 53
+    end_line: 53
+    file: ''
+  - start_line: 97
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 120
+    file: ''
+  - start_line: 123
+    end_line: 136
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  - start_line: 153
+    end_line: 154
+    file: ''
+  - start_line: 160
+    end_line: 163
+    file: ''
+  JobSatisfaction:
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 56
+    end_line: 57
+    file: ''
+  - start_line: 97
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 120
+    file: ''
+  - start_line: 123
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  DistanceFromHome:
+  - start_line: 19
+    end_line: 26
+    file: ''
+  - start_line: 83
+    end_line: 83
+    file: ''
+  EmpID:
+  - start_line: 27
+    end_line: 27
+    file: ''
+  - start_line: 141
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  - start_line: 153
+    end_line: 154
+    file: ''
+  SalarySlab:
+  - start_line: 16
+    end_line: 16
+    file: ''
+  - start_line: 41
+    end_line: 41
+    file: ''
+  - start_line: 141
+    end_line: 141
+    file: ''
+  - start_line: 146
+    end_line: 146
+    file: ''
+  - start_line: 164
+    end_line: 164
+    file: ''
+  OverTime:
+  - start_line: 44
+    end_line: 49
+    file: ''
+  - start_line: 97
+    end_line: 107
+    file: ''
+  - start_line: 110
+    end_line: 110
+    file: ''
+  - start_line: 117
+    end_line: 120
+    file: ''
+  - start_line: 129
+    end_line: 129
+    file: ''
+  - start_line: 137
+    end_line: 137
+    file: ''
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  - start_line: 153
+    end_line: 154
+    file: ''
+  - start_line: 161
+    end_line: 163
+    file: ''
+  Attrition:
+  - start_line: 46
+    end_line: 47
+    file: ''
+  - start_line: 113
+    end_line: 113
+    file: ''
+  AgeGroup:
+  - start_line: 80
+    end_line: 80
+    file: ''
+  - start_line: 141
+    end_line: 146
+    file: ''
+  - start_line: 165
+    end_line: 165
+    file: ''
+  Department:
+  - start_line: 141
+    end_line: 141
+    file: ''
+  - start_line: 146
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+  JobRole:
+  - start_line: 140
+    end_line: 146
+    file: ''
+  - start_line: 148
+    end_line: 148
+    file: ''
+cost_summary:
+  column_access_detection:
+    cost: 0.004405
+    total_tokens: 11313
+    prompt_tokens: 10412
+    completion_tokens: 901
+  data_flow_inspection:
+    cost: 0.12002485000000002
+    total_tokens: 108895
+    prompt_tokens: 53101
+    completion_tokens: 55794
+  column_correlation_discovery:
+    cost: 0.007181250000000001
+    total_tokens: 7277
+    prompt_tokens: 4213
+    completion_tokens: 3064
+  multi_column_data_flow_inspection:
+    cost: 0.049447
+    total_tokens: 47722
+    prompt_tokens: 26284
+    completion_tokens: 21438
+  multi_column_assumption_generation:
+    cost: 0.05284
+    total_tokens: 52768
+    prompt_tokens: 30112
+    completion_tokens: 22656
+  multi_column_code_generation:
+    cost: 0.048759750000000004
+    total_tokens: 62861
+    prompt_tokens: 42991
+    completion_tokens: 19870
+  single_column_assumption_generation:
+    cost: 0.10359274999999998
+    total_tokens: 113861
+    prompt_tokens: 70931
+    completion_tokens: 42930
+  single_column_code_generation:
+    cost: 0.0902634
+    total_tokens: 154083
+    prompt_tokens: 121356
+    completion_tokens: 32727

@@ -1,0 +1,174 @@
+results:
+  IMDB_Rating:
+    code:
+    - suggestion: .isComplete('IMDB_Rating')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL'', ''IMDB_Rating
+        numeric'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''CAST(`IMDB_Rating` AS DOUBLE) BETWEEN 0 AND 10'',
+        ''IMDB_Rating in [0,10]'', lambda x: x == 1.0)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies(''CAST(`IMDB_Rating` AS DOUBLE) BETWEEN
+        0 AND 10'', ''IMDB_Rating in [0,10]'', lambda x: x == 1.0)'' failed on data
+        sample: Value: 0.95 does not meet the constraint requirement!'
+      level: warning
+    - suggestion: '.satisfies(''CASE WHEN `No_of_Votes` IS NOT NULL THEN CAST(`IMDB_Rating`
+        AS DOUBLE) IS NOT NULL ELSE TRUE END'', ''Ratings present when votes present'',
+        lambda r: r >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Certificate:
+    code:
+    - suggestion: '.hasCompleteness("Certificate", lambda x: x >= 0.80)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN UPPER(TRIM(`Certificate`)) IN (''U'',''G'',''PG'',''PG-13'',''UA'')
+        THEN 1 ELSE 0 END", "At least one family-friendly row", lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Certificate` IS NULL THEN 1 ELSE CASE WHEN
+        CAST(`Certificate` AS STRING) IS NOT NULL THEN 1 ELSE 0 END END", "Certificate
+        castable to string", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Genre:
+    code:
+    - suggestion: '.satisfies(''`Genre` IS NOT NULL AND LENGTH(TRIM(`Genre`)) > 0'',
+        ''Genre non-null and non-blank >= 95%'', lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("(upper(`Certificate`) NOT IN (''U'',''G'',''PG'',''PG-13'',''UA''))
+        OR (`Genre` IS NULL OR NOT (`Genre` rlike ''(?i)(Adult|Erotic|Porn|XXX|NSFW)''))",
+        ''No adult-only Genre terms for family certificates'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Gross:
+    code:
+    - suggestion: '.hasCompleteness(''Gross'', lambda v: v >= 0.75)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN Gross IS NULL THEN 1 WHEN regexp_replace(Gross,
+        '','', '''') RLIKE ''^[0-9]+(\\.[0-9]+)?$'' THEN 1 ELSE 0 END", "Gross numeric-like",
+        lambda x: x >= 0.90)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN Gross IS NOT NULL AND regexp_replace(Gross,
+        '','', '''') RLIKE ''^-?\\d+(\\.\\d+)?$'' AND CAST(regexp_replace(Gross, '','',
+        '''') AS DOUBLE) < 0 THEN 0 ELSE 1 END", "No negative gross", lambda x: x
+        == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: ".satisfies(\"CASE WHEN Gross IS NULL THEN 1 WHEN Gross RLIKE '.*([$\u20AC\
+        \xA3]|[A-Za-z]).*' THEN 0 ELSE 1 END\", \"No currency/unit symbols in Gross\"\
+        , lambda x: x >= 0.99)"
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["IMDB_Rating","No_of_Votes"]':
+    code:
+    - suggestion: '.hasCorrelation("IMDB_Rating", "No_of_Votes", lambda c: c >= 0.0
+        and c <= 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("(UPPER(`Certificate`) NOT IN (''U'',''G'',''PG'',''PG-13'',''UA''))
+        OR (CAST(`IMDB_Rating` AS DOUBLE) IS NOT NULL AND CAST(`No_of_Votes` AS BIGINT)
+        IS NOT NULL)", "Family-friendly rows must have numeric IMDB_Rating and No_of_Votes",
+        lambda v: v == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Poster_Link:
+    code:
+    - suggestion: .isComplete('Poster_Link')
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN TRIM(`Poster_Link`) NOT RLIKE ''^(?i)(|null|none|nan)$''
+        THEN 1 ELSE 0 END", "Poster_Link_non_empty_after_trim", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasDistinctness([''Poster_Link''], lambda d: d >= 0.9)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies("CASE WHEN `Poster_Link` = TRIM(`Poster_Link`) THEN
+        1 ELSE 0 END", "Poster_Link_trimmed_no_whitespace", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  No_of_Votes:
+    code:
+    - suggestion: '.satisfies(''CAST(`No_of_Votes` AS DOUBLE) IS NOT NULL'', ''Votes
+        numeric'', lambda x: x >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''CAST(`No_of_Votes` AS DOUBLE) >= 0'', ''Non-negative
+        votes'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''CAST(`No_of_Votes` AS DOUBLE) >= 1'', ''Mostly positive
+        votes'', lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.hasCorrelation(''IMDB_Rating'', ''No_of_Votes'', lambda c: (c
+        == c) and (abs(c) <= 1))'
+      status: true
+      reason_if_failed: ''
+      level: error
+  Released_Year:
+    code:
+    - suggestion: '.hasCompleteness(''Released_Year'', lambda v: v >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''CAST(TRIM(`Released_Year`) AS INT) <= year(current_date())'',
+        ''Released_Year not in future'', lambda v: v >= 0.99)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Runtime:
+    code:
+    - suggestion: .isComplete("Runtime")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasPattern("Runtime", "^\\s*\\d+\\s*(min|minutes)?\\s*$", lambda
+        f: f >= 0.95, name="Runtime minutes-only format >=95%")'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Series_Title:
+    code:
+    - suggestion: .isComplete("Series_Title")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("length(trim(`Series_Title`)) > 0", "Non-blank Series_Title
+        after trim", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CAST(`Series_Title` AS STRING) IS NOT NULL", "Series_Title
+        castable to STRING", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning

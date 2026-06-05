@@ -1,0 +1,236 @@
+results:
+  YearsAtCompany:
+    code:
+    - suggestion: .isNonNegative('YearsAtCompany')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies(''`YearsAtCompany` >= `YearsInCurrentRole` AND `YearsAtCompany`
+        >= `YearsSinceLastPromotion` AND `YearsAtCompany` >= `YearsWithCurrManager`'',
+        ''TenureConsistencyCheck'', lambda x: x >= 0.95)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  AgeGroup:
+    code:
+    - suggestion: .isContainedIn("AgeGroup", ['18-25', '26-35', '36-45', '46-55',
+        '55+'])
+      status: true
+      reason_if_failed: ''
+      level: warning
+  Age:
+    code:
+    - suggestion: .isComplete('Age')
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.hasMin(''Age'', lambda min_val: min_val >= 18)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Age","AgeGroup"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `AgeGroup` = ''18-25'' THEN (`Age` >= 18
+        AND `Age` <= 25) WHEN `AgeGroup` = ''26-35'' THEN (`Age` >= 26 AND `Age` <=
+        35) WHEN `AgeGroup` = ''36-45'' THEN (`Age` >= 36 AND `Age` <= 45) WHEN `AgeGroup`
+        = ''46-55'' THEN (`Age` >= 46 AND `Age` <= 55) WHEN `AgeGroup` = ''55+'' THEN
+        (`Age` >= 55) ELSE TRUE END", "Age and AgeGroup Consistency Check", lambda
+        x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  ? '["AgeGroup","EnvironmentSatisfaction","JobSatisfaction","MonthlyIncome","OverTime","SalarySlab","WorkLifeBalance","YearsAtCompany","YearsInCurrentRole","YearsSinceLastPromotion","YearsWithCurrManager"]'
+  : code:
+    - suggestion: '.satisfies("CASE WHEN Age IS NULL OR AgeGroup IS NULL THEN 1 WHEN
+        AgeGroup = ''18-25'' AND Age >= 18 AND Age <= 25 THEN 1 WHEN AgeGroup = ''26-35''
+        AND Age >= 26 AND Age <= 35 THEN 1 WHEN AgeGroup = ''36-45'' AND Age >= 36
+        AND Age <= 45 THEN 1 WHEN AgeGroup = ''46-55'' AND Age >= 46 AND Age <= 55
+        THEN 1 WHEN AgeGroup = ''55+'' AND Age >= 55 THEN 1 ELSE 0 END", "Age and
+        AgeGroup consistency", lambda x: x == 1)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("CASE WHEN MonthlyIncome IS NULL OR SalarySlab IS NULL
+        THEN 1 WHEN SalarySlab = ''Upto 5k'' AND MonthlyIncome <= 5000 THEN 1 WHEN
+        SalarySlab = ''5k-10k'' AND MonthlyIncome > 5000 AND MonthlyIncome <= 10000
+        THEN 1 WHEN SalarySlab = ''10k-15k'' AND MonthlyIncome > 10000 AND MonthlyIncome
+        <= 15000 THEN 1 WHEN SalarySlab = ''15k+'' AND MonthlyIncome > 15000 THEN
+        1 ELSE 0 END", "MonthlyIncome falls within SalarySlab range", lambda x: x
+        == 1)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies("CASE WHEN MonthlyIncome IS NULL OR
+        SalarySlab IS NULL THEN 1 WHEN SalarySlab = ''Upto 5k'' AND MonthlyIncome
+        <= 5000 THEN 1 WHEN SalarySlab = ''5k-10k'' AND MonthlyIncome > 5000 AND MonthlyIncome
+        <= 10000 THEN 1 WHEN SalarySlab = ''10k-15k'' AND MonthlyIncome > 10000 AND
+        MonthlyIncome <= 15000 THEN 1 WHEN SalarySlab = ''15k+'' AND MonthlyIncome
+        > 15000 THEN 1 ELSE 0 END", "MonthlyIncome falls within SalarySlab range",
+        lambda x: x == 1)'' failed on data sample: Value: 0.9863945578231292 does
+        not meet the constraint requirement!'
+      level: error
+    - suggestion: '.satisfies("(`YearsInCurrentRole` <= `YearsAtCompany`) AND (COALESCE(`YearsWithCurrManager`,
+        0) <= `YearsAtCompany`) AND (`YearsSinceLastPromotion` <= `YearsAtCompany`)",
+        "Tenure values must be less than or equal to YearsAtCompany", lambda x: x
+        == 1)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  WorkLifeBalance:
+    code:
+    - suggestion: '.isContainedIn(''WorkLifeBalance'', [''1'', ''2'', ''3'', ''4''],
+        assertion=lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+  YearsInCurrentRole:
+    code:
+    - suggestion: .isNonNegative('YearsInCurrentRole')
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["YearsAtCompany","YearsInCurrentRole","YearsSinceLastPromotion","YearsWithCurrManager"]':
+    code:
+    - suggestion: .isLessThanOrEqualTo('YearsInCurrentRole', 'YearsAtCompany')
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: .isLessThanOrEqualTo('YearsSinceLastPromotion', 'YearsAtCompany')
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: .satisfies("COALESCE(YearsWithCurrManager, 0) <= YearsAtCompany",
+        "ManagerTenure_le_CompanyTenure")
+      status: true
+      reason_if_failed: ''
+      level: warning
+  YearsWithCurrManager:
+    code:
+    - suggestion: '.hasMin(''YearsWithCurrManager'', lambda x: x >= 0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+    - suggestion: '.satisfies(''CASE WHEN `YearsWithCurrManager` IS NOT NULL AND `YearsAtCompany`
+        IS NOT NULL THEN `YearsWithCurrManager` <= `YearsAtCompany` ELSE true END'',
+        ''MgrTenureConsistency'', lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  EmpID:
+    code:
+    - suggestion: .isComplete("EmpID")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isUnique("EmpID")
+      status: true
+      reason_if_failed: ''
+      level: error
+  Department:
+    code:
+    - suggestion: .isComplete("Department")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isContainedIn("Department", ["Sales", "Research & Development",
+        "Human Resources"])
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["Department","JobRole"]':
+    code:
+    - suggestion: '.satisfies("JobRole = ''Manager'' OR (Department = ''Sales'' AND
+        JobRole IN (''Sales Representative'', ''Sales Executive'')) OR (Department
+        = ''Research & Development'' AND JobRole IN (''Research Director'', ''Research
+        Scientist'', ''Manufacturing Director'', ''Healthcare Representative'', ''Laboratory
+        Technician'')) OR (Department = ''Human Resources'' AND JobRole = ''Human
+        Resources'')", "Valid Department-JobRole combinations", lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: warning
+  EnvironmentSatisfaction:
+    code:
+    - suggestion: .isContainedIn("EnvironmentSatisfaction", ["1", "2", "3", "4"])
+      status: true
+      reason_if_failed: ''
+      level: warning
+  MonthlyIncome:
+    code:
+    - suggestion: '.hasCompleteness(''MonthlyIncome'', lambda x: x > 0)'
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: '.satisfies("MonthlyIncome IS NULL OR (CASE WHEN SalarySlab = ''Upto
+        5k'' THEN MonthlyIncome >= 0 AND MonthlyIncome <= 5000 WHEN SalarySlab = ''5k-10k''
+        THEN MonthlyIncome >= 5001 AND MonthlyIncome <= 10000 WHEN SalarySlab = ''10k-15k''
+        THEN MonthlyIncome >= 10001 AND MonthlyIncome <= 15000 WHEN SalarySlab = ''15k+''
+        THEN MonthlyIncome >= 15001 ELSE TRUE END)", "MonthlyIncome within SalarySlab
+        range", lambda x: x == 1)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies("MonthlyIncome IS NULL OR (CASE WHEN
+        SalarySlab = ''Upto 5k'' THEN MonthlyIncome >= 0 AND MonthlyIncome <= 5000
+        WHEN SalarySlab = ''5k-10k'' THEN MonthlyIncome >= 5001 AND MonthlyIncome
+        <= 10000 WHEN SalarySlab = ''10k-15k'' THEN MonthlyIncome >= 10001 AND MonthlyIncome
+        <= 15000 WHEN SalarySlab = ''15k+'' THEN MonthlyIncome >= 15001 ELSE TRUE
+        END)", "MonthlyIncome within SalarySlab range", lambda x: x == 1)'' failed
+        on data sample: Value: 0.9710884353741497 does not meet the constraint requirement!'
+      level: error
+  JobRole:
+    code:
+    - suggestion: .isContainedIn("JobRole", ['Research Director', 'Sales Representative',
+        'Research Scientist', 'Manufacturing Director', 'Healthcare Representative',
+        'Sales Executive', 'Manager', 'Human Resources', 'Laboratory Technician'])
+      status: true
+      reason_if_failed: ''
+      level: warning
+  JobSatisfaction:
+    code:
+    - suggestion: .isContainedIn("JobSatisfaction", ["1", "2", "3", "4"])
+      status: true
+      reason_if_failed: ''
+      level: error
+  YearsSinceLastPromotion:
+    code:
+    - suggestion: .isNonNegative('YearsSinceLastPromotion')
+      status: true
+      reason_if_failed: ''
+      level: warning
+  '["MonthlyIncome","SalarySlab"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `SalarySlab` = ''Upto 5k'' AND `MonthlyIncome`
+        >= 0 AND `MonthlyIncome` <= 5000 THEN 1 WHEN `SalarySlab` = ''5k-10k'' AND
+        `MonthlyIncome` > 5000 AND `MonthlyIncome` <= 10000 THEN 1 WHEN `SalarySlab`
+        = ''10k-15k'' AND `MonthlyIncome` > 10000 AND `MonthlyIncome` <= 15000 THEN
+        1 WHEN `SalarySlab` = ''15k+'' AND `MonthlyIncome` > 15000 THEN 1 ELSE 0 END
+        = 1", "MonthlyIncome must be within SalarySlab range", lambda x: x == 1)'
+      status: false
+      reason_if_failed: 'Constraint ''satisfies("CASE WHEN `SalarySlab` = ''Upto 5k''
+        AND `MonthlyIncome` >= 0 AND `MonthlyIncome` <= 5000 THEN 1 WHEN `SalarySlab`
+        = ''5k-10k'' AND `MonthlyIncome` > 5000 AND `MonthlyIncome` <= 10000 THEN
+        1 WHEN `SalarySlab` = ''10k-15k'' AND `MonthlyIncome` > 10000 AND `MonthlyIncome`
+        <= 15000 THEN 1 WHEN `SalarySlab` = ''15k+'' AND `MonthlyIncome` > 15000 THEN
+        1 ELSE 0 END = 1", "MonthlyIncome must be within SalarySlab range", lambda
+        x: x == 1)'' failed on data sample: Value: 0.9710884353741497 does not meet
+        the constraint requirement!'
+      level: error
+  OverTime:
+    code:
+    - suggestion: .isContainedIn("OverTime", ["Yes", "No"])
+      status: true
+      reason_if_failed: ''
+      level: error
+  SalarySlab:
+    code:
+    - suggestion: .isComplete("SalarySlab")
+      status: true
+      reason_if_failed: ''
+      level: error
+    - suggestion: .isContainedIn("SalarySlab", ["Upto 5k", "5k-10k", "10k-15k", "15k+"])
+      status: true
+      reason_if_failed: ''
+      level: error
+  '["TotalWorkingYears","YearsAtCompany"]':
+    code:
+    - suggestion: '.isLessThanOrEqualTo(''YearsAtCompany'', ''TotalWorkingYears'',
+        lambda x: x == 1.0)'
+      status: true
+      reason_if_failed: ''
+      level: error

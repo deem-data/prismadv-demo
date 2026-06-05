@@ -1,0 +1,2007 @@
+prismadv_config:
+  model:
+    use_async: true
+    use_dataflow: true
+    correlation_detection: true
+    downstream_task_description: No specific description provided. The script can
+      be used for any task.
+  llm:
+    model_name: gpt-5
+    temperature: 0.6
+    max_tokens: null
+    seed: null
+  io:
+    overwrite: false
+constraints:
+  Physical Activity Level:
+    code:
+    - suggestion: '.satisfies(''`Physical Activity Level` IS NULL OR CAST(`Physical
+        Activity Level` AS DOUBLE) IS NOT NULL'', ''PAL numeric or parseable'', lambda
+        x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 0a5748a6-a725-4297-8206-cc6d4a3b195b
+      source_assumptions:
+      - 498dfd57-c168-4cab-9d35-33ba50e84b33
+    - suggestion: '.hasCompleteness(''Physical Activity Level'', lambda c: c > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: f3cc1f15-094e-4624-9118-cbf69be51831
+      source_assumptions:
+      - 8147e5c2-0307-4f9f-acca-c1131285d661
+    - suggestion: '.satisfies(''`Physical Activity Level` IS NULL OR (CAST(`Physical
+        Activity Level` AS DOUBLE) >= 0 AND CAST(`Physical Activity Level` AS DOUBLE)
+        <= 100)'', ''PAL within 0-100'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e6fe3074-0cfe-445c-98a5-55fedbc3ec69
+      source_assumptions:
+      - 94ea05dd-9c6d-4d6f-8862-aa20f4b7c0c9
+    - suggestion: '.hasNumberOfDistinctValues(''Physical Activity Level'', lambda
+        n: n > 1)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Physical
+        Activity Level'', lambda n: n > 1)'': Check.hasNumberOfDistinctValues() missing
+        2 required positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: e0ee9e87-5840-46a3-9ac5-9ffbc3d962ca
+      source_assumptions:
+      - 5e11fa40-ae21-4859-8aa3-145864825734
+    - suggestion: '.satisfies(''CAST(`Physical Activity Level` AS DOUBLE) >= 60'',
+        ''At least one PAL >= 60'', lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ae9ada53-afd0-4198-8a20-2d2b2ab25c90
+      source_assumptions:
+      - 994639d2-87fd-4806-a330-6105eb8e236b
+    assumptions:
+    - text: 'The ''Physical Activity Level'' column must exist in the input CSV. The
+        script directly references this column for correlations, quantiles, thresholds,
+        modeling expected steps, triage logic, and writing outputs. This can be validated
+        as: expect_column_to_exist(''Physical Activity Level'').'
+      sources:
+      - start_line: 84
+        end_line: 101
+        file: ''
+      - start_line: 156
+        end_line: 156
+        file: ''
+      - start_line: 168
+        end_line: 168
+        file: ''
+      uid: 6c9f52ab-8829-4789-8bba-1c2c2f9cbd56
+    - text: 'Values in ''Physical Activity Level'' should be numeric (integer or float)
+        or parseable as numeric. The script coerces the column to numeric and then
+        performs numeric operations (correlations, quantiles, comparisons, variance).
+        Non-numeric values will be coerced to null and degrade downstream computations.
+        This can be validated as: Deequ hasDataType(''Physical Activity Level'', Integral
+        or Fractional) or GE expect_column_values_to_be_in_type_list [''int64'',''float64'',''int32'',''float32''].'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 84
+        end_line: 101
+        file: ''
+      - start_line: 156
+        end_line: 156
+        file: ''
+      uid: 498dfd57-c168-4cab-9d35-33ba50e84b33
+    - text: 'There must be at least one non-null numeric value in ''Physical Activity
+        Level'' so that the mean is defined and the expected-steps model does not
+        collapse to all nulls (which would propagate NaNs into activity_component
+        and overall scores). This can be validated as: Deequ completeness(''Physical
+        Activity Level'') > 0 or GE expect_column_values_to_not_be_null with mostly
+        > 0.'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 95
+        end_line: 101
+        file: ''
+      - start_line: 115
+        end_line: 118
+        file: ''
+      - start_line: 143
+        end_line: 144
+        file: ''
+      uid: 8147e5c2-0307-4f9f-acca-c1131285d661
+    - text: "The 'Physical Activity Level' values are expected to be on a bounded\
+        \ 0\u2013100 scale (score/percent-like). The code uses absolute cut points\
+        \ at 30 (low) and 60 (high) without any rescaling, implying this range. Validate\
+        \ with: min('Physical Activity Level') >= 0 and max('Physical Activity Level')\
+        \ <= 100."
+      sources:
+      - start_line: 92
+        end_line: 93
+        file: ''
+      - start_line: 156
+        end_line: 156
+        file: ''
+      uid: 94ea05dd-9c6d-4d6f-8862-aa20f4b7c0c9
+    - text: 'The ''Physical Activity Level'' column should have some variability (not
+        be constant), so that the regression steps ~ alpha + beta * PAL is meaningful
+        and not forced to zero slope by zero variance. Validate with: column_min <
+        column_max for ''Physical Activity Level''.'
+      sources:
+      - start_line: 95
+        end_line: 99
+        file: ''
+      uid: 5e11fa40-ae21-4859-8aa3-145864825734
+    - text: 'For the diagnostic metric pa60_prop_steps7000 to be defined, there should
+        be at least one record with ''Physical Activity Level'' >= 60. Validate with
+        a row-level predicate completeness: mean(CASE WHEN Physical Activity Level
+        >= 60 THEN 1 ELSE 0 END) > 0.'
+      sources:
+      - start_line: 92
+        end_line: 94
+        file: ''
+      uid: 994639d2-87fd-4806-a330-6105eb8e236b
+  Quality of Sleep:
+    code:
+    - suggestion: '.hasCompleteness(''Quality of Sleep'', lambda c: c >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: e968cd69-1330-4f6f-a750-01e50e93bae5
+      source_assumptions:
+      - d462843c-7700-41f2-a25c-83bbeaedea8c
+      - f47e86ac-257d-4334-bd22-b2028e7722bc
+    - suggestion: '.hasDataType(''Quality of Sleep'', ConstrainableDataTypes.Numeric,
+        lambda f: f >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Quality of
+        Sleep'', ConstrainableDataTypes.Numeric, lambda f: f >= 0.95)'
+      level: warning
+      uid: e58a035f-9871-4f9c-b0e8-8e6d82af7c00
+      source_assumptions:
+      - d6852f84-fac7-433a-8614-d93b3d182d87
+    - suggestion: '.hasMin(''Quality of Sleep'', lambda m: m >= 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e626f79a-cba4-42f4-b7db-56dbf39cc89e
+      source_assumptions:
+      - 49eea79a-d7be-4db6-ab6b-e6bf0f1b716d
+    - suggestion: '.hasMax(''Quality of Sleep'', lambda M: M <= 10)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 8e2adaa0-d8fa-4d8f-ac85-5271d79e78e5
+      source_assumptions:
+      - 49eea79a-d7be-4db6-ab6b-e6bf0f1b716d
+    - suggestion: '.satisfies(''CAST(`Sleep Duration` AS DOUBLE) IS NOT NULL AND CAST(`Quality
+        of Sleep` AS DOUBLE) IS NOT NULL'', ''Rows with both SD and QoS numeric'',
+        lambda x: x >= 2)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''CAST(`Sleep Duration` AS DOUBLE)
+        IS NOT NULL AND CAST(`Quality of Sleep` AS DOUBLE) IS NOT NULL'', ''Rows with
+        both SD and QoS numeric'', lambda x: x >= 2)'' failed on data sample: Value:
+        1.0 does not meet the constraint requirement!'
+      level: warning
+      uid: 3ecfd74a-fc9d-40ac-a259-59a49be16a27
+      source_assumptions:
+      - 81250160-8e0b-45c0-9559-8083f6a0ed4a
+    - suggestion: '.hasStandardDeviation(''Quality of Sleep'', lambda s: s > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 61ba1e7e-0cae-4de0-b5e3-99920de4ea03
+      source_assumptions:
+      - 81250160-8e0b-45c0-9559-8083f6a0ed4a
+    assumptions:
+    - text: 'The input must contain the ''Quality of Sleep'' column (it is accessed
+        multiple times without a guard). This can be represented as: Great Expectations
+        -> expect_column_to_exist(''Quality of Sleep'').'
+      sources:
+      - start_line: 69
+        end_line: 70
+        file: ''
+      - start_line: 73
+        end_line: 74
+        file: ''
+      - start_line: 77
+        end_line: 77
+        file: ''
+      - start_line: 104
+        end_line: 104
+        file: ''
+      - start_line: 111
+        end_line: 112
+        file: ''
+      - start_line: 166
+        end_line: 166
+        file: ''
+      uid: d462843c-7700-41f2-a25c-83bbeaedea8c
+    - text: 'Values in ''Quality of Sleep'' should be numeric. Non-numeric values
+        will be coerced to null, but downstream computations expect predominantly
+        numeric values. Enforce that at least 95% of values are parseable as numbers.
+        Possible rules: Deequ -> hasDataType(''Quality of Sleep'', ConstrainableDataTypes.IntegralOrFractional,
+        assertion = _ >= 0.95); or .satisfies(''CASE WHEN TRY_CAST(`Quality of Sleep`
+        AS DOUBLE) IS NOT NULL THEN 1 ELSE 0 END'', ''QoS numeric'', lambda x: x >=
+        0.95).'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 104
+        end_line: 104
+        file: ''
+      - start_line: 111
+        end_line: 112
+        file: ''
+      uid: d6852f84-fac7-433a-8614-d93b3d182d87
+    - text: "The 'Quality of Sleep' values are expected to be on a 0\u201310 scale.\
+        \ Enforce that all values lie within [0, 10]. Possible rules: Great Expectations\
+        \ -> expect_column_values_to_be_between('Quality of Sleep', min_value=0, max_value=10,\
+        \ mostly=1.0); Deequ -> hasMin('Quality of Sleep', _ >= 0) and hasMax('Quality\
+        \ of Sleep', _ <= 10)."
+      sources:
+      - start_line: 104
+        end_line: 104
+        file: ''
+      uid: 49eea79a-d7be-4db6-ab6b-e6bf0f1b716d
+    - text: 'The ''Quality of Sleep'' column should be mostly non-null to avoid propagating
+        NaNs into scoring. Require at least 95% non-null values. Possible rules: Great
+        Expectations -> expect_column_values_to_not_be_null(''Quality of Sleep'',
+        mostly=0.95); Deequ -> completeness(''Quality of Sleep'', _ >= 0.95).'
+      sources:
+      - start_line: 104
+        end_line: 104
+        file: ''
+      - start_line: 111
+        end_line: 113
+        file: ''
+      - start_line: 143
+        end_line: 144
+        file: ''
+      uid: f47e86ac-257d-4334-bd22-b2028e7722bc
+    - text: 'To compute a valid correlation and weighting, there must be at least
+        two rows where both ''Sleep Duration'' and ''Quality of Sleep'' are non-null
+        and numeric, and ''Quality of Sleep'' should not be constant across those
+        rows (to avoid NaN correlation). Possible rules: ensure count of rows with
+        (`Sleep Duration` IS NOT NULL AND `Quality of Sleep` IS NOT NULL) >= 2 and
+        variance of `Quality of Sleep` over those rows > 0.'
+      sources:
+      - start_line: 69
+        end_line: 70
+        file: ''
+      - start_line: 106
+        end_line: 108
+        file: ''
+      uid: 81250160-8e0b-45c0-9559-8083f6a0ed4a
+  Blood Pressure:
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Blood Pressure` IS NOT NULL AND TRIM(CAST(`Blood
+        Pressure` AS STRING)) <> '''' THEN 1 ELSE 0 END", "BP present", lambda x:
+        x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: b94014d3-2b6d-441a-bf41-dd27d3af3372
+      source_assumptions:
+      - 37de83f0-b85e-4afc-b029-2b77b70450ec
+    - suggestion: '.satisfies("CASE WHEN CAST(`Blood Pressure` AS STRING) RLIKE ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$''
+        THEN 1 ELSE 0 END", "BP format", lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN CAST(`Blood Pressure`
+        AS STRING) RLIKE ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'' THEN 1 ELSE 0
+        END", "BP format", lambda x: x >= 0.95)'' failed on data sample: Value: 0.0
+        does not meet the constraint requirement!'
+      level: warning
+      uid: 13bc8d1d-f3a4-4bb0-9e03-85a54f289685
+      source_assumptions:
+      - 0af40ab4-b169-4710-a361-2f75ae879c7b
+    - suggestion: '.satisfies("CASE WHEN CAST(regexp_extract(CAST(`Blood Pressure`
+        AS STRING), ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 1) AS INT) BETWEEN
+        70 AND 250 THEN 1 ELSE 0 END", "Sys in range", lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN CAST(regexp_extract(CAST(`Blood
+        Pressure` AS STRING), ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 1) AS INT)
+        BETWEEN 70 AND 250 THEN 1 ELSE 0 END", "Sys in range", lambda x: x >= 0.95)''
+        failed on data sample: Value: 0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: beef3af1-1c99-4641-a8aa-71562d2313f0
+      source_assumptions:
+      - b1aef6cb-b9a3-4141-8deb-f9d520b665ba
+    - suggestion: '.satisfies("CASE WHEN CAST(regexp_extract(CAST(`Blood Pressure`
+        AS STRING), ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 2) AS INT) BETWEEN
+        40 AND 150 THEN 1 ELSE 0 END", "Dia in range", lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN CAST(regexp_extract(CAST(`Blood
+        Pressure` AS STRING), ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 2) AS INT)
+        BETWEEN 40 AND 150 THEN 1 ELSE 0 END", "Dia in range", lambda x: x >= 0.95)''
+        failed on data sample: Value: 0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: 5d5f1201-2925-4ddd-9c5a-73ef72910c74
+      source_assumptions:
+      - b1aef6cb-b9a3-4141-8deb-f9d520b665ba
+    - suggestion: '.satisfies("CASE WHEN CAST(regexp_extract(CAST(`Blood Pressure`
+        AS STRING), ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 1) AS INT) >= CAST(regexp_extract(CAST(`Blood
+        Pressure` AS STRING), ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 2) AS INT)
+        THEN 1 ELSE 0 END", "Sys >= Dia", lambda x: x >= 0.98)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN CAST(regexp_extract(CAST(`Blood
+        Pressure` AS STRING), ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 1) AS INT)
+        >= CAST(regexp_extract(CAST(`Blood Pressure` AS STRING), ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        2) AS INT) THEN 1 ELSE 0 END", "Sys >= Dia", lambda x: x >= 0.98)'' failed
+        on data sample: Value: 0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: 678f4a7f-b06b-4024-8e2c-f56f6eea8a8e
+      source_assumptions:
+      - c347dd62-7bb1-4dd4-9e4f-d6d821f0e86d
+    assumptions:
+    - text: 'The ''Blood Pressure'' column must exist in the input and be populated
+        (non-null and non-empty after trimming) for the vast majority of rows (e.g.,
+        completeness >= 0.95). This is required because the code reads and uses this
+        column directly and includes it in the output. Example Deequ constraint: .satisfies("CASE
+        WHEN `Blood Pressure` IS NOT NULL AND TRIM(CAST(`Blood Pressure` AS STRING))
+        <> '''' THEN 1 ELSE 0 END", "BP present", lambda x: x >= 0.95)'
+      sources:
+      - start_line: 42
+        end_line: 45
+        file: ''
+      - start_line: 170
+        end_line: 173
+        file: ''
+      uid: 37de83f0-b85e-4afc-b029-2b77b70450ec
+    - text: 'The ''Blood Pressure'' values should be parseable as exactly two or three
+        digits, a slash ''/'', and two or three digits, with optional surrounding
+        whitespace and no units or extra text (i.e., it should match ^\s*(\d{2,3})\s*/\s*(\d{2,3})\s*$).
+        At least 95% of rows should match this format so that systolic and diastolic
+        can be extracted. Example Deequ constraint: .satisfies("CASE WHEN CAST(`Blood
+        Pressure` AS STRING) RLIKE ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'' THEN
+        1 ELSE 0 END", "BP format", lambda x: x >= 0.95)'
+      sources:
+      - start_line: 42
+        end_line: 45
+        file: ''
+      uid: 0af40ab4-b169-4710-a361-2f75ae879c7b
+    - text: 'The ''Blood Pressure'' values are expected to be in mmHg and within plausible
+        adult ranges so the classification thresholds make sense. After parsing, the
+        first number (systolic) should typically be between 70 and 250 and the second
+        number (diastolic) between 40 and 150 for at least 95% of rows. Example Deequ
+        constraints: .satisfies("CASE WHEN CAST(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        1) AS INT) BETWEEN 70 AND 250 THEN 1 ELSE 0 END", "Sys in range", lambda x:
+        x >= 0.95) and .satisfies("CASE WHEN CAST(regexp_extract(`Blood Pressure`,
+        ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 2) AS INT) BETWEEN 40 AND 150
+        THEN 1 ELSE 0 END", "Dia in range", lambda x: x >= 0.95)'
+      sources:
+      - start_line: 9
+        end_line: 21
+        file: ''
+      - start_line: 147
+        end_line: 147
+        file: ''
+      uid: b1aef6cb-b9a3-4141-8deb-f9d520b665ba
+    - text: 'For the vast majority of rows, the systolic value should be greater than
+        or equal to the diastolic value (e.g., >= 0.98 of rows), consistent with how
+        Mean Arterial Pressure and the staging logic are used. Example Deequ constraint:
+        .satisfies("CASE WHEN CAST(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        1) AS INT) >= CAST(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        2) AS INT) THEN 1 ELSE 0 END", "Sys >= Dia", lambda x: x >= 0.98)'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      - start_line: 9
+        end_line: 21
+        file: ''
+      uid: c347dd62-7bb1-4dd4-9e4f-d6d821f0e86d
+  Person ID:
+    code:
+    - suggestion: '.satisfies("`Person ID` IS NOT NULL OR `Person ID` IS NULL", "Person
+        ID column exists", lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 6316ec0e-6b36-4d13-ab19-1bbf7ff95604
+      source_assumptions:
+      - 8c0ef1c6-27f9-4fd3-a052-6f376c01c05b
+    - suggestion: .isComplete("Person ID")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7e1ed4ca-5e46-413c-ba76-1d37e84f87d9
+      source_assumptions:
+      - d43920b7-5cae-48a5-87fc-236d261e6925
+    - suggestion: .isUnique("Person ID")
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: dda4d023-4089-47a9-a7a1-2cde5d440455
+      source_assumptions:
+      - ef147a2d-a4fe-40d0-9f82-12e960a8a620
+    - suggestion: '.satisfies("CAST(`Person ID` AS STRING) RLIKE ''^[0-9]+$''", "Person
+        ID digits-only", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 6c3ddedc-8ffe-4c94-acb0-bd4e1e9e57ee
+      source_assumptions:
+      - 5e2c4f49-e747-49ee-acfe-3f86a0bfb8c4
+    assumptions:
+    - text: The input must contain a column named 'Person ID' because the script directly
+        selects it for output without any existence checks. This can be validated
+        with Great Expectations expect_column_to_exist('Person ID') or a Deequ column-existence
+        check.
+      sources:
+      - start_line: 32
+        end_line: 32
+        file: ''
+      - start_line: 164
+        end_line: 164
+        file: ''
+      uid: 8c0ef1c6-27f9-4fd3-a052-6f376c01c05b
+    - text: '''Person ID'' should be complete (no nulls) so that every output row
+        has a usable identifier. This can be expressed as Deequ .isComplete(''Person
+        ID'') or Great Expectations expect_column_values_to_not_be_null.'
+      sources:
+      - start_line: 164
+        end_line: 164
+        file: ''
+      uid: d43920b7-5cae-48a5-87fc-236d261e6925
+    - text: '''Person ID'' should uniquely identify each row (no duplicates), as it
+        is used as a member identifier in the output. This can be validated with Deequ
+        .isUnique(''Person ID'') or Great Expectations expect_column_values_to_be_unique.'
+      sources:
+      - start_line: 164
+        end_line: 164
+        file: ''
+      - start_line: 182
+        end_line: 183
+        file: ''
+      uid: ef147a2d-a4fe-40d0-9f82-12e960a8a620
+    - text: '''Person ID'' values should be integer-like (digits only, no signs or
+        decimals), aligning with its use as an identifier. This can be validated with
+        Deequ .hasPattern(''Person ID'', ''^\\d+$'', lambda x: x == 1.0) or Great
+        Expectations expect_column_values_to_match_regex ''^\\d+$''.'
+      sources:
+      - start_line: 164
+        end_line: 164
+        file: ''
+      uid: 5e2c4f49-e747-49ee-acfe-3f86a0bfb8c4
+  Sleep Duration:
+    code:
+    - suggestion: '.satisfies(''CAST(`Sleep Duration` AS DOUBLE) IS NOT NULL'', ''Sleep
+        Duration parseable as numeric'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e3024c31-443e-4e81-955a-c183d52bd45f
+      source_assumptions:
+      - d913366a-1a40-4503-a736-73bd3eca3ac5
+      - 30eb8def-4514-45c4-92bf-7cf469837f72
+    - suggestion: '.hasDataType(''Sleep Duration'', ''Numeric'', lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Sleep Duration'',
+        ''Numeric'', lambda x: x >= 0.95)'
+      level: warning
+      uid: 32aa8a96-f5ea-4ca1-9d01-86a61c008c25
+      source_assumptions:
+      - d913366a-1a40-4503-a736-73bd3eca3ac5
+      - 30eb8def-4514-45c4-92bf-7cf469837f72
+    - suggestion: '.satisfies(''`Sleep Duration` >= 0 AND `Sleep Duration` <= 24'',
+        ''Sleep Duration realistic hourly bounds'', lambda x: x >= 0.99)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 9b08c457-0ef2-4563-b58a-a4f1bbb2e049
+      source_assumptions:
+      - d7366fcc-98e1-48eb-a598-ab126211ef8c
+    - suggestion: '.hasNumberOfDistinctValues(''Sleep Duration'', lambda x: x >= 2)'
+      validity: false
+      reason_if_invalid: 'Unable to instantiate constraint ''.hasNumberOfDistinctValues(''Sleep
+        Duration'', lambda x: x >= 2)'': Check.hasNumberOfDistinctValues() missing
+        2 required positional arguments: ''binningUdf'' and ''maxBins'''
+      level: warning
+      uid: 597cbf76-bd95-46b2-b202-8b171c1442b2
+      source_assumptions:
+      - 36573f75-d4c1-4efe-bc93-ddbfb07702bb
+    - suggestion: '.hasStandardDeviation(''Sleep Duration'', lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 508b2986-943b-4cd3-8d54-186be42ba817
+      source_assumptions:
+      - 36573f75-d4c1-4efe-bc93-ddbfb07702bb
+    assumptions:
+    - text: 'Sleep Duration should be numeric (or at least parseable to numeric) for
+        the vast majority of rows, with very few nulls/non-numeric values. Non-numeric
+        inputs are coerced to null and then dropped from downstream correlation/regression
+        and will yield NaNs in normalized scoring. Suggested validation: completeness
+        of Sleep Duration >= 0.95 and values parseable as numbers in >= 0.95 of rows
+        (e.g., Deequ hasCompleteness(''Sleep Duration'', _ >= 0.95) and a satisfies/regex
+        or cast-based check for numeric parseability; Great Expectations expect_column_values_to_not_be_null
+        with mostly=0.95 plus expect_column_values_to_be_in_type_list/parseable).'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 69
+        end_line: 71
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      uid: d913366a-1a40-4503-a736-73bd3eca3ac5
+    - text: 'Sleep Duration is expected to be measured in hours and within realistic
+        daily bounds (non-negative and not exceeding 24). This is implied by comparisons
+        to 6 and 8 hours and normalization over the [5, 8]-hour range. Suggested validation:
+        values between 0 and 24 hours for 100% (or near-100%) of rows (e.g., Great
+        Expectations expect_column_values_to_be_between(min_value=0, max_value=24,
+        mostly=1.0); Deequ satisfies(''`Sleep Duration` BETWEEN 0 AND 24'', ''Sleep
+        Duration in hours bounds'', _ >= 0.99)).'
+      sources:
+      - start_line: 71
+        end_line: 72
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      uid: d7366fcc-98e1-48eb-a598-ab126211ef8c
+    - text: 'Sleep Duration should have sufficient variability to support the linear
+        model used (non-zero variance, i.e., at least two distinct non-null values).
+        If all values are the same or there are fewer than two non-null values, the
+        model degenerates to a zero slope. Suggested validation: at least 2 distinct
+        non-null values and standard deviation > 0 (e.g., Deequ hasNumberDistinctValuesBetween(''Sleep
+        Duration'', lowerBound=2) and hasStandardDeviation(''Sleep Duration'', _ >
+        0); Great Expectations expect_column_unique_value_count_to_be_between(min_value=2)
+        and expect_column_stdev_to_be_between(min_value=1e-9)).'
+      sources:
+      - start_line: 76
+        end_line: 80
+        file: ''
+      uid: 36573f75-d4c1-4efe-bc93-ddbfb07702bb
+    - text: 'Sleep Duration values may be fractional (decimals) and should not be
+        encoded with textual units (e.g., ''7 hrs''); such strings would be coerced
+        to null. Suggested validation: values are numeric floats/integers (e.g., Great
+        Expectations expect_column_values_to_be_in_type_list with types [''float'',
+        ''int''] or a regex allowing optional decimal point; Deequ satisfies with
+        a numeric regex).'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 105
+        end_line: 105
+        file: ''
+      uid: 30eb8def-4514-45c4-92bf-7cf469837f72
+  Daily Steps:
+    code:
+    - suggestion: '.hasCompleteness(''Daily Steps'', lambda x: x >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: 66b949bf-d367-43f0-82a1-cc55ba67720b
+      source_assumptions:
+      - 1ce5ab7c-6e7c-414a-a202-84c816247af6
+    - suggestion: '.hasDataType(''Daily Steps'', ConstrainableDataTypes.Integral,
+        lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Daily Steps'',
+        ConstrainableDataTypes.Integral, lambda x: x >= 0.95)'
+      level: error
+      uid: fc29d6b3-6413-4b6b-9724-8d30292fc175
+      source_assumptions:
+      - 2256a35f-ec27-4d2b-9a9a-730e4c28e919
+    - suggestion: '.satisfies(''`Daily Steps` IS NOT NULL AND isfinite(CAST(`Daily
+        Steps` AS DOUBLE))'', ''daily_steps_numeric_finite_95pct'', lambda x: x >=
+        0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies(''`Daily Steps` IS NOT NULL AND
+        isfinite(CAST(`Daily Steps` AS DOUBLE))'', ''daily_steps_numeric_finite_95pct'',
+        lambda x: x >= 0.95)'' failed on data sample: org.apache.spark.sql.AnalysisException:
+        [UNRESOLVED_ROUTINE] Cannot resolve function `isfinite` on search path [`system`.`builtin`,
+        `system`.`session`, `spark_catalog`.`default`].; line 1 pos 30'
+      level: error
+      uid: c5919ebf-7844-4c2f-9e37-4cb155182011
+      source_assumptions:
+      - 2256a35f-ec27-4d2b-9a9a-730e4c28e919
+    - suggestion: '.isNonNegative(''Daily Steps'', lambda x: x == 1)'
+      validity: false
+      reason_if_invalid: "Constraint '.isNonNegative('Daily Steps', lambda x: x ==\
+        \ 1)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near '('.(line 1, pos 13)\n\n\
+        == SQL ==\nCOALESCE(CAST(Daily Steps AS DECIMAL(20,10)), 0.0) >= 0\n-------------^^^\n"
+      level: warning
+      uid: 45d6d2ac-e735-4402-b360-c830150f8ce4
+      source_assumptions:
+      - d93a77db-f37e-4765-abdd-109ef2d4c4b2
+    - suggestion: '.satisfies(''FLOOR(CAST(`Daily Steps` AS DOUBLE)) = CAST(`Daily
+        Steps` AS DOUBLE)'', ''integer_valued_steps'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 41c4b381-522a-4c49-ba35-e4ac5ccb792b
+      source_assumptions:
+      - d93a77db-f37e-4765-abdd-109ef2d4c4b2
+    - suggestion: '.hasMax(''Daily Steps'', lambda x: x <= 50000)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 912c5b00-4ccf-4793-aa99-dd5915b48043
+      source_assumptions:
+      - a614b8ba-4af0-4db6-9c9b-3e623c50cf08
+    - suggestion: '.satisfies(''`Daily Steps` IS NOT NULL AND `Physical Activity Level`
+        IS NOT NULL'', ''steps_pa_pair_non_null'', lambda x: x >= 0.9)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7ee710f8-2123-41d1-8b59-af82ec9476d0
+      source_assumptions:
+      - a02765df-e5da-4777-a365-84a307fbf7ad
+    assumptions:
+    - text: The input must include a 'Daily Steps' column, as it is used throughout
+        computations, triage logic, diagnostics, and written to output. This can be
+        validated with Great Expectations expect_column_to_exist('Daily Steps') or
+        Deequ hasColumn('Daily Steps').
+      sources:
+      - start_line: 84
+        end_line: 85
+        file: ''
+      - start_line: 90
+        end_line: 93
+        file: ''
+      - start_line: 96
+        end_line: 101
+        file: ''
+      - start_line: 115
+        end_line: 118
+        file: ''
+      - start_line: 155
+        end_line: 156
+        file: ''
+      - start_line: 167
+        end_line: 167
+        file: ''
+      - start_line: 191
+        end_line: 197
+        file: ''
+      uid: 1ce5ab7c-6e7c-414a-a202-84c816247af6
+    - text: 'The ''Daily Steps'' values should be numeric (integer-like) and finite
+        for the vast majority of rows (at least 95%), otherwise coercion to numeric
+        will produce NaNs that propagate into means, covariances, and ratios. Example
+        Deequ rule: hasDataType(''Daily Steps'', ConstrainableDataTypes.Integral)
+        and satisfies(''CASE WHEN cast(`Daily Steps` AS DOUBLE) IS NOT NULL AND isfinite(cast(`Daily
+        Steps` AS DOUBLE)) THEN 1 ELSE 0 END'', ''numeric_finite_steps'', lambda x:
+        x >= 0.95). GE equivalents: expect_column_values_to_be_in_type_list([''int64'',''int32'',''float64''],
+        mostly=0.95) and expect_column_values_to_not_be_null(mostly=0.95).'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 84
+        end_line: 101
+        file: ''
+      - start_line: 115
+        end_line: 118
+        file: ''
+      - start_line: 155
+        end_line: 156
+        file: ''
+      uid: 2256a35f-ec27-4d2b-9a9a-730e4c28e919
+    - text: 'The ''Daily Steps'' values should be non-negative integer counts (>=
+        0). This aligns with comparisons against thresholds (5000, 7000) and step
+        normalization. Deequ examples: isNonNegative(''Daily Steps'') and satisfies(''CAST(`Daily
+        Steps` AS BIGINT) = CAST(`Daily Steps` AS DOUBLE)'', ''integer_steps'', lambda
+        x: x == 1). GE examples: expect_column_values_to_be_between(''Daily Steps'',
+        min_value=0) and expect_column_values_to_match_regex(''^\d+$'').'
+      sources:
+      - start_line: 93
+        end_line: 93
+        file: ''
+      - start_line: 115
+        end_line: 115
+        file: ''
+      - start_line: 156
+        end_line: 156
+        file: ''
+      uid: d93a77db-f37e-4765-abdd-109ef2d4c4b2
+    - text: 'To keep normalization meaningful and avoid pathological ratios, ''Daily
+        Steps'' should be within a human-plausible upper bound; assume max Daily Steps
+        <= 50000. Deequ: Constraint on max, e.g., .where(''`Daily Steps` <= 50000'').
+        GE: expect_column_max_to_be_between(''Daily Steps'', max_value=50000).'
+      sources:
+      - start_line: 115
+        end_line: 116
+        file: ''
+      - start_line: 93
+        end_line: 93
+        file: ''
+      uid: a614b8ba-4af0-4db6-9c9b-3e623c50cf08
+    - text: 'There should be sufficient paired non-null data between ''Daily Steps''
+        and ''Physical Activity Level'' to compute correlations and a linear expectation
+        (covariance). Require at least 90% of rows to have both fields non-null. Deequ:
+        satisfies(''CASE WHEN `Daily Steps` IS NOT NULL AND `Physical Activity Level`
+        IS NOT NULL THEN 1 ELSE 0 END'', ''steps_pa_pair_non_null'', lambda x: x >=
+        0.9). GE: expect_column_pair_values_to_be_not_null(''Physical Activity Level'',''Daily
+        Steps'', mostly=0.9).'
+      sources:
+      - start_line: 84
+        end_line: 101
+        file: ''
+      - start_line: 155
+        end_line: 156
+        file: ''
+      uid: a02765df-e5da-4777-a365-84a307fbf7ad
+  Sleep Disorder:
+    code:
+    - suggestion: '.hasCompleteness(''Sleep Disorder'', lambda c: c >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: error
+      uid: df4c8691-d570-465a-988a-ec71aac40038
+      source_assumptions:
+      - 011e4af9-a38a-4df5-83c4-64ab0c8d4004
+    - suggestion: '.isContainedIn(''Sleep Disorder'', [''Insomnia'', ''Sleep Apnea''],
+        lambda f: f == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b612137c-84d2-48f4-ab69-178c38479a1a
+      source_assumptions:
+      - 1c3cbda2-ccbf-4ee1-bee3-67a518344b25
+    - suggestion: '.satisfies("(`Sleep Disorder` IS NULL) OR (NOT (`Sleep Disorder`
+        IN (''Null'',''NULL'',''null'',''None'',''N/A'',''NaN'',''NullValue'')))",
+        "No placeholder tokens in Sleep Disorder", lambda x: x == 1.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: e25d709f-1ffe-4817-ace8-6a1e694d45db
+      source_assumptions:
+      - 578facfc-ae84-4689-9da8-aac286de9ce7
+    assumptions:
+    - text: The input must contain a column named 'Sleep Disorder'. The script directly
+        references this column multiple times; if it is missing, execution will fail
+        with a KeyError.
+      sources:
+      - start_line: 55
+        end_line: 55
+        file: ''
+      - start_line: 137
+        end_line: 138
+        file: ''
+      - start_line: 151
+        end_line: 151
+        file: ''
+      - start_line: 178
+        end_line: 178
+        file: ''
+      uid: 011e4af9-a38a-4df5-83c4-64ab0c8d4004
+    - text: 'Among non-null values, ''Sleep Disorder'' should only contain the exact
+        labels ''Insomnia'' or ''Sleep Apnea'' (case-sensitive, no extra whitespace).
+        Other strings will be treated as no disorder and bypass penalties/triage.
+        Deequ example: .isContainedIn(''Sleep Disorder'', [''Insomnia'', ''Sleep Apnea''],
+        lambda p: p == 1.0) applied to the non-null subset; Great Expectations: expect_column_values_to_be_in_set
+        with value_set=[''Insomnia'',''Sleep Apnea''] and mostly=1.0, ignoring nulls.'
+      sources:
+      - start_line: 137
+        end_line: 137
+        file: ''
+      - start_line: 151
+        end_line: 151
+        file: ''
+      uid: 1c3cbda2-ccbf-4ee1-bee3-67a518344b25
+    - text: 'Missing ''Sleep Disorder'' values must be represented as actual nulls/NaN
+        (empty cells) rather than string placeholders like ''Null'', ''NULL'', ''None'',
+        ''N/A'', ''NaN'', or ''NullValue''. The code uses dropna and fillna to detect
+        and handle missingness; placeholder strings would be misinterpreted as valid
+        categories and receive no penalty. Deequ example: .satisfies("CASE WHEN `Sleep
+        Disorder` IN (''Null'',''NULL'',''null'',''None'',''N/A'',''NaN'',''NullValue'')
+        THEN 0 ELSE 1 END", ''No placeholder tokens in Sleep Disorder'', lambda x:
+        x == 1.0).'
+      sources:
+      - start_line: 55
+        end_line: 55
+        file: ''
+      - start_line: 137
+        end_line: 138
+        file: ''
+      uid: 578facfc-ae84-4689-9da8-aac286de9ce7
+    - text: Nulls in 'Sleep Disorder' are allowed; downstream logic explicitly handles
+        missing values by excluding them from distribution calculations and assigning
+        zero penalty. No minimum completeness is required. If a rule is desired, set
+        a non-restrictive one (e.g., Deequ completeness constraint allowing any proportion
+        of nulls) and rely on the domain check above only for non-null entries.
+      sources:
+      - start_line: 55
+        end_line: 66
+        file: ''
+      - start_line: 137
+        end_line: 139
+        file: ''
+      uid: be97e4e3-15cb-4251-952c-43f732d7a5a9
+  Heart Rate:
+    code:
+    - suggestion: '.hasDataType(''Heart Rate'', ''Numeric'', lambda x: x >= 0.0)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Heart Rate'',
+        ''Numeric'', lambda x: x >= 0.0)'
+      level: error
+      uid: 4fc0766b-8adf-46f0-a07a-f975480cb47d
+      source_assumptions:
+      - 74acc53b-6b9e-495d-b4be-363b2b172099
+    - suggestion: '.hasCompleteness(''Heart Rate'', lambda x: x >= 0.95)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: a4a3b186-f0eb-44bf-9073-90f2813960be
+      source_assumptions:
+      - 8fb9512a-0484-42f4-a9e7-f961f2cc4c0f
+    - suggestion: '.hasDataType(''Heart Rate'', ''Numeric'', lambda x: x >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Skipping data type constraint: .hasDataType(''Heart Rate'',
+        ''Numeric'', lambda x: x >= 0.95)'
+      level: warning
+      uid: a2be7d99-cc3c-4365-a0a9-95f0bb17943a
+      source_assumptions:
+      - 8fb9512a-0484-42f4-a9e7-f961f2cc4c0f
+    - suggestion: '.satisfies(''`Heart Rate` >= 50 AND `Heart Rate` <= 100'', ''HR
+        mid-band present'', lambda x: x > 0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 27a2feca-3f89-442f-bc6d-2a15c0f66e18
+      source_assumptions:
+      - 31fecb52-5d78-4d19-a942-cbcf52fa452f
+    - suggestion: '.satisfies(''(`Heart Rate` IS NULL) OR (`Heart Rate` >= 0)'', ''HR
+        non-negative or null'', lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: ba9a4d71-d887-4d82-b1e1-1805c500a44a
+      source_assumptions:
+      - 2029f017-d5dc-4663-b296-130a375c4faf
+    assumptions:
+    - text: The 'Heart Rate' column must exist in the input dataset. The script references
+        it directly to compute mid-band proportions, penalties, triage, and to write
+        it to the output; if the column is missing, the code will fail.
+      sources:
+      - start_line: 51
+        end_line: 52
+        file: ''
+      - start_line: 121
+        end_line: 125
+        file: ''
+      - start_line: 147
+        end_line: 147
+        file: ''
+      - start_line: 169
+        end_line: 169
+        file: ''
+      uid: 74acc53b-6b9e-495d-b4be-363b2b172099
+    - text: 'The ''Heart Rate'' values should be numeric (parseable as numbers) and
+        predominantly non-null. The loader coerces non-numeric values to NaN, and
+        downstream logic applies numeric comparisons and arithmetic (penalties and
+        triage) that assume numeric inputs. To avoid silent under-penalization and
+        mis-triage, at least 95% of rows should have a non-null, numeric-convertible
+        ''Heart Rate''. Example Deequ-style rules: (1) .satisfies("CASE WHEN `Heart
+        Rate` RLIKE ''^-?\\d+(\\.\\d+)?$'' THEN 1 ELSE 0 END", "HR numeric", lambda
+        x: x >= 0.95); (2) .completeness("Heart Rate", lambda x: x >= 0.95).'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 121
+        end_line: 125
+        file: ''
+      - start_line: 147
+        end_line: 147
+        file: ''
+      uid: 8fb9512a-0484-42f4-a9e7-f961f2cc4c0f
+    - text: "At least some 'Heart Rate' values should lie within the 50\u2013100 bpm\
+        \ mid-band. The code computes the proportion in this band (hr_midband_prop)\
+        \ to calibrate the outlier penalty and also reports it in diagnostics. Validation:\
+        \ proportion of rows where 50 <= `Heart Rate` <= 100 is > 0 (i.e., not zero).\
+        \ Example Deequ: .satisfies(\"CASE WHEN `Heart Rate` BETWEEN 50 AND 100 THEN\
+        \ 1 ELSE 0 END\", \"HR mid-band present\", lambda x: x > 0)."
+      sources:
+      - start_line: 51
+        end_line: 52
+        file: ''
+      - start_line: 121
+        end_line: 125
+        file: ''
+      - start_line: 203
+        end_line: 205
+        file: ''
+      uid: 31fecb52-5d78-4d19-a942-cbcf52fa452f
+    - text: 'The ''Heart Rate'' values are expected to be physiologically non-negative
+        (>= 0). Negative numbers would be nonsensical in bpm and would distort the
+        low-side penalty logic. Validation: all non-null ''Heart Rate'' values >=
+        0. Example Deequ: .satisfies("CASE WHEN `Heart Rate` IS NULL OR `Heart Rate`
+        >= 0 THEN 1 ELSE 0 END", "HR non-negative", lambda x: x == 1).'
+      sources:
+      - start_line: 121
+        end_line: 124
+        file: ''
+      - start_line: 51
+        end_line: 51
+        file: ''
+      uid: 2029f017-d5dc-4663-b296-130a375c4faf
+  Stress Level:
+    code:
+    - suggestion: '.satisfies("(`Stress Level` IS NULL) OR ((CAST(`Stress Level` AS
+        DOUBLE) BETWEEN 3 AND 8) AND (CAST(`Stress Level` AS DOUBLE) = CAST(CAST(`Stress
+        Level` AS INT) AS DOUBLE)))", "Stress Level: nulls allowed; otherwise integer
+        between 3 and 8", lambda x: x == 1)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: b3909449-f39e-471f-a3bb-a862d94b696a
+      source_assumptions:
+      - 3f637757-3da3-4c5e-aa27-3f6688bdc4fe
+      - d10daba4-17cf-43bf-b32d-cf5bb51aa792
+    assumptions:
+    - text: The 'Stress Level' column is optional. The code checks for the column's
+        presence before attempting any operation; if it is absent, the pipeline proceeds
+        without error. Validation systems should treat this column as optional (apply
+        rules only if the column exists).
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: 56a7f6ce-128f-42f4-83d6-71b7588d595c
+    - text: 'If present, ''Stress Level'' values are expected to be numeric (parseable
+        to numbers). Non-numeric entries will be coerced to null (NaN). A suitable
+        validation would ensure that all non-null values are parseable as numeric.
+        Example: Great Expectations - expect_column_values_to_match_regex with pattern
+        ''^-?\d+(\.\d+)?$'' for string-typed inputs, or expect_column_values_to_be_in_type_list
+        for numeric-typed inputs; Deequ - satisfies a CAST-to-double check on non-null
+        values.'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: 2e7d61aa-d6ef-4fd7-87fc-ab0ebeec9e63
+    - text: Nulls are allowed in 'Stress Level'. The pipeline explicitly allows coercion
+        to null via numeric parsing and does not use this column afterwards, so there
+        is no minimum completeness requirement for the code to run. Validation may
+        therefore set no upper bound on nulls (i.e., completeness can be between 0
+        and 1).
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: d10daba4-17cf-43bf-b32d-cf5bb51aa792
+    - text: 'Based on the provided dataset characteristics, ''Stress Level'' should
+        be an integer-scale score with values between 3 and 8 inclusive. A suitable
+        validation is to enforce values in the set {3, 4, 5, 6, 7, 8} (or equivalently,
+        integer and between 3 and 8 inclusive). Example: Great Expectations - expect_column_values_to_be_in_set;
+        Deequ - satisfies(''CASE WHEN `Stress Level` BETWEEN 3 AND 8 AND `Stress Level`
+        = CAST(`Stress Level` AS INT) THEN 1 ELSE 0 END'', ..., lambda x: x == 1).'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      uid: 3f637757-3da3-4c5e-aa27-3f6688bdc4fe
+  '["Blood Pressure","Daily Steps","Physical Activity Level"]':
+    code:
+    - suggestion: '.satisfies("CASE WHEN `Blood Pressure` RLIKE ''^\\s*\\d{2,3}\\s*/\\s*\\d{2,3}\\s*$''
+        THEN CAST(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        1) AS INT) >= CAST(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        2) AS INT) ELSE false END", "BP_string_parses_and_sys_ge_dia", lambda v: v
+        == 1.0)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("CASE WHEN `Blood Pressure` RLIKE
+        ''^\\s*\\d{2,3}\\s*/\\s*\\d{2,3}\\s*$'' THEN CAST(regexp_extract(`Blood Pressure`,
+        ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 1) AS INT) >= CAST(regexp_extract(`Blood
+        Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 2) AS INT) ELSE false
+        END", "BP_string_parses_and_sys_ge_dia", lambda v: v == 1.0)'' failed on data
+        sample: Value: 0.0 does not meet the constraint requirement!'
+      level: warning
+      uid: 005f6174-5dbc-46a6-b984-626441925b67
+      source_assumptions:
+      - 89c31bd0-f2ca-49b6-af64-ee9d4dccb145
+    - suggestion: '.hasCorrelation(''Daily Steps'', ''Physical Activity Level'', lambda
+        c: c >= 0.2)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 7d2740e1-c29f-434c-83b0-b1504f15f457
+      source_assumptions:
+      - acc602eb-35f4-4677-9a06-c16477ccc10d
+    - suggestion: '.satisfies("CASE WHEN `Physical Activity Level` >= 60 THEN `Daily
+        Steps` >= 7000 ELSE true END", "PA60_steps7000_compliance", lambda p: p >=
+        0.6)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: c3c66074-86e3-4801-804c-45518c2583c6
+      source_assumptions:
+      - 7b946dee-e80c-4a42-8f91-e7f6470c956e
+    assumptions:
+    - text: 'The ''Blood Pressure'' string must encode two numeric values ''bp_sys''
+        (systolic) and ''bp_dia'' (diastolic) in the pattern ''NN/NN'' or ''NNN/NNN'',
+        such that after parsing both ''bp_sys'' and ''bp_dia'' are non-null and bp_sys
+        >= bp_dia for every record. This can be enforced with a compliance constraint
+        like: CASE WHEN Blood Pressure RLIKE ''^(\s*\d{2,3})\s*/\s*(\d{2,3})\s*$''
+        THEN (bp_sys IS NOT NULL AND bp_dia IS NOT NULL AND bp_sys >= bp_dia) ELSE
+        false END, with asserted compliance = 1.0.'
+      sources:
+      - start_line: 42
+        end_line: 46
+        file: ''
+      - start_line: 171
+        end_line: 172
+        file: ''
+      uid: 89c31bd0-f2ca-49b6-af64-ee9d4dccb145
+    - text: 'The derived ''bp_stage'' must be consistent with (''bp_sys'',''bp_dia'')
+        per the classification logic: crisis if (sys >= 180 OR dia >= 120); stage2
+        if (sys >= 140 OR dia >= 90) and not crisis; stage1 if ((130 <= sys AND sys
+        <= 139) OR (80 <= dia AND dia <= 89)); elevated if (120 <= sys AND sys <=
+        129) AND (dia < 80); normal if (sys < 120 AND dia < 80). Representable as
+        a compliance constraint verifying bp_stage equals this CASE expression for
+        all rows (compliance = 1.0).'
+      sources:
+      - start_line: 9
+        end_line: 21
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: e6fe321a-c996-4396-86a4-ccadb599d27f
+    - text: 'Any record with crisis-level blood pressure (bp_stage = ''crisis'' OR
+        bp_sys >= 180 OR bp_dia >= 120) must have triage_level = ''High''. Enforceable
+        via a compliance constraint: CASE WHEN (bp_stage = ''crisis'' OR bp_sys >=
+        180 OR bp_dia >= 120) THEN triage_level = ''High'' ELSE true END, with asserted
+        compliance = 1.0.'
+      sources:
+      - start_line: 147
+        end_line: 147
+        file: ''
+      - start_line: 160
+        end_line: 160
+        file: ''
+      uid: d28a3f35-e756-4b67-bbaa-63dbb0c837c2
+    - text: 'Daily Steps and Physical Activity Level should be positively associated
+        at the cohort level: both Pearson and Spearman correlations between ''Daily
+        Steps'' and ''Physical Activity Level'' should be non-negative (e.g., >= 0.2).
+        In Deequ: hasCorrelation(''Daily Steps'',''Physical Activity Level'', _ >=
+        0.2) and a similar check for Spearman (via a custom analyzer or by computing
+        it upstream).'
+      sources:
+      - start_line: 84
+        end_line: 85
+        file: ''
+      uid: acc602eb-35f4-4677-9a06-c16477ccc10d
+    - text: Mean 'Daily Steps' among the top tercile of 'Physical Activity Level'
+        must be greater than the mean among the bottom tercile. This can be implemented
+        by computing two filtered means (PA >= 67th percentile vs. PA <= 33rd percentile)
+        and asserting mean_top > mean_bottom.
+      sources:
+      - start_line: 86
+        end_line: 91
+        file: ''
+      uid: 6578beac-f52a-42db-b070-c8dcf345c9ec
+    - text: 'For members with ''Physical Activity Level'' >= 60, a substantial share
+        should reach at least 7000 ''Daily Steps''. Enforce as a conditional compliance
+        constraint: CASE WHEN `Physical Activity Level` >= 60 THEN `Daily Steps` >=
+        7000 ELSE true END with an asserted compliance proportion (e.g., >= 0.6).'
+      sources:
+      - start_line: 92
+        end_line: 94
+        file: ''
+      uid: 7b946dee-e80c-4a42-8f91-e7f6470c956e
+  '["Blood Pressure","Heart Rate"]':
+    code: []
+    assumptions:
+    - text: 'Blood Pressure must be parseable into two numeric components (bp_sys,
+        bp_dia) for every row using the pattern ''NN/NN'' or ''NNN/NNN''; after parsing,
+        both bp_sys and bp_dia should be non-null. Deequ example: .hasPattern(''Blood
+        Pressure'', ''^\\s*\\d{2,3}\\s*/\\s*\\d{2,3}\\s*$'') and .satisfies(''bp_sys
+        IS NOT NULL AND bp_dia IS NOT NULL'', 1.0).'
+      sources:
+      - start_line: 42
+        end_line: 45
+        file: ''
+      uid: d038e4af-a52b-4008-9001-291bf3ae0b46
+    - text: 'For physiologically valid readings, when bp_sys and bp_dia are non-null:
+        bp_sys >= bp_dia and bp_sys BETWEEN 70 AND 250 and bp_dia BETWEEN 40 AND 150.
+        Deequ example: .satisfies(''(bp_sys IS NULL AND bp_dia IS NULL) OR (bp_sys
+        >= bp_dia AND bp_sys BETWEEN 70 AND 250 AND bp_dia BETWEEN 40 AND 150)'',
+        1.0).'
+      sources:
+      - start_line: 42
+        end_line: 47
+        file: ''
+      uid: a1f19df7-2caa-42c8-b3a6-29d0a5836e06
+    - text: 'bp_stage must be consistent with bp_sys and bp_dia per the classifier
+        logic. For all rows with non-null bp_sys and bp_dia: CASE WHEN (bp_sys >=
+        180 OR bp_dia >= 120) THEN ''crisis'' WHEN (bp_sys >= 140 OR bp_dia >= 90)
+        THEN ''stage2'' WHEN ((bp_sys BETWEEN 130 AND 139) OR (bp_dia BETWEEN 80 AND
+        89)) THEN ''stage1'' WHEN ((bp_sys BETWEEN 120 AND 129) AND (bp_dia < 80))
+        THEN ''elevated'' WHEN (bp_sys < 120 AND bp_dia < 80) THEN ''normal'' ELSE
+        ''normal'' END must equal bp_stage. Deequ example: .satisfies(''bp_sys IS
+        NULL OR bp_dia IS NULL OR (CASE WHEN (bp_sys >= 180 OR bp_dia >= 120) THEN
+        \''crisis\'' WHEN (bp_sys >= 140 OR bp_dia >= 90) THEN \''stage2\'' WHEN ((bp_sys
+        BETWEEN 130 AND 139) OR (bp_dia BETWEEN 80 AND 89)) THEN \''stage1\'' WHEN
+        ((bp_sys BETWEEN 120 AND 129) AND (bp_dia < 80)) THEN \''elevated\'' WHEN
+        (bp_sys < 120 AND bp_dia < 80) THEN \''normal\'' ELSE \''normal\'' END) =
+        bp_stage'', 1.0).'
+      sources:
+      - start_line: 9
+        end_line: 21
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      uid: e518824e-5fbf-4812-b8c3-bb6454ecc0e6
+    - text: 'Mean arterial pressure (map) must be consistent with bp_sys and bp_dia:
+        map = bp_dia + (bp_sys - bp_dia)/3. Use a small tolerance for floating-point
+        comparisons. Deequ example: .satisfies(''bp_sys IS NULL OR bp_dia IS NULL
+        OR ABS(map - (bp_dia + (bp_sys - bp_dia)/3.0)) < 1e-6'', 1.0).'
+      sources:
+      - start_line: 48
+        end_line: 48
+        file: ''
+      uid: aa850f01-cf08-4aa7-a7e8-ff5c5ce2a19f
+    - text: 'Crisis triage rule must hold: If (bp_stage = ''crisis'') OR (bp_sys >=
+        180) OR (bp_dia >= 120) OR (Heart Rate > 120), then triage_level must be ''High''.
+        Deequ example: .satisfies(''CASE WHEN (bp_stage = \''crisis\'' OR bp_sys >=
+        180 OR bp_dia >= 120 OR `Heart Rate` > 120) THEN triage_level = \''High\''
+        ELSE TRUE END'', 1.0).'
+      sources:
+      - start_line: 147
+        end_line: 151
+        file: ''
+      - start_line: 160
+        end_line: 160
+        file: ''
+      uid: e1d2f9ac-bd19-42e6-a64c-6c84223f5f2a
+    - text: 'bp_penalty must equal the stage-to-penalty mapping derived from bp_stage:
+        normal->0.0, elevated->0.05, stage1->0.10, stage2->0.20, crisis->0.40; if
+        bp_stage is null, bp_penalty should default to 0.15. Deequ example: .satisfies(''(bp_stage
+        = \''normal\'' AND bp_penalty = 0.0) OR (bp_stage = \''elevated\'' AND bp_penalty
+        = 0.05) OR (bp_stage = \''stage1\'' AND bp_penalty = 0.10) OR (bp_stage =
+        \''stage2\'' AND bp_penalty = 0.20) OR (bp_stage = \''crisis\'' AND bp_penalty
+        = 0.40) OR (bp_stage IS NULL AND bp_penalty = 0.15)'', 1.0).'
+      sources:
+      - start_line: 127
+        end_line: 135
+        file: ''
+      uid: 3b9bea7e-e0a1-404e-a359-ccf62f792c9b
+    - text: 'Penalty points composition must be consistent: penalty_points = 100*(hr_penalty
+        + bp_penalty + sd_penalty). Deequ example: .satisfies(''ABS(penalty_points
+        - 100*(hr_penalty + bp_penalty + sd_penalty)) < 1e-6'', 1.0).'
+      sources:
+      - start_line: 121
+        end_line: 125
+        file: ''
+      - start_line: 127
+        end_line: 135
+        file: ''
+      - start_line: 141
+        end_line: 141
+        file: ''
+      uid: f6af34a7-ccf0-4f97-9c0c-c9e531377902
+  '["Blood Pressure","Quality of Sleep","Sleep Duration"]':
+    code:
+    - suggestion: '.satisfies("regexp_like(`Blood Pressure`, ''^\\s*\\d{2,3}\\s*/\\s*\\d{2,3}\\s*$'')",
+        "bp_format_ok", lambda v: v >= 0.95)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("regexp_like(`Blood Pressure`, ''^\\s*\\d{2,3}\\s*/\\s*\\d{2,3}\\s*$'')",
+        "bp_format_ok", lambda v: v >= 0.95)'' failed on data sample: Value: 0.0 does
+        not meet the constraint requirement!'
+      level: warning
+      uid: ab045626-e1da-4917-802e-83aefebf7088
+      source_assumptions:
+      - ca69f1db-a94d-46cc-8fe6-670380fe6083
+    - suggestion: '.satisfies("cast(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        1) as int) >= cast(regexp_extract(`Blood Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'',
+        2) as int)", "bp_sys_ge_dia", lambda v: v >= 0.99)'
+      validity: false
+      reason_if_invalid: 'Constraint ''.satisfies("cast(regexp_extract(`Blood Pressure`,
+        ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 1) as int) >= cast(regexp_extract(`Blood
+        Pressure`, ''^\\s*(\\d{2,3})\\s*/\\s*(\\d{2,3})\\s*$'', 2) as int)", "bp_sys_ge_dia",
+        lambda v: v >= 0.99)'' failed on data sample: Empty state for analyzer Compliance(bp_sys_ge_dia,cast(regexp_extract(`Blood
+        Pressure`, ''^\s*(\d{2,3})\s*/\s*(\d{2,3})\s*$'', 1) as int) >= cast(regexp_extract(`Blood
+        Pressure`, ''^\s*(\d{2,3})\s*/\s*(\d{2,3})\s*$'', 2) as int),None,List(),None),
+        all input values were NULL.'
+      level: warning
+      uid: 2cfe1ce2-f081-40bc-bd55-1aa9295de5ac
+      source_assumptions:
+      - ca69f1db-a94d-46cc-8fe6-670380fe6083
+    - suggestion: '.haveCompleteness([''Sleep Duration'', ''Quality of Sleep''], lambda
+        v: v >= 0.99)'
+      validity: false
+      reason_if_invalid: "Constraint '.haveCompleteness(['Sleep Duration', 'Quality\
+        \ of Sleep'], lambda v: v >= 0.99)' failed on data sample: org.apache.spark.sql.catalyst.parser.ParseException:\
+        \ \n[PARSE_SYNTAX_ERROR] Syntax error at or near 'IS'.(line 1, pos 17)\n\n\
+        == SQL ==\n((Sleep Duration IS NOT NULL) AND (Quality of Sleep IS NOT NULL))\n\
+        -----------------^^^\n"
+      level: warning
+      uid: 7b75b523-e0fc-4232-8d85-153fd6cf135f
+      source_assumptions:
+      - 0566dbf1-ecde-4179-be29-18118c357b21
+    - suggestion: '.hasCorrelation(''Sleep Duration'', ''Quality of Sleep'', lambda
+        c: c >= 0.0)'
+      validity: true
+      reason_if_invalid: ''
+      level: warning
+      uid: 79345784-7621-4515-9978-9cb5d916221e
+      source_assumptions:
+      - 836e1e3e-82d2-489c-b338-1d71314a45b6
+    assumptions:
+    - text: "Blood Pressure must be parseable into two 2\u20133 digit integers of\
+        \ the form 'SYS/DIA' and, after parsing, systolic (SYS) should be greater\
+        \ than or equal to diastolic (DIA) for at least 0.99 of records. This reflects\
+        \ the code\u2019s expectation when deriving bp_sys/bp_dia and using them in\
+        \ staging/triage. Example Deequ: satisfies(\"cast(regexp_extract(`Blood Pressure`,\
+        \ '^(\\\\s*\\\\d{2,3}\\\\s*)/(\\\\s*\\\\d{2,3}\\\\s*)$', 1) as int) >= cast(regexp_extract(`Blood\
+        \ Pressure`, '^(\\\\s*\\\\d{2,3}\\\\s*)/(\\\\s*\\\\d{2,3}\\\\s*)$', 2) as\
+        \ int)\", 'bp_sys_ge_dia', lambda >= 0.99) and satisfies(\"regexp_like(`Blood\
+        \ Pressure`, '^\\\\s*\\\\d{2,3}\\\\s*/\\\\s*\\\\d{2,3}\\\\s*$')\", 'bp_format_ok',\
+        \ lambda >= 0.95)."
+      sources:
+      - start_line: 42
+        end_line: 48
+        file: ''
+      - start_line: 147
+        end_line: 148
+        file: ''
+      uid: ea6650ed-fbc5-4e12-84ed-4810740739a8
+    - text: 'The BP stage must be functionally determined by the pair (bp_sys, bp_dia)
+        according to the thresholds used in classify_bp: crisis if sys >= 180 or dia
+        >= 120; stage2 if sys >= 140 or dia >= 90; stage1 if 130 <= sys <= 139 or
+        80 <= dia <= 89; elevated if 120 <= sys <= 129 and dia < 80; normal if sys
+        < 120 and dia < 80. This enforces the dependency (bp_sys, bp_dia) -> bp_stage.
+        Example Deequ (post-derivation or via on-the-fly extracts): satisfies("CASE
+        WHEN sys >= 180 OR dia >= 120 THEN ''crisis'' WHEN sys >= 140 OR dia >= 90
+        THEN ''stage2'' WHEN (sys BETWEEN 130 AND 139) OR (dia BETWEEN 80 AND 89)
+        THEN ''stage1'' WHEN (sys BETWEEN 120 AND 129) AND (dia < 80) THEN ''elevated''
+        WHEN (sys < 120) AND (dia < 80) THEN ''normal'' ELSE ''normal'' END = bp_stage",
+        ''bp_stage_consistent'', lambda >= 0.99).'
+      sources:
+      - start_line: 9
+        end_line: 21
+        file: ''
+      - start_line: 47
+        end_line: 47
+        file: ''
+      - start_line: 127
+        end_line: 135
+        file: ''
+      uid: ca69f1db-a94d-46cc-8fe6-670380fe6083
+    - text: 'Sleep Duration and Quality of Sleep should be jointly present (non-null
+        together) on nearly all rows (>= 0.99), since the code drops NA pairs to compute
+        correlation and a linear fit. Example Deequ: satisfies("isnotnull(`Sleep Duration`)
+        AND isnotnull(`Quality of Sleep`)", ''sleep_pair_non_null'', lambda >= 0.99).'
+      sources:
+      - start_line: 69
+        end_line: 74
+        file: ''
+      - start_line: 104
+        end_line: 109
+        file: ''
+      uid: 839f8def-f297-4c56-8e30-d2157210a76a
+    - text: 'At the cohort level, the Pearson correlation between Sleep Duration and
+        Quality of Sleep should be non-negative (>= 0). This aligns with the weighting
+        logic where w_dur = clip(corr, 0, 1) and avoids degenerate weighting that
+        ignores duration entirely. Example Deequ: hasCorrelation(''Sleep Duration'',
+        ''Quality of Sleep'', lambda corr: corr >= 0).'
+      sources:
+      - start_line: 69
+        end_line: 71
+        file: ''
+      - start_line: 106
+        end_line: 108
+        file: ''
+      uid: 0566dbf1-ecde-4179-be29-18118c357b21
+    - text: 'Cohort-level conditional means should align with expected sleep hygiene:
+        the mean Quality of Sleep for long sleepers (Sleep Duration >= 8.0) should
+        be greater than or equal to that of short sleepers (Sleep Duration < 6.0).
+        This supports the bonus logic that references these cohort means. This can
+        be validated by computing two filtered means and asserting mean_long - mean_short
+        >= 0 (e.g., with two Deequ hasMean checks with where clauses, combined in
+        a custom check).'
+      sources:
+      - start_line: 71
+        end_line: 74
+        file: ''
+      - start_line: 111
+        end_line: 113
+        file: ''
+      uid: 836e1e3e-82d2-489c-b338-1d71314a45b6
+  '["Daily Steps","Physical Activity Level"]':
+    code: []
+    assumptions:
+    - text: 'The relationship between ''Daily Steps'' and ''Physical Activity Level''
+        should be positive: both Pearson and Spearman correlations between the two
+        columns should be >= 0.2. This supports the use of a linear expectation of
+        steps from activity and triage rules relying on their alignment. This can
+        be represented with a Deequ constraint like: .hasCorrelation(''Daily Steps'',
+        ''Physical Activity Level'', _ >= 0.2) (and a similar custom check for Spearman
+        or an ordinal monotonicity check).'
+      sources:
+      - start_line: 84
+        end_line: 85
+        file: ''
+      - start_line: 95
+        end_line: 101
+        file: ''
+      - start_line: 155
+        end_line: 157
+        file: ''
+      uid: 217f9185-5be1-42dd-85b9-4e732ff72d45
+    - text: 'Mean ''Daily Steps'' in the top tercile of ''Physical Activity Level''
+        should be greater than or equal to the mean in the bottom tercile. Concretely:
+        mean(Daily Steps | Physical Activity Level >= q67) >= mean(Daily Steps | Physical
+        Activity Level <= q33).'
+      sources:
+      - start_line: 86
+        end_line: 91
+        file: ''
+      uid: 12f3d3be-2b77-47d6-8e24-ef829a553ba0
+    - text: Within the subgroup where 'Physical Activity Level' >= 60, at least 60%
+        of rows should have 'Daily Steps' >= 7000. This can be encoded as a conditional
+        compliance constraint (e.g., in Deequ using a where-filter on the subset or
+        via a global predicate NOT(Physical Activity Level >= 60) OR (Daily Steps
+        >= 7000) with an appropriate threshold).
+      sources:
+      - start_line: 92
+        end_line: 94
+        file: ''
+      uid: 1bbd0034-444a-4b6c-93c6-08af03e0f590
+    - text: 'Rows should be pairwise-complete and numeric for both ''Daily Steps''
+        and ''Physical Activity Level'' (i.e., in the same rows, both columns are
+        present and castable to numeric), so that correlations and the expected-steps
+        alignment are computed on the intended population. Enforce with a compliance
+        check: (Daily Steps IS NOT NULL) AND (Physical Activity Level IS NOT NULL)
+        >= 1.0, after numeric coercion.'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 84
+        end_line: 101
+        file: ''
+      - start_line: 115
+        end_line: 118
+        file: ''
+      uid: a625dc69-ab8a-41a4-8b61-2afaf172da99
+  '["Quality of Sleep","Sleep Disorder","Sleep Duration"]':
+    code: []
+    assumptions:
+    - text: 'High joint completeness and numeric convertibility are required for ''Sleep
+        Duration'' and ''Quality of Sleep'' because the code computes correlation,
+        regression, and a weighted sleep_component from them. At least 0.95 of records
+        should have both columns non-null and numeric. Possible Deequ: .satisfies("(Sleep
+        Duration is not null) AND (Quality of Sleep is not null)", _ >= 0.95, "sleep_duration_quality_joint_completeness").'
+      sources:
+      - start_line: 34
+        end_line: 39
+        file: ''
+      - start_line: 69
+        end_line: 81
+        file: ''
+      - start_line: 104
+        end_line: 109
+        file: ''
+      uid: 0f4a4147-de4b-4d42-8b27-a47747f1a07e
+    - text: 'The relationship between ''Sleep Duration'' and ''Quality of Sleep''
+        is expected to be non-negative (positive or neutral). The Pearson correlation
+        should be >= 0.0 and there must be non-zero variance in ''Sleep Duration''
+        where ''Quality of Sleep'' is present to avoid a degenerate slope. Possible
+        Deequ: .hasCorrelation("Sleep Duration", "Quality of Sleep", _ >= 0.0) and
+        .satisfies("approx_count_distinct(case when `Quality of Sleep` is not null
+        then `Sleep Duration` end) >= 2", _ >= 1.0, "duration_variance_with_quality").'
+      sources:
+      - start_line: 69
+        end_line: 71
+        file: ''
+      - start_line: 76
+        end_line: 81
+        file: ''
+      - start_line: 106
+        end_line: 108
+        file: ''
+      uid: 6601b97e-a014-4402-83c2-de2897a64558
+    - text: 'Long sleepers should have at least as high average sleep quality as short
+        sleepers. Formally: mean(Quality of Sleep | Sleep Duration >= 8.0) >= mean(Quality
+        of Sleep | Sleep Duration < 6.0). Possible Deequ: .satisfies("avg(case when
+        `Sleep Duration` >= 8.0 then `Quality of Sleep` end) >= avg(case when `Sleep
+        Duration` < 6.0 then `Quality of Sleep` end)", _ >= 1.0, "long_vs_short_quality").'
+      sources:
+      - start_line: 71
+        end_line: 75
+        file: ''
+      - start_line: 111
+        end_line: 113
+        file: ''
+      uid: 090a1fb5-9130-4000-b98d-013d8d0f5294
+    - text: 'Members labeled with a sleep disorder (''Insomnia'' or ''Sleep Apnea'')
+        are expected to have lower average ''Quality of Sleep'' than members without
+        a disorder, aligning with the triage logic that escalates disorder cases when
+        sleep_component (driven by Quality and Duration) is low. Possible Deequ: .satisfies("avg(case
+        when `Sleep Disorder` in (''Insomnia'',''Sleep Apnea'') then `Quality of Sleep`
+        end) <= avg(case when `Sleep Disorder` is null then `Quality of Sleep` end)",
+        _ >= 1.0, "disorder_quality_gap").'
+      sources:
+      - start_line: 151
+        end_line: 152
+        file: ''
+      - start_line: 104
+        end_line: 109
+        file: ''
+      uid: 38991730-2cd3-4bc8-ab78-6e47e947b091
+    - text: 'Whenever ''Sleep Disorder'' is non-null, both ''Sleep Duration'' and
+        ''Quality of Sleep'' must also be present and numeric so that sleep_component
+        and triage can be evaluated consistently for those rows. Possible Deequ: .satisfies("(`Sleep
+        Disorder` is null) OR ((`Sleep Duration` is not null) AND (`Quality of Sleep`
+        is not null))", _ >= 1.0, "disorder_requires_sleep_measures").'
+      sources:
+      - start_line: 151
+        end_line: 152
+        file: ''
+      - start_line: 104
+        end_line: 109
+        file: ''
+      uid: b38e9b38-0c0e-41d3-ba28-89dba2b808b2
+  '["Quality of Sleep","Sleep Duration"]':
+    code: []
+    assumptions:
+    - text: 'Sleep Duration and Quality of Sleep must be simultaneously non-null and
+        numeric for essentially all records, because they are combined in correlation,
+        regression, and per-row scoring without per-row null handling. This can be
+        enforced with a Deequ compliance like: .satisfies("Sleep Duration IS NOT NULL
+        AND Quality of Sleep IS NOT NULL", "pairwise_non_null", p => p >= 0.99).'
+      sources:
+      - start_line: 35
+        end_line: 39
+        file: ''
+      - start_line: 69
+        end_line: 74
+        file: ''
+      - start_line: 76
+        end_line: 81
+        file: ''
+      - start_line: 104
+        end_line: 108
+        file: ''
+      - start_line: 111
+        end_line: 113
+        file: ''
+      uid: aad73861-dcb7-4762-9f6b-9539b79ba170
+    - text: 'The Pearson correlation between Sleep Duration and Quality of Sleep is
+        expected to be non-negative and defined (not NaN), so that the duration contributes
+        positively to the sleep_component weight. Representable as a Deequ correlation
+        constraint: .hasCorrelation("Sleep Duration", "Quality of Sleep", Some(0.0),
+        Some(1.0)).'
+      sources:
+      - start_line: 69
+        end_line: 71
+        file: ''
+      - start_line: 106
+        end_line: 108
+        file: ''
+      - start_line: 187
+        end_line: 189
+        file: ''
+      uid: 80a801ab-5811-4c8e-9238-44413a0c6831
+    - text: 'Cohort-level quality ordering: mean Quality of Sleep among short sleepers
+        (Sleep Duration < 6.0) should be less than or equal to mean Quality of Sleep
+        among long sleepers (Sleep Duration >= 8.0). This matches the bonus logic
+        and prevents pathological cohorts. This can be implemented as an aggregate
+        comparison (e.g., via a custom Deequ metric or SQL-based check): AVG(Quality
+        of Sleep) FILTER (WHERE Sleep Duration < 6.0) <= AVG(Quality of Sleep) FILTER
+        (WHERE Sleep Duration >= 8.0).'
+      sources:
+      - start_line: 71
+        end_line: 74
+        file: ''
+      - start_line: 111
+        end_line: 113
+        file: ''
+      uid: d108f6ad-1e1b-4f9e-9fb9-82798fad4663
+    - text: 'Adequate support for both duration segments used in bonuses: there should
+        be at least 10 records with non-null Quality of Sleep in each of the Sleep
+        Duration segments (< 6.0 and >= 8.0). In Deequ: check.where("Sleep Duration
+        < 6.0 AND Quality of Sleep IS NOT NULL").hasSize(_ >= 10) and check.where("Sleep
+        Duration >= 8.0 AND Quality of Sleep IS NOT NULL").hasSize(_ >= 10).'
+      sources:
+      - start_line: 71
+        end_line: 74
+        file: ''
+      - start_line: 111
+        end_line: 112
+        file: ''
+      uid: 30695e32-ffff-404f-82fc-408fb735a093
+    - text: 'Identifiability for the linear predictor: among rows with both fields
+        present, Sleep Duration must have non-zero variance (at least two distinct
+        values) so that the quality-on-duration regression is well-defined. In Deequ:
+        check.where("Quality of Sleep IS NOT NULL").hasNumberOfDistinctValues("Sleep
+        Duration", _ >= 2).'
+      sources:
+      - start_line: 69
+        end_line: 71
+        file: ''
+      - start_line: 76
+        end_line: 81
+        file: ''
+      uid: ea06ece4-1f6c-4444-98a2-cba951ed2f3f
+column_data_flow_locations:
+  '["Daily Steps","Physical Activity Level"]':
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 84
+    end_line: 102
+    file: ''
+  - start_line: 115
+    end_line: 118
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 148
+    end_line: 161
+    file: ''
+  - start_line: 163
+    end_line: 179
+    file: ''
+  - start_line: 181
+    end_line: 184
+    file: ''
+  - start_line: 185
+    end_line: 206
+    file: ''
+  - start_line: 207
+    end_line: 208
+    file: ''
+  '["Quality of Sleep","Sleep Duration"]':
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 69
+    end_line: 74
+    file: ''
+  - start_line: 76
+    end_line: 81
+    file: ''
+  - start_line: 104
+    end_line: 108
+    file: ''
+  - start_line: 111
+    end_line: 113
+    file: ''
+  - start_line: 143
+    end_line: 144
+    file: ''
+  - start_line: 148
+    end_line: 152
+    file: ''
+  - start_line: 153
+    end_line: 160
+    file: ''
+  - start_line: 165
+    end_line: 166
+    file: ''
+  - start_line: 174
+    end_line: 174
+    file: ''
+  - start_line: 176
+    end_line: 177
+    file: ''
+  - start_line: 187
+    end_line: 189
+    file: ''
+  '["Quality of Sleep","Sleep Disorder","Sleep Duration"]':
+  - start_line: 32
+    end_line: 39
+    file: ''
+  - start_line: 55
+    end_line: 66
+    file: ''
+  - start_line: 69
+    end_line: 81
+    file: ''
+  - start_line: 104
+    end_line: 113
+    file: ''
+  - start_line: 137
+    end_line: 144
+    file: ''
+  - start_line: 146
+    end_line: 161
+    file: ''
+  - start_line: 163
+    end_line: 179
+    file: ''
+  - start_line: 185
+    end_line: 208
+    file: ''
+  '["Blood Pressure","Quality of Sleep","Sleep Duration"]':
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 42
+    end_line: 45
+    file: ''
+  - start_line: 47
+    end_line: 48
+    file: ''
+  - start_line: 69
+    end_line: 74
+    file: ''
+  - start_line: 76
+    end_line: 81
+    file: ''
+  - start_line: 104
+    end_line: 113
+    file: ''
+  - start_line: 127
+    end_line: 135
+    file: ''
+  - start_line: 141
+    end_line: 144
+    file: ''
+  - start_line: 147
+    end_line: 151
+    file: ''
+  - start_line: 153
+    end_line: 160
+    file: ''
+  - start_line: 163
+    end_line: 173
+    file: ''
+  - start_line: 186
+    end_line: 190
+    file: ''
+  '["Blood Pressure","Daily Steps","Physical Activity Level"]':
+  - start_line: 9
+    end_line: 22
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 42
+    end_line: 48
+    file: ''
+  - start_line: 84
+    end_line: 101
+    file: ''
+  - start_line: 115
+    end_line: 118
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 141
+    end_line: 141
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 147
+    end_line: 160
+    file: ''
+  - start_line: 163
+    end_line: 179
+    file: ''
+  - start_line: 181
+    end_line: 183
+    file: ''
+  - start_line: 185
+    end_line: 208
+    file: ''
+  '["Blood Pressure","Heart Rate"]':
+  - start_line: 9
+    end_line: 22
+    file: ''
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 42
+    end_line: 45
+    file: ''
+  - start_line: 47
+    end_line: 48
+    file: ''
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 121
+    end_line: 125
+    file: ''
+  - start_line: 127
+    end_line: 134
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 141
+    end_line: 141
+    file: ''
+  - start_line: 143
+    end_line: 144
+    file: ''
+  - start_line: 147
+    end_line: 152
+    file: ''
+  - start_line: 153
+    end_line: 160
+    file: ''
+  - start_line: 163
+    end_line: 179
+    file: ''
+  - start_line: 203
+    end_line: 205
+    file: ''
+  Sleep Duration:
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 37
+    end_line: 39
+    file: ''
+  - start_line: 69
+    end_line: 72
+    file: ''
+  - start_line: 76
+    end_line: 76
+    file: ''
+  - start_line: 81
+    end_line: 81
+    file: ''
+  - start_line: 105
+    end_line: 105
+    file: ''
+  - start_line: 165
+    end_line: 165
+    file: ''
+  Quality of Sleep:
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 39
+    end_line: 39
+    file: ''
+  - start_line: 69
+    end_line: 70
+    file: ''
+  - start_line: 73
+    end_line: 74
+    file: ''
+  - start_line: 77
+    end_line: 77
+    file: ''
+  - start_line: 104
+    end_line: 104
+    file: ''
+  - start_line: 111
+    end_line: 112
+    file: ''
+  - start_line: 166
+    end_line: 166
+    file: ''
+  Physical Activity Level:
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 84
+    end_line: 94
+    file: ''
+  - start_line: 95
+    end_line: 102
+    file: ''
+  - start_line: 115
+    end_line: 119
+    file: ''
+  - start_line: 143
+    end_line: 145
+    file: ''
+  - start_line: 148
+    end_line: 161
+    file: ''
+  - start_line: 163
+    end_line: 184
+    file: ''
+  - start_line: 185
+    end_line: 208
+    file: ''
+  Stress Level:
+  - start_line: 35
+    end_line: 35
+    file: ''
+  - start_line: 38
+    end_line: 39
+    file: ''
+  Heart Rate:
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 51
+    end_line: 52
+    file: ''
+  - start_line: 121
+    end_line: 125
+    file: ''
+  - start_line: 147
+    end_line: 147
+    file: ''
+  - start_line: 169
+    end_line: 169
+    file: ''
+  Daily Steps:
+  - start_line: 35
+    end_line: 39
+    file: ''
+  - start_line: 84
+    end_line: 85
+    file: ''
+  - start_line: 90
+    end_line: 91
+    file: ''
+  - start_line: 93
+    end_line: 93
+    file: ''
+  - start_line: 96
+    end_line: 96
+    file: ''
+  - start_line: 98
+    end_line: 101
+    file: ''
+  - start_line: 115
+    end_line: 118
+    file: ''
+  - start_line: 143
+    end_line: 144
+    file: ''
+  - start_line: 150
+    end_line: 150
+    file: ''
+  - start_line: 155
+    end_line: 156
+    file: ''
+  - start_line: 160
+    end_line: 160
+    file: ''
+  - start_line: 167
+    end_line: 167
+    file: ''
+  - start_line: 175
+    end_line: 177
+    file: ''
+  - start_line: 183
+    end_line: 183
+    file: ''
+  - start_line: 191
+    end_line: 197
+    file: ''
+  - start_line: 208
+    end_line: 208
+    file: ''
+  Blood Pressure:
+  - start_line: 42
+    end_line: 45
+    file: ''
+  - start_line: 47
+    end_line: 48
+    file: ''
+  - start_line: 135
+    end_line: 135
+    file: ''
+  - start_line: 147
+    end_line: 147
+    file: ''
+  - start_line: 150
+    end_line: 150
+    file: ''
+  - start_line: 157
+    end_line: 157
+    file: ''
+  - start_line: 170
+    end_line: 173
+    file: ''
+  Sleep Disorder:
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 55
+    end_line: 55
+    file: ''
+  - start_line: 137
+    end_line: 138
+    file: ''
+  - start_line: 151
+    end_line: 151
+    file: ''
+  - start_line: 178
+    end_line: 178
+    file: ''
+  Person ID:
+  - start_line: 32
+    end_line: 32
+    file: ''
+  - start_line: 164
+    end_line: 164
+    file: ''
+fixing_results: {}
+consolidation_results:
+  Physical Activity Level:
+  - idx_to_remove: e1a35253-5465-45ef-bf9c-67e321338d69
+    redundant_with:
+    - f3cc1f15-094e-4624-9118-cbf69be51831
+  Sleep Duration:
+  - idx_to_remove: 86ce0d80-27bf-4101-8e74-822758f7bc2a
+    redundant_with:
+    - e3024c31-443e-4e81-955a-c183d52bd45f
+    - 9b08c457-0ef2-4563-b58a-a4f1bbb2e049
+  Stress Level:
+  - idx_to_remove: 883ec705-89e0-44b9-89ad-7d3341cb8c69
+    redundant_with:
+    - b3909449-f39e-471f-a3bb-a862d94b696a
+cost_summary:
+  column_access_detection:
+    cost: 0.015192500000000001
+    total_tokens: 6540
+    prompt_tokens: 5738
+    completion_tokens: 802
+  data_flow_inspection:
+    cost: 0.4727775
+    total_tokens: 82141
+    prompt_tokens: 35894
+    completion_tokens: 46247
+  column_correlation_discovery:
+    cost: 0.0550775
+    total_tokens: 9027
+    prompt_tokens: 4022
+    completion_tokens: 5005
+  multi_column_data_flow_inspection:
+    cost: 0.32172100000000003
+    total_tokens: 54750
+    prompt_tokens: 25540
+    completion_tokens: 29210
+  multi_column_assumption_generation:
+    cost: 0.42433250000000006
+    total_tokens: 67334
+    prompt_tokens: 28458
+    completion_tokens: 38876
+  multi_column_code_generation:
+    cost: 0.35162625
+    total_tokens: 69455
+    prompt_tokens: 37957
+    completion_tokens: 31498
+  single_column_assumption_generation:
+    cost: 0.53639375
+    total_tokens: 93773
+    prompt_tokens: 45867
+    completion_tokens: 47906
+  single_column_code_generation:
+    cost: 0.47329675
+    total_tokens: 112615
+    prompt_tokens: 71847
+    completion_tokens: 40768
+  consolidate_constraints:
+    cost: 0.15124500000000002
+    total_tokens: 24207
+    prompt_tokens: 10380
+    completion_tokens: 13827
