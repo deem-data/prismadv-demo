@@ -2,6 +2,8 @@
 
 PrismaDV is a compound AI system that generates task-aware data unit tests from **downstream task code** and the **data**. Given a script and a dataset, it detects accessed columns, performs data flow detection, extracts per-column assumptions, and produces executable data unit tests.
 
+[![Watch the demo](https://img.shields.io/badge/%E2%96%B6%20Watch-Demo%20Video-4285F4?style=for-the-badge&logo=googledrive&logoColor=white)](https://drive.google.com/file/d/1M-5olUeKU1iJGfrfvNVphypXSEyRvr_S/view)
+
 ![PrismaDV system overview](assets/system_overview.png)
 
 ## Prerequisites
